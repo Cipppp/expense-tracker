@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Warm, professional palette — inspired by tweakcn neutral presets,
+       tuned for financial dashboards: legible, calm, occasional accent.   */
+    --background: 36 33% 97%;          /* warm off-white */
+    --foreground: 20 14% 12%;          /* near-black, warm */
+
+    --card: 0 0% 100%;
+    --card-foreground: 20 14% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14% 12%;
+
+    --primary: 20 14% 16%;             /* warm graphite */
+    --primary-foreground: 36 33% 98%;
+
+    --secondary: 32 18% 94%;
+    --secondary-foreground: 20 14% 16%;
+
+    --muted: 30 12% 93%;
+    --muted-foreground: 24 6% 42%;
+
+    --accent: 18 65% 48%;              /* refined terracotta */
+    --accent-foreground: 36 33% 98%;
+
+    --destructive: 0 70% 48%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 50% 38%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 35 90% 50%;
+    --warning-foreground: 20 14% 12%;
+
+    --border: 28 14% 88%;
+    --input: 28 14% 88%;
+    --ring: 18 65% 48%;
+
+    --chart-1: 18 65% 48%;             /* terracotta */
+    --chart-2: 152 35% 42%;            /* sage */
+    --chart-3: 220 30% 45%;            /* dusty blue */
+    --chart-4: 35 75% 55%;             /* amber */
+    --chart-5: 280 25% 50%;            /* muted plum */
+
+    --radius: 0.625rem;
+  }
+
+  .dark {
+    --background: 20 14% 8%;
+    --foreground: 36 20% 92%;
+
+    --card: 20 14% 11%;
+    --card-foreground: 36 20% 92%;
+
+    --popover: 20 14% 11%;
+    --popover-foreground: 36 20% 92%;
+
+    --primary: 36 20% 92%;
+    --primary-foreground: 20 14% 11%;
+
+    --secondary: 20 12% 16%;
+    --secondary-foreground: 36 20% 92%;
+
+    --muted: 20 12% 16%;
+    --muted-foreground: 28 10% 65%;
+
+    --accent: 18 70% 55%;
+    --accent-foreground: 20 14% 8%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 50% 50%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 35 90% 60%;
+    --warning-foreground: 20 14% 12%;
+
+    --border: 20 12% 20%;
+    --input: 20 12% 20%;
+    --ring: 18 70% 55%;
+
+    --chart-1: 18 70% 58%;
+    --chart-2: 152 40% 55%;
+    --chart-3: 220 40% 65%;
+    --chart-4: 35 80% 65%;
+    --chart-5: 280 35% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+  }
+  ::selection {
+    background: hsl(var(--accent) / 0.25);
+  }
+}
+
+@layer utilities {
+  .num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+}

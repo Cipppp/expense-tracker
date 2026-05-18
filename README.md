@@ -1,70 +1,163 @@
-# Getting Started with Create React App
+# Expense Tracker
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A personal expense tracker for a Romanian micro-enterprise. Replaces the Google
+Sheets + Apps Script setup with a typed, deployable web app.
 
-## Available Scripts
+- **Stack**: Next.js 15 (App Router) · TypeScript · Tailwind · shadcn/ui ·
+  Prisma · SQLite (dev) / Postgres (prod) · Recharts · iron-session
+- **Domain logic**: Romanian micro-enterprise tax math (BS+BAS, CAM, impozit
+  micro, dividende), RON↔USD conversion, Revolut CSV import with twin-safe
+  dedup, keyword-based category tagging.
+- **Auth**: single-user password gate via iron-session cookies.
 
-In the project directory, you can run:
+## Quick start
 
-### `npm start`
+```bash
+npm install
+npm run db:push     # create / migrate schema
+npm run db:seed     # default tax config + default category rules
+npm run dev         # http://localhost:3000
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+# Default password (set in .env): cefani
+```
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+Then drop one or more Revolut CSVs onto the **Import** page.
 
-### `npm test`
+## Project layout
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```
+src/
+  app/
+    (authed)/             ← protected pages (Dashboard, Expenses, Income, Import, Settings)
+    api/                  ← route handlers: import, income, settings, auth
+    login/                ← unauthenticated login page
+  components/
+    ui/                   ← shadcn/ui primitives
+    dashboard/            ← summary cards, monthly chart, top merchants, tax breakdown
+    expenses/             ← month filter
+    income/               ← income form (hourly / lump-sum)
+    settings/             ← tax & FX form
+    import/               ← drag-and-drop dropzone
+    app-shell.tsx         ← sidebar + mobile nav
+  lib/
+    db.ts                 ← Prisma client (singleton)
+    csv.ts                ← Revolut CSV parser
+    import.ts             ← three-pass dedup + categorize + write
+    categorizer.ts        ← keyword → category rules
+    tax.ts                ← BS+BAS / CAM / micro / dividende math
+    format.ts             ← money + date formatters (RON in bani, USD in cents)
+    queries.ts            ← server-only data access (RSC)
+    session.ts            ← iron-session config
+  middleware.ts           ← redirect unauthed requests to /login
+prisma/
+  schema.prisma           ← Expense, Income, Job, Settings, ImportBatch, CategoryRule
+  seed.ts                 ← initial settings + category rules
+```
 
-### `npm run build`
+## Money representation
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+All money is stored as **integers in minor units** — RON bani (1/100 RON), USD
+cents — to avoid floating-point drift. Conversion happens at display time via
+`fmtRon` / `fmtUsd` in `src/lib/format.ts`.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Dedup (Revolut imports)
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Three passes in `src/lib/import.ts`:
 
-### `npm run eject`
+1. **Within-CSV exact duplicates** — keyed on `sortKey|desc|amount`. Skipped.
+2. **Twin transactions** (e.g. two Wolt orders one minute apart) — preserved by
+   their distinct `sortKey`.
+3. **Cross-import duplicates** — count-based: for each
+   `day|description|amount`, only insert when batch count exceeds existing DB
+   count. The same statement re-uploaded results in 0 inserts.
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+## Deploying to Vercel
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+The dev setup uses SQLite at `prisma/dev.db`. Vercel's filesystem is ephemeral
+so production needs a real Postgres. Free options: **Neon**, **Supabase**,
+**Vercel Postgres**.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+### 1. Provision Postgres
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+Create a free Neon project → copy the `DATABASE_URL` (it looks like
+`postgresql://user:pass@host/db?sslmode=require`).
 
-## Learn More
+### 2. Switch Prisma provider
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```diff
+// prisma/schema.prisma
+ datasource db {
+-  provider = "sqlite"
++  provider = "postgresql"
+   url      = env("DATABASE_URL")
+ }
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### 3. Push schema + seed
 
-### Code Splitting
+```bash
+DATABASE_URL="postgresql://…" npx prisma db push
+DATABASE_URL="postgresql://…" npm run db:seed
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### 4. Push to GitHub
 
-### Analyzing the Bundle Size
+```bash
+git add .
+git commit -m "init expense tracker app"
+git push
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+### 5. Import to Vercel
 
-### Making a Progressive Web App
+- New Project → Import the GitHub repo
+- Framework preset: **Next.js** (auto-detected)
+- Env vars:
+  - `DATABASE_URL` — your Neon/Supabase Postgres URL
+  - `SESSION_SECRET` — a 32+ character random string
+    (`openssl rand -hex 32`)
+  - `ACCESS_PASSWORD` — your chosen access password
+- Deploy.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+That's it. The first build runs `prisma generate` then `next build`.
 
-### Advanced Configuration
+### Security notes for production
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+- `ACCESS_PASSWORD` is a single-user gate. Use a long, random value.
+- `SESSION_SECRET` signs the auth cookie — rotate it to force re-login.
+- Cookies are `secure` + `httpOnly` + `sameSite=lax` in production.
+- All API routes pass through `middleware.ts`, which redirects unauthed
+  requests to `/login`.
+- For stronger auth (magic link, OAuth), swap iron-session for NextAuth.js.
 
-### Deployment
+## Differences vs the Apps Script setup
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+| Old (Sheets + Apps Script)                 | New (Next.js + DB)                              |
+|--------------------------------------------|-------------------------------------------------|
+| Auto-import every 1 min from Drive folder  | Drag-and-drop in browser (or POST to `/api/import` from a CRON) |
+| Monthly tabs (Apr 2026, May 2026, …)        | One `expenses` table, filtered by month in UI   |
+| `forceReimportAprMay` to wipe + reload     | Re-import is idempotent — same CSV → 0 inserts  |
+| Conditional formatting for >50 RON/day     | Per-row red highlight when daily total > threshold (configurable) |
+| TOP 5 via QUERY formula                    | SQL `GROUP BY merchant` in `getTopMerchants`   |
+| Tax math in Dashboard L9:U20 formulas      | `src/lib/tax.ts` (pure TS, unit-testable)      |
+| Romanian comments in Code.gs               | English comments + Romanian labels in UI       |
 
-### `npm run build` fails to minify
+## Importing the Google Drive auto-pipeline (optional)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+If you want to keep auto-import from your existing Drive folder, change the
+Apps Script trigger to POST the CSV body to `https://your-app.vercel.app/api/import`:
+
+```javascript
+// in Code.gs
+function postToVercel(filename, text) {
+  const blob = Utilities.newBlob(text, "text/csv", filename);
+  UrlFetchApp.fetch("https://your-app.vercel.app/api/import", {
+    method: "post",
+    payload: { file: blob },
+    headers: { "Cookie": `et_session=${PROPS.getProperty("ET_SESSION")}` },
+  });
+}
+```
+
+(You'd need to either disable middleware for `/api/import` with an API key, or
+log in once from Apps Script and cache the cookie.)

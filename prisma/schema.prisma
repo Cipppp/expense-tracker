@@ -1,0 +1,100 @@
+// Prisma schema for the Expense Tracker.
+//
+// Production uses Postgres (Vercel Postgres / Neon / Supabase). For local dev,
+// either point DATABASE_URL at a local Postgres (e.g. docker run -p 5432:5432
+// -e POSTGRES_PASSWORD=local postgres:16) or use the production DB directly.
+//
+// Money is stored in *minor units* — RON bani (1/100 RON), USD cents.
+// All amounts are integers to avoid floating-point drift. UI converts on display.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  // Date the transaction occurred (Started Date in Revolut, normalized to local day).
+  date        DateTime
+  description String
+  category    String   @default("Other")
+  amountRon   Int      // in bani (minor units), positive number for an expense
+  amountUsd  Int      // in cents
+  fxRate      Float    // RON→USD rate used for this row
+  merchant    String   // canonical merchant key (e.g. "wolt", "lidl")
+  source      String   @default("manual") // "revolut" | "manual" | "import"
+  // Composite signature used for cross-import dedup: `YYYY-MM-DD|desc|amount`.
+  dedupKey    String
+  // Per-CSV sortKey from Revolut (Started Date timestamp). Helps with twin detection.
+  sortKey     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([date])
+  @@index([category])
+  @@index([dedupKey])
+  @@index([merchant])
+}
+
+model Income {
+  id          String   @id @default(cuid())
+  date        DateTime
+  description String
+  source      String   // job name / client / "Project"
+  hours       Float?   // null for lump-sum project payments
+  hourlyRate  Float?   // USD/hour at time of entry
+  amountUsd   Int      // in cents — derived for hourly, manual for projects
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([date])
+  @@index([source])
+}
+
+model Job {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  rateUsd   Float    // USD per hour
+  color     String   @default("#c65c2a")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+// Single-row settings table.
+model Settings {
+  id              Int    @id @default(1)
+  fxRonToUsd      Float  @default(0.2255)
+  // Romanian micro-enterprise tax inputs.
+  bsBasRon        Int    @default(141500) // 1415.00 RON in bani
+  camRon          Int    @default(8400)   //   84.00 RON in bani
+  microPct        Float  @default(0.01)   // 1% impozit micro
+  dividendePct    Float  @default(0.16)   // 16% impozit dividende
+  redThresholdRon Int    @default(5000)   // 50 RON/day in bani → row turns red
+  // Lower-bound month (defaults to Apr 2026 — start date in the Excel).
+  startYear       Int    @default(2026)
+  startMonth      Int    @default(4)
+  updatedAt       DateTime @updatedAt @default(now())
+}
+
+// Tracks Revolut CSVs that have already been processed (filename + line hash).
+model ImportBatch {
+  id          String   @id @default(cuid())
+  filename    String
+  rowsRead    Int
+  rowsInsert  Int
+  rowsSkipped Int
+  createdAt   DateTime @default(now())
+}
+
+// Auto-categorization rules: substring → category.
+model CategoryRule {
+  id        String @id @default(cuid())
+  keyword   String @unique          // lowercase substring matched against description
+  category  String
+  priority  Int    @default(100)    // lower = higher priority
+}
