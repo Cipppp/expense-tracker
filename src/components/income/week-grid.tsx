@@ -58,53 +58,39 @@ function minFromY(y: number): number {
   return Math.max(START_HOUR * 60, START_HOUR * 60 + (y / ROW_PX) * 60);
 }
 
-type LaidOutEntry = WeekEntry & { col: number; cols: number };
+type LaidOutEntry = WeekEntry & { stackIndex: number };
 
+/**
+ * Overlapping entries stack on top of each other (cards-fanned-out style):
+ *   - Each entry is full-width minus a left offset based on its stack index.
+ *   - Translucent fills let colors blend in overlap zones.
+ *   - z-index follows stack order; hover brings to front.
+ *
+ * stackIndex = number of earlier entries that overlap this one in time.
+ */
 function layoutDay(entries: WeekEntry[]): LaidOutEntry[] {
-  // Sort by start, then by length desc to fill bigger blocks first.
   const sorted = [...entries].sort((a, b) => {
     const sa = a.startMinutes ?? 0;
     const sb = b.startMinutes ?? 0;
     if (sa !== sb) return sa - sb;
+    // tie-break by length asc so shorter entries land on top
     const la = (a.endMinutes ?? 0) - (a.startMinutes ?? 0);
     const lb = (b.endMinutes ?? 0) - (b.startMinutes ?? 0);
-    return lb - la;
+    return la - lb;
   });
 
-  // Pack each entry into the first column where it fits without overlap.
-  const columns: WeekEntry[][] = [];
-  const colOf = new Map<string, number>();
-  for (const e of sorted) {
-    const s = e.startMinutes ?? 0;
-    const en = e.endMinutes ?? 0;
-    let placed = false;
-    for (let c = 0; c < columns.length; c++) {
-      const last = columns[c][columns[c].length - 1];
-      const ls = last.startMinutes ?? 0;
-      const le = last.endMinutes ?? 0;
-      // No overlap with the latest item in this column → place here.
-      if (s >= le || en <= ls) {
-        columns[c].push(e);
-        colOf.set(e.id, c);
-        placed = true;
-        break;
-      }
+  return sorted.map((e, i) => {
+    const eStart = e.startMinutes ?? 0;
+    const eEnd = e.endMinutes ?? 0;
+    let overlaps = 0;
+    for (let j = 0; j < i; j++) {
+      const o = sorted[j];
+      const oStart = o.startMinutes ?? 0;
+      const oEnd = o.endMinutes ?? 0;
+      if (eStart < oEnd && eEnd > oStart) overlaps++;
     }
-    if (!placed) {
-      columns.push([e]);
-      colOf.set(e.id, columns.length - 1);
-    }
-  }
-
-  // Compute, for each entry, the maximum group width it belongs to.
-  // (Same group = overlaps transitively.) Simpler approximation: total columns
-  // count is the group width for everyone if any of them overlap.
-  const totalCols = Math.max(1, columns.length);
-  return sorted.map((e) => ({
-    ...e,
-    col: colOf.get(e.id) ?? 0,
-    cols: totalCols,
-  }));
+    return { ...e, stackIndex: overlaps };
+  });
 }
 
 export function WeekGrid({
@@ -490,11 +476,13 @@ function DayColumn({
         />
       ))}
 
-      {/* Existing entries */}
+      {/* Existing entries — stacked with translucent fills so colors blend */}
       {entries.map((e) => {
         const top = topFromMin(e.startMinutes ?? 0);
         const height = topFromMin(e.endMinutes ?? 0) - top;
-        const widthPct = 100 / e.cols;
+        // Each layer in a stack offsets right + shrinks slightly so the
+        // edges of lower layers peek out on the left.
+        const offset = e.stackIndex * 10;
         return (
           <button
             key={e.id}
@@ -504,14 +492,15 @@ function DayColumn({
               ev.stopPropagation();
               onEditEntry(e);
             }}
-            className="absolute rounded-md text-left px-2 py-1 overflow-hidden border transition-all duration-150 ease-expo hover:shadow-sm hover:z-10"
+            className="group/entry absolute rounded-md text-left px-2 py-1 overflow-hidden border-2 transition-all duration-150 ease-expo hover:shadow-md hover:!z-50 hover:scale-[1.01] backdrop-blur-[1px]"
             style={{
               top: top + 1,
               height: Math.max(18, height - 2),
-              left: `calc(${e.col * widthPct}% + 2px)`,
-              width: `calc(${widthPct}% - 4px)`,
-              backgroundColor: `${e.jobColor}26`,
-              borderColor: `${e.jobColor}66`,
+              left: `${4 + offset}px`,
+              right: `4px`,
+              zIndex: 10 + e.stackIndex,
+              backgroundColor: `${e.jobColor}40`,  // 25% opacity
+              borderColor: `${e.jobColor}80`,      // 50% opacity
               color: e.jobColor,
             }}
           >

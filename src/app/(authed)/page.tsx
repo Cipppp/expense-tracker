@@ -26,10 +26,20 @@ export default async function DashboardPage() {
     getTopMerchants(year, month, 5),
   ]);
 
-  // Count active months for tax math (from start month → now).
+  // Count active months for tax math (from start month → now) + label.
   const startMonth =
     year === settings.startYear ? settings.startMonth : 1;
   const months = Math.max(1, month - startMonth + 1);
+  const monthNames: string[] = [];
+  for (let m = startMonth; m <= month; m++) {
+    monthNames.push(new Date(year, m - 1, 1).toLocaleDateString("en-US", { month: "long" }));
+  }
+  const monthsLabel =
+    monthNames.length === 1
+      ? `${monthNames[0]} ${year}`
+      : monthNames.length === 2
+        ? `${monthNames[0]} + ${monthNames[1]} ${year}`
+        : `${monthNames[0]} – ${monthNames[monthNames.length - 1]} ${year}`;
 
   return (
     <div className="space-y-8">
@@ -113,6 +123,7 @@ export default async function DashboardPage() {
               microPct={settings.microPct}
               dividendePct={settings.dividendePct}
               months={months}
+              monthsLabel={monthsLabel}
             />
           </CardContent>
         </Card>

@@ -16,6 +16,7 @@ export function TaxBreakdown({
   microPct,
   dividendePct,
   months,
+  monthsLabel,
 }: {
   earnedUsd: number; // in cents
   fxRonToUsd: number;
@@ -24,6 +25,7 @@ export function TaxBreakdown({
   microPct: number;
   dividendePct: number;
   months: number;
+  monthsLabel: string;
 }) {
   const revenueRon = (earnedUsd / 100) / fxRonToUsd;
   const bsBasMajor = bsBasRon / 100;
@@ -48,24 +50,28 @@ export function TaxBreakdown({
     <div className="space-y-5">
       {/* Required SRL taxes */}
       <div>
-        <div className="flex items-center gap-1.5 mb-3 text-xs uppercase tracking-wider text-muted-foreground">
+        <div className="flex items-center gap-1.5 mb-1 text-xs uppercase tracking-wider text-muted-foreground">
           <Building2 className="h-3 w-3" />
           Required taxes — paid by Project CIP SRL
+        </div>
+        <div className="mb-3 text-[11px] text-muted-foreground">
+          Covering {monthsLabel}
+          {months > 1 ? ` · ${months} months` : " · 1 month"}
         </div>
         <dl className="space-y-2 text-sm">
           <Row
             label="BS + BAS"
-            sub={`${months} mo × ${bsBasMajor.toFixed(0)} RON`}
+            sub={`${bsBasMajor.toFixed(0)} RON / month`}
             value={fmtRon(Math.round(t.bsBasTotal * 100))}
           />
           <Row
             label="CAM"
-            sub={`${months} mo × ${camMajor.toFixed(0)} RON`}
+            sub={`${camMajor.toFixed(0)} RON / month`}
             value={fmtRon(Math.round(t.camTotal * 100))}
           />
           <Row
             label="Impozit micro"
-            sub={`${(microPct * 100).toFixed(1)}% × revenue`}
+            sub={`${(microPct * 100).toFixed(1)}% × ${revenueRon.toLocaleString("ro-RO", { maximumFractionDigits: 0 })} RON revenue`}
             value={fmtRon(Math.round(t.impozitMicro * 100))}
           />
         </dl>
