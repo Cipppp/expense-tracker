@@ -97,9 +97,10 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Year-to-date tax estimate</CardTitle>
+            <CardTitle>Tax & dividends calculator</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Romanian micro-enterprise: BS+BAS, CAM, impozit micro, dividende.
+              Required taxes paid by the SRL, plus a what-if calculator for
+              extracting dividends to your personal account.
             </p>
           </CardHeader>
           <Separator />

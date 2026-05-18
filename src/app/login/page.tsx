@@ -80,7 +80,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <div className="font-display text-3xl tracking-tight">expense tracker</div>
           <div className="mt-2 text-xs text-muted-foreground uppercase tracking-[0.15em]">
-            CEFANI SRL
+            Project CIP SRL
           </div>
         </div>
         <Card>

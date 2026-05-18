@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fmtUsd, localISODate, weekDates } from "@/lib/format";
-import { WeekView, type WeekEntry } from "@/components/income/week-view";
+import { WeekGrid, type WeekEntry } from "@/components/income/week-grid";
 import { LumpSumForm } from "@/components/income/lump-sum-form";
 import { LumpSumList } from "@/components/income/lump-sum-list";
 
@@ -82,7 +82,7 @@ export default async function IncomePage(props: {
           <TabsTrigger value="projects">Projects / lump-sum</TabsTrigger>
         </TabsList>
         <TabsContent value="hours" className="space-y-6">
-          <WeekView
+          <WeekGrid
             anchorIso={localISODate(anchor)}
             entries={weekEntries}
             jobs={activeJobs.map((j) => ({

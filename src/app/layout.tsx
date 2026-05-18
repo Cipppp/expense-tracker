@@ -23,7 +23,7 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Expense Tracker — CEFANI",
+  title: "Expense Tracker — Project CIP SRL",
   description:
     "Personal expense tracker with Romanian micro-enterprise tax math.",
 };

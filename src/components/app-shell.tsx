@@ -33,7 +33,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               expense tracker
             </div>
             <div className="mt-1 text-xs text-muted-foreground uppercase tracking-[0.15em]">
-              CEFANI SRL
+              Project CIP SRL
             </div>
           </Link>
         </div>
