@@ -41,18 +41,26 @@ model Expense {
 }
 
 model Income {
-  id          String   @id @default(cuid())
-  date        DateTime
-  description String
-  source      String   // job name / client / "Project"
-  hours       Float?   // null for lump-sum project payments
-  hourlyRate  Float?   // USD/hour at time of entry
-  amountUsd   Int      // in cents — derived for hourly, manual for projects
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  date         DateTime
+  description  String
+  // Either jobId (preferred) or `source` for back-compat with old rows.
+  jobId        String?
+  job          Job?     @relation(fields: [jobId], references: [id])
+  source       String
+  // 15-min-step time range, in MINUTES from midnight (0–1440). Null for
+  // lump-sum / project payments where the time of day doesn't matter.
+  startMinutes Int?
+  endMinutes   Int?
+  hours        Float?
+  hourlyRate   Float?
+  amountUsd    Int      // in cents — derived for hourly, manual for projects
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([date])
+  @@index([jobId])
   @@index([source])
 }
 
@@ -63,6 +71,8 @@ model Job {
   color     String   @default("#c65c2a")
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
+
+  entries   Income[]
 }
 
 // Single-row settings table.

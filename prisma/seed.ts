@@ -20,11 +20,18 @@ async function main() {
     },
   });
 
-  await db.job.upsert({
-    where: { name: "Main client" },
-    update: {},
-    create: { name: "Main client", rateUsd: 30, color: "#c65c2a" },
-  });
+  const starterClients = [
+    { name: "Main client", rateUsd: 30, color: "#c65c2a" }, // terracotta
+    { name: "Side project", rateUsd: 40, color: "#2f7a5c" }, // sage
+    { name: "Internal", rateUsd: 25, color: "#456d99" }, // dusty blue
+  ];
+  for (const c of starterClients) {
+    await db.job.upsert({
+      where: { name: c.name },
+      update: {},
+      create: c,
+    });
+  }
 
   for (const r of DEFAULT_RULES) {
     await db.categoryRule.upsert({

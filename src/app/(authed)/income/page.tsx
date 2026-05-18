@@ -1,110 +1,130 @@
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { fmtDate, fmtUsd } from "@/lib/format";
-import { IncomeForm } from "@/components/income/income-form";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { fmtUsd, localISODate, weekDates } from "@/lib/format";
+import { WeekView, type WeekEntry } from "@/components/income/week-view";
+import { LumpSumForm } from "@/components/income/lump-sum-form";
+import { LumpSumList } from "@/components/income/lump-sum-list";
 
 export const dynamic = "force-dynamic";
 
-export default async function IncomePage() {
+export default async function IncomePage(props: {
+  searchParams: Promise<{ week?: string }>;
+}) {
+  const params = await props.searchParams;
+  const anchor = params.week
+    ? new Date(`${params.week}T12:00:00`)
+    : new Date();
+  const days = weekDates(anchor);
+  const weekStart = days[0];
+  const weekEnd = new Date(days[6]);
+  weekEnd.setHours(23, 59, 59, 999);
   const year = new Date().getFullYear();
-  const [income, jobs] = await Promise.all([
+
+  const [allJobs, weekRows, ytdIncome, lumpSumRows] = await Promise.all([
+    db.job.findMany({ orderBy: { name: "asc" } }),
+    db.income.findMany({
+      where: {
+        date: { gte: weekStart, lte: weekEnd },
+        jobId: { not: null },
+      },
+      include: { job: true },
+      orderBy: { date: "asc" },
+    }),
     db.income.findMany({
       where: { date: { gte: new Date(year, 0, 1) } },
+    }),
+    db.income.findMany({
+      where: { jobId: null, date: { gte: new Date(year, 0, 1) } },
       orderBy: { date: "desc" },
     }),
-    db.job.findMany({ orderBy: { name: "asc" } }),
   ]);
 
-  const total = income.reduce((a, b) => a + b.amountUsd, 0);
+  const activeJobs = allJobs.filter((j) => j.active);
+  const totalYtd = ytdIncome.reduce((a, b) => a + b.amountUsd, 0);
+
+  const weekEntries: WeekEntry[] = weekRows.map((r) => ({
+    id: r.id,
+    date: localISODate(r.date),
+    jobId: r.jobId,
+    jobName: r.job?.name ?? r.source,
+    jobColor: r.job?.color ?? "#999999",
+    startMinutes: r.startMinutes,
+    endMinutes: r.endMinutes,
+    hours: r.hours ?? 0,
+    amountUsd: r.amountUsd,
+    description: r.description,
+  }));
 
   return (
-    <div className="space-y-8 max-w-5xl">
+    <div className="space-y-8">
       <header className="flex items-end justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
             Income
           </div>
-          <h1 className="mt-1 font-display text-4xl tracking-tight">{year}</h1>
+          <h1 className="mt-1 font-display text-4xl tracking-tight">Time tracker</h1>
         </div>
         <div className="text-right">
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
             Total YTD
           </div>
           <div className="font-display text-2xl tabular-nums text-success">
-            {fmtUsd(total)}
+            {fmtUsd(totalYtd)}
           </div>
         </div>
       </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Log income</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Hourly work or lump-sum project payments — both go here.
-          </p>
-        </CardHeader>
-        <Separator />
-        <CardContent className="pt-6">
-          <IncomeForm jobs={jobs.map((j) => ({ name: j.name, rateUsd: j.rateUsd }))} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Entries</CardTitle>
-        </CardHeader>
-        <Separator />
-        <CardContent className="p-0">
-          {income.length === 0 ? (
-            <div className="px-6 py-16 text-center text-sm text-muted-foreground">
-              No income entries yet.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[110px]">Date</TableHead>
-                  <TableHead>Source / description</TableHead>
-                  <TableHead className="text-right w-[100px]">Hours</TableHead>
-                  <TableHead className="text-right w-[120px]">Rate</TableHead>
-                  <TableHead className="text-right w-[140px]">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {income.map((i) => (
-                  <TableRow key={i.id}>
-                    <TableCell className="text-muted-foreground text-xs num">
-                      {fmtDate(i.date)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-sm">{i.description}</div>
-                      <div className="text-xs text-muted-foreground">{i.source}</div>
-                    </TableCell>
-                    <TableCell className="text-right num text-muted-foreground">
-                      {i.hours ? i.hours.toFixed(1) + "h" : "—"}
-                    </TableCell>
-                    <TableCell className="text-right num text-muted-foreground">
-                      {i.hourlyRate ? `$${i.hourlyRate.toFixed(0)}` : "—"}
-                    </TableCell>
-                    <TableCell className="text-right num text-success font-medium">
-                      {fmtUsd(i.amountUsd)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="hours">
+        <TabsList>
+          <TabsTrigger value="hours">Hours</TabsTrigger>
+          <TabsTrigger value="projects">Projects / lump-sum</TabsTrigger>
+        </TabsList>
+        <TabsContent value="hours" className="space-y-6">
+          <WeekView
+            anchorIso={localISODate(anchor)}
+            entries={weekEntries}
+            jobs={activeJobs.map((j) => ({
+              id: j.id,
+              name: j.name,
+              rateUsd: j.rateUsd,
+              color: j.color,
+            }))}
+          />
+        </TabsContent>
+        <TabsContent value="projects" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">New project payment</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                One-off lump sums (e.g. invoiced fixed-price projects).
+              </p>
+            </CardHeader>
+            <Separator />
+            <CardContent className="pt-6">
+              <LumpSumForm />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">All project payments · {year}</CardTitle>
+            </CardHeader>
+            <Separator />
+            <CardContent className="p-0">
+              <LumpSumList
+                rows={lumpSumRows.map((r) => ({
+                  id: r.id,
+                  date: r.date.toISOString(),
+                  description: r.description,
+                  source: r.source,
+                  amountUsd: r.amountUsd,
+                }))}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

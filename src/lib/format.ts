@@ -62,3 +62,48 @@ export function startOfMonth(year: number, month: number): Date {
 export function endOfMonth(year: number, month: number): Date {
   return new Date(year, month, 0, 23, 59, 59, 999);
 }
+
+/** "09:00" → 540 */
+export function timeToMinutes(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+/** 540 → "09:00" */
+export function minutesToTime(min: number): string {
+  const m = Math.max(0, Math.min(1440, Math.round(min)));
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+/** 2.5 → "2h 30m", 0.25 → "15m", 8 → "8h" */
+export function fmtDuration(hours: number): string {
+  const total = Math.round(hours * 60);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+/** ISO yyyy-mm-dd from a Date, in local time */
+export function localISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Monday-start week. Returns array of 7 dates. */
+export function weekDates(anchor: Date): Date[] {
+  const d = new Date(anchor);
+  d.setHours(12, 0, 0, 0);
+  const day = (d.getDay() + 6) % 7; // 0 = Monday
+  d.setDate(d.getDate() - day);
+  return Array.from({ length: 7 }, (_, i) => {
+    const x = new Date(d);
+    x.setDate(d.getDate() + i);
+    return x;
+  });
+}
