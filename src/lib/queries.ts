@@ -202,6 +202,40 @@ export async function getDailyTotals(year: number, month: number) {
   return out;
 }
 
+/**
+ * Per-day expense summary for the heatmap tooltip — total + top N items.
+ * Limited to non-excluded rows so the heatmap matches the analytics.
+ */
+export async function getDailyExpenseSummary(year: number, month: number) {
+  const expenses = await getMonthExpenses(year, month);
+  const days = new Date(year, month, 0).getDate();
+  type DayCell = {
+    day: number;
+    ron: number;
+    count: number;
+    top: Array<{ description: string; amountRon: number; category: string }>;
+  };
+  const out: DayCell[] = [];
+  for (let d = 1; d <= days; d++)
+    out.push({ day: d, ron: 0, count: 0, top: [] });
+  for (const e of expenses) {
+    if (e.excluded) continue;
+    const d = e.date.getDate();
+    out[d - 1].ron += e.amountRon;
+    out[d - 1].count += 1;
+    out[d - 1].top.push({
+      description: e.description,
+      amountRon: e.amountRon,
+      category: e.category,
+    });
+  }
+  for (const cell of out) {
+    cell.top.sort((a, b) => b.amountRon - a.amountRon);
+    cell.top = cell.top.slice(0, 4);
+  }
+  return out;
+}
+
 /** YTD totals — used in the Dashboard summary cards. Excluded rows skipped. */
 export async function getYtd(year: number) {
   const expenses = await getYearExpenses(year);

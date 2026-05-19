@@ -76,7 +76,7 @@ export function UnifiedMonthlyChart({
   dividendePct: number;
   startMonth: number;
 }) {
-  const [view, setView] = useState<View>("taxes");
+  const [view, setView] = useState<View>("net");
 
   const slice = monthly.slice(startMonth - 1);
   const catSlice = categories.slice(startMonth - 1);
@@ -149,16 +149,16 @@ export function UnifiedMonthlyChart({
   );
 
   return (
-    <div className="flex flex-col gap-4 flex-1 min-h-0">
+    <div className="space-y-4">
       <Tabs value={view} onValueChange={(v) => setView(v as View)}>
         <TabsList>
-          <TabsTrigger value="taxes">Taxes</TabsTrigger>
-          <TabsTrigger value="categories">Spending categories</TabsTrigger>
           <TabsTrigger value="net">Earned vs spent</TabsTrigger>
+          <TabsTrigger value="categories">Spending categories</TabsTrigger>
+          <TabsTrigger value="taxes">Taxes</TabsTrigger>
         </TabsList>
       </Tabs>
 
-      <div className="flex-1 min-h-[300px] w-full">
+      <div className="h-[380px] w-full">
         {view === "taxes" && <TaxesChart key="taxes" data={taxesData} />}
         {view === "categories" && (
           <CategoriesChart key="categories" data={catData} keys={catKeys} colors={catColorMap} />

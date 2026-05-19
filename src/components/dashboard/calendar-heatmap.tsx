@@ -3,10 +3,16 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { fmtRon } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-type DailyTotal = { date: string; ron: number };
+type DailyTotal = {
+  date: string;
+  ron: number;
+  count: number;
+  top: Array<{ description: string; amountRon: number; category: string }>;
+};
 
 export function CalendarHeatmap({
   year: initialYear,
@@ -23,27 +29,29 @@ export function CalendarHeatmap({
   });
 
   const byDay = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const d of daily) m.set(d.date, d.ron);
+    const m = new Map<string, DailyTotal>();
+    for (const d of daily) m.set(d.date, d);
     return m;
   }, [daily]);
 
   const cells = useMemo(() => {
     const first = new Date(year, month - 1, 1);
-    const startWeekday = (first.getDay() + 6) % 7; // 0 = Monday
+    const startWeekday = (first.getDay() + 6) % 7;
     const daysInMonth = new Date(year, month, 0).getDate();
-    const grid: Array<{ day: number | null; iso: string | null; value: number }> = [];
-    for (let i = 0; i < startWeekday; i++) grid.push({ day: null, iso: null, value: 0 });
+    const grid: Array<{ day: number | null; iso: string | null; data: DailyTotal | null }> = [];
+    for (let i = 0; i < startWeekday; i++)
+      grid.push({ day: null, iso: null, data: null });
     for (let d = 1; d <= daysInMonth; d++) {
       const iso = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      grid.push({ day: d, iso, value: byDay.get(iso) ?? 0 });
+      grid.push({ day: d, iso, data: byDay.get(iso) ?? null });
     }
-    while (grid.length % 7 !== 0) grid.push({ day: null, iso: null, value: 0 });
+    while (grid.length % 7 !== 0)
+      grid.push({ day: null, iso: null, data: null });
     return grid;
   }, [year, month, byDay]);
 
   const max = useMemo(
-    () => cells.reduce((m, c) => (c.value > m ? c.value : m), 0),
+    () => cells.reduce((m, c) => (c.data && c.data.ron > m ? c.data.ron : m), 0),
     [cells],
   );
 
@@ -101,21 +109,22 @@ export function CalendarHeatmap({
         ))}
         {cells.map((c, i) => {
           if (!c.day) return <div key={i} className="aspect-square" />;
-          const intensity = max > 0 ? c.value / max : 0;
-          const opacity = c.value > 0 ? 0.1 + intensity * 0.85 : 0;
-          return (
-            <Link
-              key={i}
-              href={`/expenses?year=${year}&month=${month}`}
-              prefetch={false}
+          const ron = c.data?.ron ?? 0;
+          const intensity = max > 0 ? ron / max : 0;
+          const opacity = ron > 0 ? 0.1 + intensity * 0.85 : 0;
+          const trigger = (
+            <button
+              type="button"
               className={cn(
-                "aspect-square rounded-md flex flex-col items-center justify-center text-[10px] relative group/cell transition-all duration-200 ease-expo",
-                c.value > 0 ? "hover:scale-110" : "",
+                "aspect-square rounded-md flex flex-col items-center justify-center text-[10px] relative transition-all duration-200 ease-expo w-full",
+                ron > 0 ? "hover:scale-110 cursor-pointer" : "cursor-default",
               )}
               style={{
-                backgroundColor: c.value > 0 ? `hsl(var(--accent) / ${opacity})` : "hsl(var(--secondary) / 0.4)",
+                backgroundColor:
+                  ron > 0
+                    ? `hsl(var(--accent) / ${opacity})`
+                    : "hsl(var(--secondary) / 0.4)",
               }}
-              title={c.value > 0 ? `${c.day}: ${fmtRon(c.value)}` : `${c.day}: no expenses`}
             >
               <span
                 className={cn(
@@ -125,7 +134,28 @@ export function CalendarHeatmap({
               >
                 {c.day}
               </span>
-            </Link>
+            </button>
+          );
+
+          if (ron === 0) {
+            return (
+              <div key={i} aria-label={`${c.day}: no expenses`}>
+                {trigger}
+              </div>
+            );
+          }
+
+          return (
+            <Popover key={i}>
+              <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+              <PopoverContent
+                className="w-72 p-0 overflow-hidden"
+                align="center"
+                side="top"
+              >
+                <DayDetail data={c.data!} day={c.day!} year={year} month={month} />
+              </PopoverContent>
+            </Popover>
           );
         })}
       </div>
@@ -144,5 +174,63 @@ export function CalendarHeatmap({
         <span>More</span>
       </div>
     </div>
+  );
+}
+
+function DayDetail({
+  data,
+  day,
+  year,
+  month,
+}: {
+  data: DailyTotal;
+  day: number;
+  year: number;
+  month: number;
+}) {
+  const dateLabel = new Date(year, month - 1, day).toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+
+  return (
+    <>
+      <div className="px-4 pt-3 pb-2 border-b border-border bg-secondary/30">
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          {dateLabel}
+        </div>
+        <div className="flex items-baseline justify-between mt-0.5">
+          <span className="font-display text-lg tabular-nums">
+            {fmtRon(data.ron)}
+          </span>
+          <span className="text-[10px] text-muted-foreground">
+            {data.count} {data.count === 1 ? "transaction" : "transactions"}
+          </span>
+        </div>
+      </div>
+      <ul className="divide-y divide-border/60 max-h-[200px] overflow-y-auto">
+        {data.top.map((t, i) => (
+          <li
+            key={i}
+            className="flex items-center justify-between gap-2 px-4 py-2 text-xs"
+          >
+            <div className="min-w-0">
+              <div className="font-medium truncate">{t.description}</div>
+              <div className="text-[10px] text-muted-foreground">{t.category}</div>
+            </div>
+            <span className="tabular-nums font-semibold shrink-0">
+              {fmtRon(t.amountRon)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <Link
+        href={`/expenses?year=${year}&month=${month}&q=${encodeURIComponent("")}`}
+        className="block px-4 py-2 text-[11px] text-accent hover:bg-secondary text-center transition-colors"
+      >
+        View all transactions for the month →
+      </Link>
+    </>
   );
 }

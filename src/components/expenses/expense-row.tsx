@@ -101,9 +101,9 @@ export function ExpenseRow({ row }: { row: ExpenseRowData }) {
       </td>
       <td
         className={cn(
-          "px-4 py-2 text-right tabular-nums whitespace-nowrap",
+          "px-4 py-2 text-right tabular-nums whitespace-nowrap font-semibold",
           optimisticExcluded
-            ? "text-muted-foreground line-through decoration-1"
+            ? "text-muted-foreground line-through decoration-1 font-normal"
             : row.isHotDay
               ? "text-destructive"
               : "",
@@ -113,8 +113,8 @@ export function ExpenseRow({ row }: { row: ExpenseRowData }) {
       </td>
       <td
         className={cn(
-          "px-4 py-2 text-right tabular-nums text-muted-foreground whitespace-nowrap",
-          optimisticExcluded && "line-through decoration-1",
+          "px-4 py-2 text-right tabular-nums text-muted-foreground whitespace-nowrap font-medium",
+          optimisticExcluded && "line-through decoration-1 font-normal",
         )}
       >
         -{fmtUsd(row.amountUsd).replace("-", "")}
