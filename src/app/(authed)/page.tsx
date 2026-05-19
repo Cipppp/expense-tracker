@@ -71,7 +71,7 @@ export default async function DashboardPage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 flex flex-col">
           <CardHeader>
             <CardTitle>Monthly breakdown</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
@@ -80,7 +80,7 @@ export default async function DashboardPage() {
             </p>
           </CardHeader>
           <Separator />
-          <CardContent className="pt-6">
+          <CardContent className="pt-6 flex-1 flex flex-col min-h-0">
             <UnifiedMonthlyChart
               monthly={monthly}
               categories={categories}

@@ -149,7 +149,7 @@ export function UnifiedMonthlyChart({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4 flex-1 min-h-0">
       <Tabs value={view} onValueChange={(v) => setView(v as View)}>
         <TabsList>
           <TabsTrigger value="taxes">Taxes</TabsTrigger>
@@ -158,7 +158,7 @@ export function UnifiedMonthlyChart({
         </TabsList>
       </Tabs>
 
-      <div className="h-[340px] w-full">
+      <div className="flex-1 min-h-[300px] w-full">
         {view === "taxes" && <TaxesChart key="taxes" data={taxesData} />}
         {view === "categories" && (
           <CategoriesChart key="categories" data={catData} keys={catKeys} colors={catColorMap} />
