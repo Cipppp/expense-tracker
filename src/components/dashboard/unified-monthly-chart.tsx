@@ -159,113 +159,180 @@ export function UnifiedMonthlyChart({
       </Tabs>
 
       <div className="h-[340px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={view === "taxes" ? taxesData : view === "categories" ? catData : netData}
-            margin={{ top: 8, right: 8, left: -8, bottom: 0 }}
-            barCategoryGap={view === "net" ? "26%" : "22%"}
-          >
-            <CartesianGrid
-              stroke="hsl(var(--border))"
-              strokeDasharray="2 2"
-              vertical={false}
-            />
-            <XAxis
-              dataKey="label"
-              stroke="hsl(var(--muted-foreground))"
-              tickLine={false}
-              axisLine={false}
-              fontSize={11}
-            />
-            <YAxis
-              stroke="hsl(var(--muted-foreground))"
-              tickLine={false}
-              axisLine={false}
-              fontSize={11}
-              tickFormatter={(v) =>
-                v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)
-              }
-            />
-            <Tooltip
-              cursor={{ fill: "hsl(var(--secondary))", opacity: 0.4 }}
-              contentStyle={{
-                backgroundColor: "hsl(var(--popover))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "8px",
-                fontSize: "12px",
-                padding: "10px 12px",
-              }}
-              labelStyle={{
-                color: "hsl(var(--foreground))",
-                fontFamily: "var(--font-display)",
-                marginBottom: "6px",
-                fontSize: "13px",
-              }}
-              formatter={(value: number, name) => {
-                if (view === "net") {
-                  return [`$${value.toLocaleString()}`, name === "earned" ? "Earned" : "Spent"];
-                }
-                if (view === "taxes") {
-                  return [
-                    `${value.toLocaleString("ro-RO", { maximumFractionDigits: 0 })} RON`,
-                    TAX_LABELS[name as keyof typeof TAX_LABELS] ?? name,
-                  ];
-                }
-                return [
-                  `${value.toLocaleString("ro-RO", { maximumFractionDigits: 0 })} RON`,
-                  name,
-                ];
-              }}
-            />
-            <Legend
-              verticalAlign="bottom"
-              align="left"
-              iconType="circle"
-              iconSize={8}
-              wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
-              formatter={(value) =>
-                view === "taxes"
-                  ? TAX_LABELS[value as keyof typeof TAX_LABELS] ?? value
-                  : value
-              }
-            />
-
-            {view === "taxes" && (
-              <>
-                <Bar dataKey="bsBas" stackId="t" fill={TAX_COLORS.bsBas} />
-                <Bar dataKey="cam" stackId="t" fill={TAX_COLORS.cam} />
-                <Bar dataKey="micro" stackId="t" fill={TAX_COLORS.micro} />
-                <Bar dataKey="dividende" stackId="t" fill={TAX_COLORS.dividende} />
-                <Bar
-                  dataKey="netOwner"
-                  stackId="t"
-                  fill={TAX_COLORS.netOwner}
-                  radius={[4, 4, 0, 0]}
-                />
-              </>
-            )}
-
-            {view === "categories" &&
-              catKeys.map((k, i) => (
-                <Bar
-                  key={k}
-                  dataKey={k}
-                  stackId="c"
-                  fill={catColorMap[k]}
-                  radius={i === catKeys.length - 1 ? [4, 4, 0, 0] : 0}
-                />
-              ))}
-
-            {view === "net" && (
-              <>
-                <Bar dataKey="earned" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="spent" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-              </>
-            )}
-          </BarChart>
-        </ResponsiveContainer>
+        {view === "taxes" && <TaxesChart key="taxes" data={taxesData} />}
+        {view === "categories" && (
+          <CategoriesChart key="categories" data={catData} keys={catKeys} colors={catColorMap} />
+        )}
+        {view === "net" && <NetChart key="net" data={netData} />}
       </div>
     </div>
+  );
+}
+
+const baseAxis = {
+  tickLine: false,
+  axisLine: false,
+  fontSize: 11,
+  stroke: "hsl(var(--muted-foreground))",
+};
+
+const baseTooltip = {
+  cursor: { fill: "hsl(var(--secondary))", opacity: 0.4 },
+  contentStyle: {
+    backgroundColor: "hsl(var(--popover))",
+    border: "1px solid hsl(var(--border))",
+    borderRadius: "8px",
+    fontSize: "12px",
+    padding: "10px 12px",
+  },
+  labelStyle: {
+    color: "hsl(var(--foreground))",
+    fontFamily: "var(--font-display)",
+    marginBottom: "6px",
+    fontSize: "13px",
+  },
+};
+
+function TaxesChart({
+  data,
+}: {
+  data: Array<{
+    label: string;
+    bsBas: number;
+    cam: number;
+    micro: number;
+    dividende: number;
+    netOwner: number;
+  }>;
+}) {
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart
+        data={data}
+        margin={{ top: 8, right: 8, left: 8, bottom: 0 }}
+        barCategoryGap="22%"
+      >
+        <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="2 2" vertical={false} />
+        <XAxis dataKey="label" {...baseAxis} />
+        <YAxis
+          {...baseAxis}
+          tickFormatter={(v) =>
+            v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)
+          }
+        />
+        <Tooltip
+          {...baseTooltip}
+          formatter={(value: number, name) => [
+            `${value.toLocaleString("ro-RO", { maximumFractionDigits: 0 })} RON`,
+            TAX_LABELS[name as keyof typeof TAX_LABELS] ?? name,
+          ]}
+        />
+        <Legend
+          verticalAlign="bottom"
+          align="left"
+          iconType="circle"
+          iconSize={8}
+          wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+          formatter={(value) => TAX_LABELS[value as keyof typeof TAX_LABELS] ?? value}
+        />
+        <Bar dataKey="bsBas" stackId="t" fill={TAX_COLORS.bsBas} />
+        <Bar dataKey="cam" stackId="t" fill={TAX_COLORS.cam} />
+        <Bar dataKey="micro" stackId="t" fill={TAX_COLORS.micro} />
+        <Bar dataKey="dividende" stackId="t" fill={TAX_COLORS.dividende} />
+        <Bar dataKey="netOwner" stackId="t" fill={TAX_COLORS.netOwner} radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function CategoriesChart({
+  data,
+  keys,
+  colors,
+}: {
+  data: Array<Record<string, number | string>>;
+  keys: string[];
+  colors: Record<string, string>;
+}) {
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart
+        data={data}
+        margin={{ top: 8, right: 8, left: 8, bottom: 0 }}
+        barCategoryGap="22%"
+      >
+        <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="2 2" vertical={false} />
+        <XAxis dataKey="label" {...baseAxis} />
+        <YAxis
+          {...baseAxis}
+          tickFormatter={(v) =>
+            v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)
+          }
+        />
+        <Tooltip
+          {...baseTooltip}
+          formatter={(value: number, name) => [
+            `${value.toLocaleString("ro-RO", { maximumFractionDigits: 0 })} RON`,
+            name,
+          ]}
+        />
+        <Legend
+          verticalAlign="bottom"
+          align="left"
+          iconType="circle"
+          iconSize={8}
+          wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+        />
+        {keys.map((k, i) => (
+          <Bar
+            key={k}
+            dataKey={k}
+            stackId="c"
+            fill={colors[k]}
+            radius={i === keys.length - 1 ? [4, 4, 0, 0] : 0}
+          />
+        ))}
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function NetChart({
+  data,
+}: {
+  data: Array<{ label: string; earned: number; spent: number }>;
+}) {
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart
+        data={data}
+        margin={{ top: 8, right: 8, left: 8, bottom: 0 }}
+        barCategoryGap="26%"
+      >
+        <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="2 2" vertical={false} />
+        <XAxis dataKey="label" {...baseAxis} />
+        <YAxis
+          {...baseAxis}
+          tickFormatter={(v) => `$${v}`}
+        />
+        <Tooltip
+          {...baseTooltip}
+          formatter={(value: number, name) => [
+            `$${value.toLocaleString()}`,
+            name === "earned" ? "Earned" : "Spent",
+          ]}
+        />
+        <Legend
+          verticalAlign="bottom"
+          align="left"
+          iconType="circle"
+          iconSize={8}
+          wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+        />
+        <Bar dataKey="earned" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="spent" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 
