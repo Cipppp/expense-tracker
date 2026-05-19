@@ -4,21 +4,16 @@ import {
   getYearCategories,
   getYearExpenses,
   type ExpenseFilters,
+  type ExpenseSortField,
+  type SortDir,
 } from "@/lib/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { baniFromRon, fmtDate, fmtMonth, fmtRon, fmtUsd } from "@/lib/format";
+import { baniFromRon, fmtMonth, fmtRon, fmtUsd } from "@/lib/format";
 import { MonthFilter } from "@/components/expenses/month-filter";
 import { ExpenseFilters as ExpenseFiltersBar } from "@/components/expenses/expense-filters";
+import { SortableHeader } from "@/components/expenses/sortable-header";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +33,14 @@ const CATEGORY_COLORS: Record<
   Other: "outline",
 };
 
+const VALID_SORTS: ExpenseSortField[] = [
+  "date",
+  "description",
+  "category",
+  "amountRon",
+  "amountUsd",
+];
+
 export default async function ExpensesPage(props: {
   searchParams: Promise<{
     year?: string;
@@ -46,6 +49,8 @@ export default async function ExpensesPage(props: {
     minRon?: string;
     maxRon?: string;
     q?: string;
+    sort?: string;
+    dir?: string;
   }>;
 }) {
   const params = await props.searchParams;
@@ -53,11 +58,19 @@ export default async function ExpensesPage(props: {
   const year = Number(params.year) || now.getFullYear();
   const month = Number(params.month) || now.getMonth() + 1;
 
+  const sort = VALID_SORTS.includes(params.sort as ExpenseSortField)
+    ? (params.sort as ExpenseSortField)
+    : "date";
+  const dir: SortDir = params.dir === "asc" ? "asc" : "desc";
+
   const filters: ExpenseFilters = {
-    category: params.category && params.category !== "all" ? params.category : undefined,
+    category:
+      params.category && params.category !== "all" ? params.category : undefined,
     minRon: params.minRon ? baniFromRon(Number(params.minRon)) : undefined,
     maxRon: params.maxRon ? baniFromRon(Number(params.maxRon)) : undefined,
     q: params.q || undefined,
+    sort,
+    dir,
   };
 
   const [settings, monthExp, yearExp, categories] = await Promise.all([
@@ -67,7 +80,6 @@ export default async function ExpensesPage(props: {
     getYearCategories(year),
   ]);
 
-  // Highlight rows where the day total (unfiltered) exceeds the red threshold.
   const dailyTotals = new Map<string, number>();
   for (const e of yearExp) {
     if (e.date.getFullYear() !== year || e.date.getMonth() + 1 !== month) continue;
@@ -78,7 +90,12 @@ export default async function ExpensesPage(props: {
   const monthTotalRon = monthExp.reduce((a, b) => a + b.amountRon, 0);
   const monthTotalUsd = monthExp.reduce((a, b) => a + b.amountUsd, 0);
   const yearTotalRon = yearExp.reduce((a, b) => a + b.amountRon, 0);
-  const isFiltered = !!(filters.category || filters.minRon != null || filters.maxRon != null || filters.q);
+  const isFiltered = !!(
+    filters.category ||
+    filters.minRon != null ||
+    filters.maxRon != null ||
+    filters.q
+  );
 
   return (
     <div className="space-y-8">
@@ -117,11 +134,13 @@ export default async function ExpensesPage(props: {
       </div>
 
       <Card>
-        <CardHeader className="space-y-4">
+        <CardHeader className="space-y-4 pb-4">
           <div className="flex items-baseline justify-between">
             <CardTitle className="text-lg">All transactions</CardTitle>
             {isFiltered && (
-              <Badge variant="accent" className="text-[10px]">Filtered</Badge>
+              <Badge variant="accent" className="text-[10px]">
+                Filtered
+              </Badge>
             )}
           </div>
           <ExpenseFiltersBar
@@ -154,49 +173,88 @@ export default async function ExpensesPage(props: {
               )}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[110px]">Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="w-[140px]">Category</TableHead>
-                  <TableHead className="text-right w-[140px]">RON</TableHead>
-                  <TableHead className="text-right w-[120px]">USD</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {monthExp.map((e) => {
-                  const dayKey = e.date.toISOString().slice(0, 10);
-                  const isHotDay =
-                    (dailyTotals.get(dayKey) ?? 0) > settings.redThresholdRon;
-                  return (
-                    <TableRow key={e.id}>
-                      <TableCell className="text-muted-foreground text-xs num">
-                        {fmtDate(e.date)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium text-sm">{e.description}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={CATEGORY_COLORS[e.category] ?? "outline"}>
-                          {e.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell
-                        className={`text-right num font-medium ${
-                          isHotDay ? "text-destructive" : "text-foreground"
-                        }`}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="px-4 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground w-[100px]">
+                      <SortableHeader field="date" label="Date" defaultDir="desc" />
+                    </th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                      <SortableHeader
+                        field="description"
+                        label="Description"
+                        defaultDir="asc"
+                      />
+                    </th>
+                    <th className="px-4 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground w-[130px]">
+                      <SortableHeader
+                        field="category"
+                        label="Category"
+                        defaultDir="asc"
+                      />
+                    </th>
+                    <th className="px-4 py-2 text-right text-[11px] font-medium uppercase tracking-wider text-muted-foreground w-[120px]">
+                      <SortableHeader
+                        field="amountRon"
+                        label="RON"
+                        align="right"
+                        defaultDir="desc"
+                      />
+                    </th>
+                    <th className="px-4 py-2 text-right text-[11px] font-medium uppercase tracking-wider text-muted-foreground w-[100px]">
+                      <SortableHeader
+                        field="amountUsd"
+                        label="USD"
+                        align="right"
+                        defaultDir="desc"
+                      />
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {monthExp.map((e) => {
+                    const dayKey = e.date.toISOString().slice(0, 10);
+                    const isHotDay =
+                      (dailyTotals.get(dayKey) ?? 0) > settings.redThresholdRon;
+                    return (
+                      <tr
+                        key={e.id}
+                        className="hover:bg-secondary/40 transition-colors"
                       >
-                        - {fmtRon(e.amountRon).replace("- ", "")}
-                      </TableCell>
-                      <TableCell className="text-right num text-muted-foreground">
-                        - {fmtUsd(e.amountUsd).replace("-", "")}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                        <td className="px-4 py-2 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
+                          {e.date.toLocaleDateString("en-GB", {
+                            day: "2-digit",
+                            month: "short",
+                          })}
+                        </td>
+                        <td className="px-4 py-2">
+                          <span className="font-medium">{e.description}</span>
+                        </td>
+                        <td className="px-4 py-2">
+                          <Badge
+                            variant={CATEGORY_COLORS[e.category] ?? "outline"}
+                            className="text-[10px] font-normal"
+                          >
+                            {e.category}
+                          </Badge>
+                        </td>
+                        <td
+                          className={`px-4 py-2 text-right tabular-nums whitespace-nowrap ${
+                            isHotDay ? "text-destructive" : ""
+                          }`}
+                        >
+                          -{fmtRon(e.amountRon).replace("- ", "")}
+                        </td>
+                        <td className="px-4 py-2 text-right tabular-nums text-muted-foreground whitespace-nowrap">
+                          -{fmtUsd(e.amountUsd).replace("-", "")}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>

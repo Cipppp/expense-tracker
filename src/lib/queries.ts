@@ -5,11 +5,21 @@ import "server-only";
 import { db } from "@/lib/db";
 import { endOfMonth, startOfMonth } from "@/lib/format";
 
+export type ExpenseSortField =
+  | "date"
+  | "description"
+  | "category"
+  | "amountRon"
+  | "amountUsd";
+export type SortDir = "asc" | "desc";
+
 export type ExpenseFilters = {
-  category?: string;       // single category, or undefined for all
-  minRon?: number;         // in bani
-  maxRon?: number;         // in bani
-  q?: string;              // substring search on description (case-insensitive)
+  category?: string;
+  minRon?: number;     // bani
+  maxRon?: number;     // bani
+  q?: string;
+  sort?: ExpenseSortField;
+  dir?: SortDir;
 };
 
 export async function getMonthExpenses(
@@ -17,6 +27,15 @@ export async function getMonthExpenses(
   month: number,
   filters: ExpenseFilters = {},
 ) {
+  const sortField = filters.sort ?? "date";
+  const dir = filters.dir ?? "desc";
+  // Default tiebreaker on date so two rows with identical sort key stay stable.
+  const orderBy: { [K in ExpenseSortField | "createdAt"]?: SortDir }[] = [
+    { [sortField]: dir },
+    ...(sortField !== "date" ? [{ date: "desc" as const }] : []),
+    { createdAt: "desc" },
+  ];
+
   return db.expense.findMany({
     where: {
       date: { gte: startOfMonth(year, month), lte: endOfMonth(year, month) },
@@ -33,7 +52,7 @@ export async function getMonthExpenses(
         ? { description: { contains: filters.q, mode: "insensitive" } }
         : {}),
     },
-    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    orderBy,
   });
 }
 
