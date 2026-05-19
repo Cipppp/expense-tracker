@@ -42,10 +42,12 @@ export type WeekEntry = {
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
 // Hour range shown on the grid. Tweak as your day shifts.
+// END_HOUR can exceed 24 — hours past midnight render in the same day's
+// column (so an entry 18:00→02:00 stays on the day it started).
 const START_HOUR = 6;
-const END_HOUR = 23;
+const END_HOUR = 26; // shows 06:00 → 02:00 next day
 const HOURS = END_HOUR - START_HOUR;
-const ROW_PX = 56; // 1h = 56px → 15min = 14px
+const ROW_PX = 52; // 1h = 52px → 15min = 13px
 const SLOT_MIN = 15; // snap to 15-minute slots
 
 function snap(minutes: number): number {
@@ -289,7 +291,7 @@ export function WeekGrid({
                       className="text-[10px] text-muted-foreground pr-2 pt-1 text-right tabular-nums"
                       style={{ height: ROW_PX }}
                     >
-                      {String(START_HOUR + i).padStart(2, "0")}:00
+                      {String((START_HOUR + i) % 24).padStart(2, "0")}:00
                     </div>
                   ))}
                 </div>
