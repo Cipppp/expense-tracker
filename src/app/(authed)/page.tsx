@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { MonthlyChart } from "@/components/dashboard/monthly-chart";
 import { TopMerchants } from "@/components/dashboard/top-merchants";
-import { TaxBreakdown } from "@/components/dashboard/tax-breakdown";
+import { MonthlyTaxChart } from "@/components/dashboard/monthly-tax-chart";
 import { fmtMonth } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -26,20 +26,6 @@ export default async function DashboardPage() {
     getTopMerchants(year, month, 5),
   ]);
 
-  // Count active months for tax math (from start month → now) + label.
-  const startMonth =
-    year === settings.startYear ? settings.startMonth : 1;
-  const months = Math.max(1, month - startMonth + 1);
-  const monthNames: string[] = [];
-  for (let m = startMonth; m <= month; m++) {
-    monthNames.push(new Date(year, m - 1, 1).toLocaleDateString("en-US", { month: "long" }));
-  }
-  const monthsLabel =
-    monthNames.length === 1
-      ? `${monthNames[0]} ${year}`
-      : monthNames.length === 2
-        ? `${monthNames[0]} + ${monthNames[1]} ${year}`
-        : `${monthNames[0]} – ${monthNames[monthNames.length - 1]} ${year}`;
 
   return (
     <div className="space-y-8">
@@ -107,23 +93,24 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Tax & dividends calculator</CardTitle>
+            <CardTitle>Monthly tax breakdown</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Required taxes paid by the SRL, plus a what-if calculator for
-              extracting dividends to your personal account.
+              Stacked per month, in RON. Dividende assumes you withdraw
+              everything that month — actual tax depends on what you extract.
             </p>
           </CardHeader>
           <Separator />
           <CardContent className="pt-6">
-            <TaxBreakdown
-              earnedUsd={ytd.earnedUsd}
+            <MonthlyTaxChart
+              monthly={monthly}
               fxRonToUsd={settings.fxRonToUsd}
               bsBasRon={settings.bsBasRon}
               camRon={settings.camRon}
               microPct={settings.microPct}
               dividendePct={settings.dividendePct}
-              months={months}
-              monthsLabel={monthsLabel}
+              startMonth={
+                year === settings.startYear ? settings.startMonth : 1
+              }
             />
           </CardContent>
         </Card>
