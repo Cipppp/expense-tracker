@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 function DesktopSidebar() {
   const pathname = usePathname();
   return (
-    <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-border bg-card/50">
+    <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-border bg-card/50 sticky top-0 h-[100dvh] self-start">
       <div className="px-5 py-6">
         <Link href="/" className="block">
           <div className="font-display text-xl tracking-tight leading-none">
