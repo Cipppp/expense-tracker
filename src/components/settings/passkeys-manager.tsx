@@ -83,7 +83,24 @@ export function PasskeysManager() {
       router.refresh();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to add passkey";
+      const name = e instanceof Error ? e.name : "";
       if (msg.includes("NotAllowed") || msg.includes("cancel")) {
+        setPending(false);
+        return;
+      }
+      // Apple / Windows tell us "I already have a passkey for this site from
+      // another device synced via iCloud / Google Password Manager." That's
+      // good news, not a failure — surface it as such.
+      if (
+        name === "InvalidStateError" ||
+        msg.toLowerCase().includes("previously registered") ||
+        msg.toLowerCase().includes("already")
+      ) {
+        toast.info("This device is already covered", {
+          description:
+            "Your passkey is synced to this device via iCloud Keychain / Google. Just sign out and use 'Sign in with passkey' — Face ID / Touch ID will work directly.",
+          duration: 8000,
+        });
         setPending(false);
         return;
       }
@@ -200,6 +217,14 @@ export function PasskeysManager() {
         <p className="text-[11px] text-muted-foreground">
           Your device will prompt for Face ID / Touch ID / Windows Hello. The
           passkey is bound to this domain — it can't be used anywhere else.
+          <br />
+          <span className="text-foreground">
+            iCloud Keychain syncs the passkey across all your Apple devices
+            automatically
+          </span>{" "}
+          — adding it once on Mac means iPhone can use the same one for Face ID.
+          To register an independent passkey on a separate Google/Windows
+          device, add it from there.
         </p>
       </div>
     </div>

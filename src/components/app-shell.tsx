@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Receipt,
@@ -10,11 +11,19 @@ import {
   Upload,
   Settings as SettingsIcon,
   LogOut,
+  Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette } from "@/components/command-palette";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetDescription,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -32,10 +41,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <DesktopSidebar />
       <main className="flex-1 min-w-0 flex flex-col">
         <MobileHeader />
-        <div className="px-4 md:px-10 py-6 md:py-8 max-w-[1400px] animate-fade-in flex-1 pb-24 md:pb-8">
+        <div className="px-4 md:px-10 py-6 md:py-8 max-w-[1400px] animate-fade-in flex-1">
           {children}
         </div>
-        <MobileTabBar />
       </main>
     </div>
   );
@@ -56,7 +64,7 @@ function DesktopSidebar() {
         </Link>
       </div>
       <Separator />
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {nav.map(({ href, label, icon: Icon }) => {
           const active =
             href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -83,8 +91,9 @@ function DesktopSidebar() {
         })}
       </nav>
       <Separator />
-      <div className="flex items-center justify-between px-3 py-3">
-        <form action="/api/auth/logout" method="post" className="flex-1">
+      <div className="px-3 py-3 space-y-2">
+        <ThemeToggle variant="labeled" />
+        <form action="/api/auth/logout" method="post">
           <button
             type="submit"
             className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
@@ -93,13 +102,20 @@ function DesktopSidebar() {
             Sign out
           </button>
         </form>
-        <ThemeToggle />
       </div>
     </aside>
   );
 }
 
 function MobileHeader() {
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Close the sheet whenever the route changes.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
   return (
     <header className="md:hidden sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur safe-top">
       <div className="flex items-center justify-between px-4 py-3">
@@ -111,31 +127,37 @@ function MobileHeader() {
             Project CIP SRL
           </div>
         </Link>
-        <div className="flex items-center gap-1">
-          <ThemeToggle />
-          <form action="/api/auth/logout" method="post">
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger asChild>
             <button
-              type="submit"
-              aria-label="Sign out"
-              className="h-9 w-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              type="button"
+              aria-label="Open menu"
+              className="h-11 w-11 inline-flex items-center justify-center rounded-md text-foreground hover:bg-secondary transition-colors"
             >
-              <LogOut className="h-4 w-4" />
+              <Menu className="h-5 w-5" />
             </button>
-          </form>
-        </div>
+          </SheetTrigger>
+          <SheetContent>
+            <MobileMenu />
+          </SheetContent>
+        </Sheet>
       </div>
     </header>
   );
 }
 
-function MobileTabBar() {
+function MobileMenu() {
   const pathname = usePathname();
   return (
-    <nav
-      className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur safe-bottom"
-      aria-label="Main navigation"
-    >
-      <div className="flex items-stretch justify-around px-2 pt-1.5 pb-2">
+    <>
+      <div className="px-5 pt-6 pb-2">
+        <SheetTitle>expense tracker</SheetTitle>
+        <SheetDescription className="uppercase tracking-[0.15em] text-[10px]">
+          Project CIP SRL
+        </SheetDescription>
+      </div>
+      <Separator />
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
         {nav.map(({ href, label, icon: Icon }) => {
           const active =
             href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -145,23 +167,36 @@ function MobileTabBar() {
               href={href}
               prefetch
               className={cn(
-                "flex flex-col items-center gap-0.5 flex-1 min-w-0 py-2 rounded-md transition-all duration-200 ease-expo",
-                active ? "text-accent" : "text-muted-foreground",
+                "flex items-center gap-3 rounded-md px-3 py-3 text-base transition-colors duration-200 ease-expo",
+                active
+                  ? "bg-accent/10 text-accent font-medium"
+                  : "text-foreground hover:bg-secondary",
               )}
             >
               <Icon
                 className={cn(
-                  "h-5 w-5 transition-transform duration-200 ease-expo",
-                  active && "scale-110",
+                  "h-5 w-5",
+                  active ? "text-accent" : "text-muted-foreground",
                 )}
               />
-              <span className="text-[10px] font-medium leading-none">
-                {label}
-              </span>
+              {label}
             </Link>
           );
         })}
+      </nav>
+      <Separator />
+      <div className="px-3 py-4 space-y-2 safe-bottom">
+        <ThemeToggle variant="labeled" />
+        <form action="/api/auth/logout" method="post">
+          <button
+            type="submit"
+            className="flex w-full items-center gap-3 rounded-md border border-border px-3 py-2.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors h-11"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
+        </form>
       </div>
-    </nav>
+    </>
   );
 }

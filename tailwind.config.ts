@@ -91,6 +91,22 @@ const config: Config = {
           from: { opacity: "0", transform: "translateY(4px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        "slide-in-from-right": {
+          from: { transform: "translateX(100%)" },
+          to: { transform: "translateX(0)" },
+        },
+        "slide-out-to-right": {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(100%)" },
+        },
+        "slide-in-from-left": {
+          from: { transform: "translateX(-100%)" },
+          to: { transform: "translateX(0)" },
+        },
+        "slide-out-to-left": {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(-100%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -100,6 +116,14 @@ const config: Config = {
         "collapsible-up":
           "collapsible-up 200ms cubic-bezier(0.16, 1, 0.3, 1)",
         "fade-in": "fade-in 400ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "slide-in-from-right":
+          "slide-in-from-right 280ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "slide-out-to-right":
+          "slide-out-to-right 220ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "slide-in-from-left":
+          "slide-in-from-left 280ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "slide-out-to-left":
+          "slide-out-to-left 220ms cubic-bezier(0.16, 1, 0.3, 1)",
       },
       transitionTimingFunction: {
         expo: "cubic-bezier(0.16, 1, 0.3, 1)",
