@@ -5,11 +5,70 @@ import "server-only";
 import { db } from "@/lib/db";
 import { endOfMonth, startOfMonth } from "@/lib/format";
 
-export async function getMonthExpenses(year: number, month: number) {
+export type ExpenseFilters = {
+  category?: string;       // single category, or undefined for all
+  minRon?: number;         // in bani
+  maxRon?: number;         // in bani
+  q?: string;              // substring search on description (case-insensitive)
+};
+
+export async function getMonthExpenses(
+  year: number,
+  month: number,
+  filters: ExpenseFilters = {},
+) {
   return db.expense.findMany({
-    where: { date: { gte: startOfMonth(year, month), lte: endOfMonth(year, month) } },
+    where: {
+      date: { gte: startOfMonth(year, month), lte: endOfMonth(year, month) },
+      ...(filters.category ? { category: filters.category } : {}),
+      ...(filters.minRon != null || filters.maxRon != null
+        ? {
+            amountRon: {
+              ...(filters.minRon != null ? { gte: filters.minRon } : {}),
+              ...(filters.maxRon != null ? { lte: filters.maxRon } : {}),
+            },
+          }
+        : {}),
+      ...(filters.q
+        ? { description: { contains: filters.q, mode: "insensitive" } }
+        : {}),
+    },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
   });
+}
+
+/** Distinct categories present in the year — for the filter dropdown. */
+export async function getYearCategories(year: number): Promise<string[]> {
+  const rows = await db.expense.findMany({
+    where: {
+      date: {
+        gte: new Date(year, 0, 1),
+        lte: new Date(year, 11, 31, 23, 59, 59),
+      },
+    },
+    distinct: ["category"],
+    select: { category: true },
+  });
+  return rows.map((r) => r.category).sort();
+}
+
+/** Monthly category totals for the dashboard category chart. */
+export async function getMonthlyCategoryBreakdown(year: number) {
+  const expenses = await getYearExpenses(year);
+  const months: Array<{ month: number; label: string; categories: Record<string, number> }> = [];
+  for (let m = 1; m <= 12; m++) {
+    months.push({
+      month: m,
+      label: new Date(year, m - 1, 1).toLocaleDateString("en-US", { month: "short" }),
+      categories: {},
+    });
+  }
+  for (const e of expenses) {
+    const m = e.date.getMonth();
+    months[m].categories[e.category] =
+      (months[m].categories[e.category] ?? 0) + e.amountRon;
+  }
+  return months;
 }
 
 export async function getYearExpenses(year: number) {

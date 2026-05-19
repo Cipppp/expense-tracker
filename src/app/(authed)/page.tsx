@@ -1,5 +1,6 @@
 import {
   getMonthlyAggregates,
+  getMonthlyCategoryBreakdown,
   getSettings,
   getTopMerchants,
   getYtd,
@@ -7,9 +8,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
-import { MonthlyChart } from "@/components/dashboard/monthly-chart";
 import { TopMerchants } from "@/components/dashboard/top-merchants";
-import { MonthlyTaxChart } from "@/components/dashboard/monthly-tax-chart";
+import { UnifiedMonthlyChart } from "@/components/dashboard/unified-monthly-chart";
 import { fmtMonth } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -19,13 +19,16 @@ export default async function DashboardPage() {
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
 
-  const [settings, ytd, monthly, top] = await Promise.all([
+  const [settings, ytd, monthly, top, categories] = await Promise.all([
     getSettings(),
     getYtd(year),
     getMonthlyAggregates(year),
     getTopMerchants(year, month, 5),
+    getMonthlyCategoryBreakdown(year),
   ]);
 
+  const startMonth =
+    year === settings.startYear ? settings.startMonth : 1;
 
   return (
     <div className="space-y-8">
@@ -62,95 +65,79 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle>Monthly breakdown</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                Spent vs earned, by month, in USD.
-              </p>
-            </div>
-          </CardHeader>
-          <Separator />
-          <CardContent className="pt-6">
-            <MonthlyChart data={monthly} />
-          </CardContent>
-        </Card>
-
-        <Card>
           <CardHeader>
-            <CardTitle>Top merchants</CardTitle>
+            <CardTitle>Monthly breakdown</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              {fmtMonth(year, month)} — sorted by RON spent.
+              Switch views to see taxes, spending categories, or earned vs
+              spent — all per month.
             </p>
           </CardHeader>
           <Separator />
           <CardContent className="pt-6">
-            <TopMerchants items={top} />
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Monthly tax breakdown</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Stacked per month, in RON. Dividende assumes you withdraw
-              everything that month — actual tax depends on what you extract.
-            </p>
-          </CardHeader>
-          <Separator />
-          <CardContent className="pt-6">
-            <MonthlyTaxChart
+            <UnifiedMonthlyChart
               monthly={monthly}
+              categories={categories}
               fxRonToUsd={settings.fxRonToUsd}
               bsBasRon={settings.bsBasRon}
               camRon={settings.camRon}
               microPct={settings.microPct}
               dividendePct={settings.dividendePct}
-              startMonth={
-                year === settings.startYear ? settings.startMonth : 1
-              }
+              startMonth={startMonth}
             />
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick actions</CardTitle>
-          </CardHeader>
-          <Separator />
-          <CardContent className="pt-6 space-y-2">
-            <a
-              href="/import"
-              className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-secondary transition-colors"
-            >
-              <span>Import Revolut CSV</span>
-              <span className="text-xs text-muted-foreground">→</span>
-            </a>
-            <a
-              href="/expenses"
-              className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-secondary transition-colors"
-            >
-              <span>View all expenses</span>
-              <span className="text-xs text-muted-foreground">→</span>
-            </a>
-            <a
-              href="/income"
-              className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-secondary transition-colors"
-            >
-              <span>Log income</span>
-              <span className="text-xs text-muted-foreground">→</span>
-            </a>
-            <a
-              href="/settings"
-              className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-secondary transition-colors"
-            >
-              <span>Tax & FX settings</span>
-              <span className="text-xs text-muted-foreground">→</span>
-            </a>
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Top merchants</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                {fmtMonth(year, month)} — sorted by RON spent.
+              </p>
+            </CardHeader>
+            <Separator />
+            <CardContent className="pt-6">
+              <TopMerchants items={top} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick actions</CardTitle>
+            </CardHeader>
+            <Separator />
+            <CardContent className="pt-6 space-y-1">
+              <a
+                href="/import"
+                className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-secondary transition-colors"
+              >
+                <span>Import Revolut CSV</span>
+                <span className="text-xs text-muted-foreground">→</span>
+              </a>
+              <a
+                href="/expenses"
+                className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-secondary transition-colors"
+              >
+                <span>View all expenses</span>
+                <span className="text-xs text-muted-foreground">→</span>
+              </a>
+              <a
+                href="/income"
+                className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-secondary transition-colors"
+              >
+                <span>Log income</span>
+                <span className="text-xs text-muted-foreground">→</span>
+              </a>
+              <a
+                href="/settings"
+                className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-secondary transition-colors"
+              >
+                <span>Tax & FX settings</span>
+                <span className="text-xs text-muted-foreground">→</span>
+              </a>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
