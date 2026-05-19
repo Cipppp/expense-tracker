@@ -77,7 +77,101 @@ model Job {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
+  // Legal entity that this client invoices through. Used to autofill the
+  // invoice header when creating a new invoice for this client.
+  companyName     String?
+  companyCui      String?         // CIF in Romania, VAT ID elsewhere
+  companyReg      String?         // J-number in RO, CVR in DK, etc.
+  companyAddress  String?
+  companyCountry  String?         // ISO country (RO, DK, US, ...)
+  defaultCurrency String   @default("USD") // USD | EUR | RON — currency the work is billed in
+
   entries   Income[]
+  invoices  Invoice[]
+}
+
+// Invoice issued by Project CIP SRL to a client.
+model Invoice {
+  id           String   @id @default(cuid())
+  number       String   @unique               // formatted: "0012"
+  series       String   @default("CP")        // series prefix
+  seriesNumber Int                            // 12, 15… for ordering / next-number lookup
+
+  issuedAt     DateTime
+  dueAt        DateTime?
+
+  // Foreign-key to client. Optional — if the client is later deleted, the
+  // invoice keeps its snapshotted name/CUI/address fields.
+  jobId        String?
+  job          Job?     @relation(fields: [jobId], references: [id])
+
+  // Snapshot of client info at issue time (legal addresses / VAT IDs can
+  // change; old invoices must keep their old data).
+  clientName      String
+  clientCompany   String
+  clientCui       String?
+  clientReg       String?
+  clientAddress   String?
+  clientCountry   String?
+
+  // Currency the work was billed in. The line totals + grand total are
+  // displayed in `legalCurrency` (always RON for a RO SRL). `bnrRate` is
+  // the RON-per-unit rate of `invoiceCurrency` on issue date.
+  invoiceCurrency String  @default("RON")     // RON | USD | EUR
+  legalCurrency   String  @default("RON")
+  bnrRate         Float?                      // RON per invoiceCurrency unit (e.g. 4.4085)
+
+  footerNote   String?
+  status       String   @default("draft")     // draft | issued | paid | void
+  paidAt       DateTime?
+  paidIncomeId String?  @unique               // linked Income row created on mark-paid
+
+  lines        InvoiceLine[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([issuedAt])
+  @@index([jobId])
+  @@index([status])
+}
+
+model InvoiceLine {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  position    Int                                // 1-based ordering within the invoice
+  description String
+  unit        String  @default("buc")            // U.M. — "buc" or "h"
+  quantity    Float
+  unitPrice   Float                              // in invoiceCurrency
+  // amount = quantity * unitPrice, stored to avoid float roundoff drift.
+  amount      Float
+
+  @@index([invoiceId])
+}
+
+// Recurring expense (subscription). Predicted to repeat each cycle until
+// `endsAt` (null = forever). Used to overlay "expected" segments on the
+// dashboard for future months.
+model Subscription {
+  id          String   @id @default(cuid())
+  name        String                              // "Netflix", "AWS", "GitHub", ...
+  category    String   @default("Subscriptions")
+  amountRon   Int                                 // bani — the predicted RON cost per cycle
+  amountUsd   Int                                 // cents — at the time of creation
+  fxRate      Float                               // RON→USD rate captured at creation
+  frequency   String   @default("monthly")        // monthly | yearly
+  dayOfMonth  Int      @default(1)                // 1-31, when in the cycle it bills
+  startsAt    DateTime @default(now())
+  endsAt      DateTime?                           // null = ongoing
+  active      Boolean  @default(true)
+  notes       String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
 }
 
 // Single-row settings table.
@@ -93,6 +187,18 @@ model Settings {
   // Lower-bound month (defaults to Apr 2026 — start date in the Excel).
   startYear       Int    @default(2026)
   startMonth      Int    @default(4)
+
+  // Issuer details — used in the invoice header.
+  issuerName     String @default("PROJECT CIP S.R.L.")
+  issuerCif      String @default("51711091")
+  issuerReg      String @default("J2025030670009")
+  issuerAddress  String @default("Bld Dacia, Nr.133, Et.d, Sector 2, Jud. Bucuresti")
+  issuerIban     String @default("RO95INGB0000999918378858")
+  issuerBank     String @default("ING BANK NV")
+  issuerCapital  String @default("200 Lei")
+  issuerSigner   String @default("Ciprian Pirvu")
+  invoiceSeries  String @default("CP")            // prefix; next number derived from DB
+
   updatedAt       DateTime @updatedAt @default(now())
 }
 

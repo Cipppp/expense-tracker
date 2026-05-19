@@ -4,6 +4,7 @@ import { ronFromBani } from "@/lib/format";
 import { SettingsForm } from "@/components/settings/settings-form";
 import { ClientsManager } from "@/components/settings/clients-manager";
 import { PasskeysManager } from "@/components/settings/passkeys-manager";
+import { SubscriptionsManager } from "@/components/settings/subscriptions-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -42,8 +43,22 @@ export default async function SettingsPage() {
               rateUsd: c.rateUsd,
               color: c.color,
               active: c.active,
+              companyName: c.companyName ?? "",
+              companyCui: c.companyCui ?? "",
+              companyReg: c.companyReg ?? "",
+              companyAddress: c.companyAddress ?? "",
+              companyCountry: c.companyCountry ?? "",
+              defaultCurrency: c.defaultCurrency,
             }))}
         />
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        title="Recurring expenses"
+        description="Subscriptions you pay monthly or yearly. Overlaid as 'expected' on the dashboard for future months."
+        defaultOpen={false}
+      >
+        <SubscriptionsManager />
       </CollapsibleCard>
 
       <CollapsibleCard

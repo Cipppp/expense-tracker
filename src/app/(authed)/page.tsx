@@ -1,4 +1,5 @@
 import {
+  getDailyTotals,
   getMonthlyAggregates,
   getMonthlyCategoryBreakdown,
   getSettings,
@@ -10,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { TopMerchants } from "@/components/dashboard/top-merchants";
 import { UnifiedMonthlyChart } from "@/components/dashboard/unified-monthly-chart";
+import { CalendarHeatmap } from "@/components/dashboard/calendar-heatmap";
 import { fmtMonth } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -19,13 +21,18 @@ export default async function DashboardPage() {
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
 
-  const [settings, ytd, monthly, top, categories] = await Promise.all([
+  const [settings, ytd, monthly, top, categories, daily] = await Promise.all([
     getSettings(),
     getYtd(year),
     getMonthlyAggregates(year),
     getTopMerchants(year, month, 5),
     getMonthlyCategoryBreakdown(year),
+    getDailyTotals(year, month),
   ]);
+  const dailyForHeatmap = daily.map((d) => ({
+    date: `${year}-${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`,
+    ron: d.ron,
+  }));
 
   const startMonth =
     year === settings.startYear ? settings.startMonth : 1;
@@ -88,6 +95,23 @@ export default async function DashboardPage() {
         </Card>
 
         <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Spending heatmap</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Intensity per day — click a day to filter.
+              </p>
+            </CardHeader>
+            <Separator />
+            <CardContent className="pt-6">
+              <CalendarHeatmap
+                year={year}
+                month={month}
+                daily={dailyForHeatmap}
+              />
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Top merchants</CardTitle>

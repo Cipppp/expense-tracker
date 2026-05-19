@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Montserrat, Fraunces, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "sonner";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 const sans = Montserrat({
@@ -63,18 +64,20 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-[100dvh] bg-background antialiased">
-        {children}
-        <Toaster
-          position="top-right"
-          closeButton
-          richColors
-          toastOptions={{
-            classNames: {
-              toast:
-                "font-sans border border-border shadow-sm bg-card text-card-foreground",
-            },
-          }}
-        />
+        <ThemeProvider>
+          {children}
+          <Toaster
+            position="top-right"
+            closeButton
+            richColors
+            toastOptions={{
+              classNames: {
+                toast:
+                  "font-sans border border-border shadow-sm bg-card text-card-foreground",
+              },
+            }}
+          />
+        </ThemeProvider>
       </body>
     </html>
   );

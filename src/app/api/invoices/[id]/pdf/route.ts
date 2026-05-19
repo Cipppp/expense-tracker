@@ -1,0 +1,87 @@
+import { NextResponse } from "next/server";
+import { renderToBuffer } from "@react-pdf/renderer";
+import { db } from "@/lib/db";
+import { InvoicePdf } from "@/components/invoices/invoice-pdf";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function GET(
+  _req: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  const { id } = await ctx.params;
+  const invoice = await db.invoice.findUnique({
+    where: { id },
+    include: { lines: { orderBy: { position: "asc" } } },
+  });
+  if (!invoice) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const settings = await db.settings.upsert({
+    where: { id: 1 },
+    update: {},
+    create: { id: 1 },
+  });
+
+  const invoiceTotal = invoice.lines.reduce((a, l) => a + l.amount, 0);
+  const legalTotal =
+    invoice.invoiceCurrency === invoice.legalCurrency
+      ? invoiceTotal
+      : invoiceTotal * (invoice.bnrRate ?? 1);
+
+  const dd = String(invoice.issuedAt.getDate()).padStart(2, "0");
+  const mm = String(invoice.issuedAt.getMonth() + 1).padStart(2, "0");
+  const yy = String(invoice.issuedAt.getFullYear());
+
+  const buffer = await renderToBuffer(
+    InvoicePdf({
+      issuer: {
+        name: settings.issuerName,
+        cif: settings.issuerCif,
+        reg: settings.issuerReg,
+        address: settings.issuerAddress,
+        iban: settings.issuerIban,
+        bank: settings.issuerBank,
+        capital: settings.issuerCapital,
+        signer: settings.issuerSigner,
+      },
+      invoice: {
+        series: invoice.series,
+        number: invoice.number,
+        issuedAt: `${dd}/${mm}/${yy}`,
+        clientName: invoice.clientName,
+        clientCompany: invoice.clientCompany,
+        clientCui: invoice.clientCui,
+        clientReg: invoice.clientReg,
+        clientAddress: invoice.clientAddress,
+        clientCountry: invoice.clientCountry,
+        invoiceCurrency: invoice.invoiceCurrency,
+        legalCurrency: invoice.legalCurrency,
+        bnrRate: invoice.bnrRate,
+        legalTotal,
+        invoiceTotal,
+        footerNote: invoice.footerNote,
+        lines: invoice.lines.map((l) => ({
+          description: l.description,
+          unit: l.unit,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          amount: l.amount,
+        })),
+      },
+    }),
+  );
+
+  return new NextResponse(new Uint8Array(buffer), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `inline; filename="${settings.issuerName.replace(
+        /\s+/g,
+        "-",
+      )}_${invoice.series}${invoice.number}.pdf"`,
+    },
+  });
+}

@@ -6,17 +6,21 @@ import {
   LayoutDashboard,
   Receipt,
   TrendingUp,
+  FileText,
   Upload,
   Settings as SettingsIcon,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { CommandPalette } from "@/components/command-palette";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/expenses", label: "Expenses", icon: Receipt },
   { href: "/income", label: "Income", icon: TrendingUp },
+  { href: "/invoices", label: "Invoices", icon: FileText },
   { href: "/import", label: "Import", icon: Upload },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const;
@@ -24,6 +28,7 @@ const nav = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-[100dvh]">
+      <CommandPalette />
       <DesktopSidebar />
       <main className="flex-1 min-w-0 flex flex-col">
         <MobileHeader />
@@ -78,15 +83,18 @@ function DesktopSidebar() {
         })}
       </nav>
       <Separator />
-      <form action="/api/auth/logout" method="post" className="px-3 py-4">
-        <button
-          type="submit"
-          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-        >
-          <LogOut className="h-4 w-4" />
-          Sign out
-        </button>
-      </form>
+      <div className="flex items-center justify-between px-3 py-3">
+        <form action="/api/auth/logout" method="post" className="flex-1">
+          <button
+            type="submit"
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
+        </form>
+        <ThemeToggle />
+      </div>
     </aside>
   );
 }
@@ -103,15 +111,18 @@ function MobileHeader() {
             Project CIP SRL
           </div>
         </Link>
-        <form action="/api/auth/logout" method="post">
-          <button
-            type="submit"
-            aria-label="Sign out"
-            className="h-9 w-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
-        </form>
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <form action="/api/auth/logout" method="post">
+            <button
+              type="submit"
+              aria-label="Sign out"
+              className="h-9 w-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </form>
+        </div>
       </div>
     </header>
   );

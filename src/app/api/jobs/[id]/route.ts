@@ -7,6 +7,12 @@ const Update = z.object({
   rateUsd: z.coerce.number().nonnegative().optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   active: z.boolean().optional(),
+  defaultCurrency: z.enum(["USD", "EUR", "RON"]).optional(),
+  companyName: z.string().optional().nullable(),
+  companyCui: z.string().optional().nullable(),
+  companyReg: z.string().optional().nullable(),
+  companyAddress: z.string().optional().nullable(),
+  companyCountry: z.string().optional().nullable(),
 });
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -22,7 +28,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  // Soft-delete by setting active=false; entries keep the FK intact.
   await db.job.update({ where: { id }, data: { active: false } });
   return NextResponse.json({ ok: true });
 }
