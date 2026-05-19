@@ -113,3 +113,20 @@ model CategoryRule {
   category  String
   priority  Int    @default(100)    // lower = higher priority
 }
+
+// WebAuthn / Passkey credentials. Single user so no FK — all passkeys belong
+// to "the owner". credentialId is the WebAuthn credential id (base64url).
+model Passkey {
+  id            String   @id @default(cuid())
+  label         String                          // user-friendly: "iPhone", "MacBook Touch ID"
+  credentialId  String   @unique                // base64url-encoded credential id
+  publicKey     Bytes                           // CBOR-encoded public key
+  counter       Int      @default(0)            // authenticator signature counter (for clone detection)
+  transports    String   @default("")           // comma-joined: "internal,hybrid,usb"
+  deviceType    String   @default("singleDevice") // "singleDevice" | "multiDevice" (synced cred)
+  backedUp      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  lastUsedAt    DateTime @default(now())
+
+  @@index([credentialId])
+}

@@ -86,13 +86,13 @@ export function ExpenseFilters({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {/* Search */}
-      <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <div className="relative flex-1 min-w-full md:min-w-[200px] md:max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search description…"
-          className="pl-9 pr-8 h-9"
+          className="pl-9 pr-8 h-10 md:h-9"
         />
         {q && (
           <button
@@ -114,7 +114,7 @@ export function ExpenseFilters({
           apply({ category: v });
         }}
       >
-        <SelectTrigger className="h-9 w-[180px]">
+        <SelectTrigger className="h-10 md:h-9 w-full md:w-[180px] flex-1 md:flex-none min-w-[150px]">
           <SelectValue placeholder="All categories" />
         </SelectTrigger>
         <SelectContent>
@@ -134,7 +134,7 @@ export function ExpenseFilters({
             variant="outline"
             size="sm"
             className={cn(
-              "h-9",
+              "h-10 md:h-9",
               (minRon || maxRon) && "border-accent text-accent",
             )}
           >

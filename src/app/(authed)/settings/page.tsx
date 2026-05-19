@@ -3,6 +3,7 @@ import { CollapsibleCard } from "@/components/ui/collapsible-card";
 import { ronFromBani } from "@/lib/format";
 import { SettingsForm } from "@/components/settings/settings-form";
 import { ClientsManager } from "@/components/settings/clients-manager";
+import { PasskeysManager } from "@/components/settings/passkeys-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,14 @@ export default async function SettingsPage() {
               active: c.active,
             }))}
         />
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        title="Sign-in & security"
+        description="Add passkeys for Face ID / Touch ID logins from your devices."
+        defaultOpen={false}
+      >
+        <PasskeysManager />
       </CollapsibleCard>
 
       <CollapsibleCard

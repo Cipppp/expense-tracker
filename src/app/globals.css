@@ -118,4 +118,20 @@
   .text-balance {
     text-wrap: balance;
   }
+  /* iPhone safe-area helpers — only kick in when there's an inset. */
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top), 0px);
+  }
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+  .safe-x {
+    padding-left: max(env(safe-area-inset-left), 0px);
+    padding-right: max(env(safe-area-inset-right), 0px);
+  }
+  /* Ensures min-h on the body fills the visible viewport on mobile Safari,
+     accounting for the chrome that shows/hides. */
+  .min-h-dvh {
+    min-height: 100dvh;
+  }
 }

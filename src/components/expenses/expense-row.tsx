@@ -119,28 +119,30 @@ export function ExpenseRow({ row }: { row: ExpenseRowData }) {
       >
         -{fmtUsd(row.amountUsd).replace("-", "")}
       </td>
-      <td className="px-2 py-2 text-right w-[40px]">
+      <td className="px-2 py-2 text-right w-[44px] md:w-[40px]">
         <button
           type="button"
           onClick={toggle}
           disabled={pending}
-          aria-label={optimisticExcluded ? "Include" : "Exclude from analytics"}
+          aria-label={
+            optimisticExcluded ? "Include" : "Exclude from analytics"
+          }
           title={
             optimisticExcluded
               ? "Include in analytics"
               : "Exclude from analytics"
           }
           className={cn(
-            "inline-flex items-center justify-center h-6 w-6 rounded-md transition-all duration-150 ease-expo",
+            "inline-flex items-center justify-center rounded-md transition-all duration-150 ease-expo h-9 w-9 md:h-7 md:w-7",
             optimisticExcluded
               ? "opacity-100 text-muted-foreground hover:text-foreground hover:bg-secondary"
-              : "opacity-0 group-hover/row:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10",
+              : "opacity-100 md:opacity-0 md:group-hover/row:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10",
           )}
         >
           {optimisticExcluded ? (
-            <Eye className="h-3.5 w-3.5" />
+            <Eye className="h-4 w-4 md:h-3.5 md:w-3.5" />
           ) : (
-            <EyeOff className="h-3.5 w-3.5" />
+            <EyeOff className="h-4 w-4 md:h-3.5 md:w-3.5" />
           )}
         </button>
       </td>
