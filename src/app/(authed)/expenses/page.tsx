@@ -14,24 +14,9 @@ import { baniFromRon, fmtMonth, fmtRon, fmtUsd } from "@/lib/format";
 import { MonthFilter } from "@/components/expenses/month-filter";
 import { ExpenseFilters as ExpenseFiltersBar } from "@/components/expenses/expense-filters";
 import { SortableHeader } from "@/components/expenses/sortable-header";
+import { ExpenseRow } from "@/components/expenses/expense-row";
 
 export const dynamic = "force-dynamic";
-
-const CATEGORY_COLORS: Record<
-  string,
-  "default" | "accent" | "success" | "warning" | "destructive" | "secondary" | "outline"
-> = {
-  Food: "accent",
-  Groceries: "success",
-  Transport: "warning",
-  Health: "destructive",
-  Bills: "secondary",
-  Subscriptions: "secondary",
-  Shopping: "accent",
-  Transfer: "outline",
-  Savings: "outline",
-  Other: "outline",
-};
 
 const VALID_SORTS: ExpenseSortField[] = [
   "date",
@@ -80,6 +65,7 @@ export default async function ExpensesPage(props: {
     getYearCategories(year),
   ]);
 
+  // Daily totals exclude excluded rows so the red-day highlight is meaningful.
   const dailyTotals = new Map<string, number>();
   for (const e of yearExp) {
     if (e.date.getFullYear() !== year || e.date.getMonth() + 1 !== month) continue;
@@ -87,8 +73,12 @@ export default async function ExpensesPage(props: {
     dailyTotals.set(key, (dailyTotals.get(key) ?? 0) + e.amountRon);
   }
 
-  const monthTotalRon = monthExp.reduce((a, b) => a + b.amountRon, 0);
-  const monthTotalUsd = monthExp.reduce((a, b) => a + b.amountUsd, 0);
+  // Header totals also skip excluded rows. monthExp still contains them
+  // (so the table can show them) — we just filter for the sums.
+  const included = monthExp.filter((e) => !e.excluded);
+  const excludedCount = monthExp.length - included.length;
+  const monthTotalRon = included.reduce((a, b) => a + b.amountRon, 0);
+  const monthTotalUsd = included.reduce((a, b) => a + b.amountUsd, 0);
   const yearTotalRon = yearExp.reduce((a, b) => a + b.amountRon, 0);
   const isFiltered = !!(
     filters.category ||
@@ -119,7 +109,10 @@ export default async function ExpensesPage(props: {
               {fmtRon(monthTotalRon)}
             </div>
             <div className="text-xs text-muted-foreground tabular-nums">
-              ≈ {fmtUsd(monthTotalUsd)} · {monthExp.length} txn
+              ≈ {fmtUsd(monthTotalUsd)} · {included.length} txn
+              {excludedCount > 0 && (
+                <span className="ml-1">· {excludedCount} excluded</span>
+              )}
             </div>
           </div>
           <div>
@@ -210,6 +203,7 @@ export default async function ExpensesPage(props: {
                         defaultDir="desc"
                       />
                     </th>
+                    <th className="w-[40px]" aria-label="actions" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
@@ -218,38 +212,23 @@ export default async function ExpensesPage(props: {
                     const isHotDay =
                       (dailyTotals.get(dayKey) ?? 0) > settings.redThresholdRon;
                     return (
-                      <tr
+                      <ExpenseRow
                         key={e.id}
-                        className="hover:bg-secondary/40 transition-colors"
-                      >
-                        <td className="px-4 py-2 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
-                          {e.date.toLocaleDateString("en-GB", {
+                        row={{
+                          id: e.id,
+                          date: dayKey,
+                          dateShort: e.date.toLocaleDateString("en-GB", {
                             day: "2-digit",
                             month: "short",
-                          })}
-                        </td>
-                        <td className="px-4 py-2">
-                          <span className="font-medium">{e.description}</span>
-                        </td>
-                        <td className="px-4 py-2">
-                          <Badge
-                            variant={CATEGORY_COLORS[e.category] ?? "outline"}
-                            className="text-[10px] font-normal"
-                          >
-                            {e.category}
-                          </Badge>
-                        </td>
-                        <td
-                          className={`px-4 py-2 text-right tabular-nums whitespace-nowrap ${
-                            isHotDay ? "text-destructive" : ""
-                          }`}
-                        >
-                          -{fmtRon(e.amountRon).replace("- ", "")}
-                        </td>
-                        <td className="px-4 py-2 text-right tabular-nums text-muted-foreground whitespace-nowrap">
-                          -{fmtUsd(e.amountUsd).replace("-", "")}
-                        </td>
-                      </tr>
+                          }),
+                          description: e.description,
+                          category: e.category,
+                          amountRon: e.amountRon,
+                          amountUsd: e.amountUsd,
+                          excluded: e.excluded,
+                          isHotDay,
+                        }}
+                      />
                     );
                   })}
                 </tbody>

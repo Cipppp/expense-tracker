@@ -1,5 +1,10 @@
 /**
  * Server-only data access helpers — used by RSC pages and route handlers.
+ *
+ * Convention: any query that feeds aggregates / charts / totals filters
+ * `excluded: false` so excluded rows stay in the DB but never show up in
+ * sums. The expense table is the only place that surfaces them, so users
+ * can un-exclude.
  */
 import "server-only";
 import { db } from "@/lib/db";
@@ -22,6 +27,10 @@ export type ExpenseFilters = {
   dir?: SortDir;
 };
 
+/**
+ * Expense table query. Returns excluded rows too — the page styles them
+ * differently and the totals omit them client-side.
+ */
 export async function getMonthExpenses(
   year: number,
   month: number,
@@ -29,7 +38,6 @@ export async function getMonthExpenses(
 ) {
   const sortField = filters.sort ?? "date";
   const dir = filters.dir ?? "desc";
-  // Default tiebreaker on date so two rows with identical sort key stay stable.
   const orderBy: { [K in ExpenseSortField | "createdAt"]?: SortDir }[] = [
     { [sortField]: dir },
     ...(sortField !== "date" ? [{ date: "desc" as const }] : []),
@@ -56,7 +64,7 @@ export async function getMonthExpenses(
   });
 }
 
-/** Distinct categories present in the year — for the filter dropdown. */
+/** Distinct categories with at least one non-excluded row in the year. */
 export async function getYearCategories(year: number): Promise<string[]> {
   const rows = await db.expense.findMany({
     where: {
@@ -64,6 +72,7 @@ export async function getYearCategories(year: number): Promise<string[]> {
         gte: new Date(year, 0, 1),
         lte: new Date(year, 11, 31, 23, 59, 59),
       },
+      excluded: false,
     },
     distinct: ["category"],
     select: { category: true },
@@ -71,7 +80,7 @@ export async function getYearCategories(year: number): Promise<string[]> {
   return rows.map((r) => r.category).sort();
 }
 
-/** Monthly category totals for the dashboard category chart. */
+/** Monthly category totals for the dashboard category chart. Excluded out. */
 export async function getMonthlyCategoryBreakdown(year: number) {
   const expenses = await getYearExpenses(year);
   const months: Array<{ month: number; label: string; categories: Record<string, number> }> = [];
@@ -90,6 +99,7 @@ export async function getMonthlyCategoryBreakdown(year: number) {
   return months;
 }
 
+/** Year's expenses, EXCLUDING rows the user explicitly excluded. */
 export async function getYearExpenses(year: number) {
   return db.expense.findMany({
     where: {
@@ -97,6 +107,7 @@ export async function getYearExpenses(year: number) {
         gte: new Date(year, 0, 1),
         lte: new Date(year, 11, 31, 23, 59, 59),
       },
+      excluded: false,
     },
   });
 }
@@ -121,11 +132,14 @@ export async function getSettings() {
   });
 }
 
-/** TOP 5 merchants for a month, summed in RON bani. */
+/** TOP 5 merchants for a month — excluded rows skipped. */
 export async function getTopMerchants(year: number, month: number, limit = 5) {
   const grouped = await db.expense.groupBy({
     by: ["merchant"],
-    where: { date: { gte: startOfMonth(year, month), lte: endOfMonth(year, month) } },
+    where: {
+      date: { gte: startOfMonth(year, month), lte: endOfMonth(year, month) },
+      excluded: false,
+    },
     _sum: { amountRon: true, amountUsd: true },
     _count: true,
     orderBy: { _sum: { amountRon: "desc" } },
@@ -180,6 +194,7 @@ export async function getDailyTotals(year: number, month: number) {
   const out: Array<{ day: number; ron: number; usd: number }> = [];
   for (let d = 1; d <= days; d++) out.push({ day: d, ron: 0, usd: 0 });
   for (const e of expenses) {
+    if (e.excluded) continue;
     const d = e.date.getDate();
     out[d - 1].ron += e.amountRon;
     out[d - 1].usd += e.amountUsd;
@@ -187,7 +202,7 @@ export async function getDailyTotals(year: number, month: number) {
   return out;
 }
 
-/** YTD totals — used in the Dashboard summary cards. */
+/** YTD totals — used in the Dashboard summary cards. Excluded rows skipped. */
 export async function getYtd(year: number) {
   const expenses = await getYearExpenses(year);
   const income = await getYearIncome(year);

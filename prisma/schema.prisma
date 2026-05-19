@@ -31,6 +31,10 @@ model Expense {
   dedupKey    String
   // Per-CSV sortKey from Revolut (Started Date timestamp). Helps with twin detection.
   sortKey     String?
+  // When true, this row stays in the table for reference but is filtered
+  // out of every aggregate / chart / total. Useful for own-account transfers,
+  // refunds, or anything that shouldn't count as spending.
+  excluded    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -38,6 +42,7 @@ model Expense {
   @@index([category])
   @@index([dedupKey])
   @@index([merchant])
+  @@index([excluded])
 }
 
 model Income {
