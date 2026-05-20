@@ -1,4 +1,4 @@
-import { ArrowDownRight, ArrowUpRight, Receipt, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Receipt, Wallet } from "@/lib/icons";
 import { Card, CardContent } from "@/components/ui/card";
 import { fmtRon, fmtUsd } from "@/lib/format";
 

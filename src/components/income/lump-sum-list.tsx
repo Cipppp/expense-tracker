@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { Trash2 } from "@/lib/icons";
 import { fmtDate, fmtUsd } from "@/lib/format";
 import {
   Table,

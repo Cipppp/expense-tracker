@@ -15,7 +15,7 @@ import {
   Building2,
   Sun,
   Moon,
-} from "lucide-react";
+} from "@/lib/icons";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 

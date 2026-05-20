@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "@/lib/icons";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { fmtRon, fmtUsd } from "@/lib/format";

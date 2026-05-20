@@ -12,7 +12,7 @@ import {
   Settings as SettingsIcon,
   LogOut,
   Menu,
-} from "lucide-react";
+} from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";

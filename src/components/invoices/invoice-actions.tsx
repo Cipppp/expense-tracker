@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Check, Send, RotateCcw, Trash2 } from "lucide-react";
+import { Check, Send, RotateCcw, Trash2 } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 
 export function InvoiceActions({
