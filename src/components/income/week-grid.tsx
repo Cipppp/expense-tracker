@@ -51,18 +51,20 @@ const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const START_HOUR = 0;
 const END_HOUR = 24;
 const HOURS = END_HOUR - START_HOUR;
-const ROW_PX = 52; // 1h = 52px → 15min = 13px
+const ROW_PX_DEFAULT = 52;
+const ROW_PX_COMPACT = 28;
 const SLOT_MIN = 15; // snap to 15-minute slots
 const DAY_MIN = 24 * 60;
 
 function snap(minutes: number): number {
   return Math.round(minutes / SLOT_MIN) * SLOT_MIN;
 }
-function topFromMin(min: number): number {
-  return ((min - START_HOUR * 60) / 60) * ROW_PX;
+function makeTopFromMin(rowPx: number) {
+  return (min: number) => ((min - START_HOUR * 60) / 60) * rowPx;
 }
-function minFromY(y: number): number {
-  return Math.max(START_HOUR * 60, START_HOUR * 60 + (y / ROW_PX) * 60);
+function makeMinFromY(rowPx: number) {
+  return (y: number) =>
+    Math.max(START_HOUR * 60, START_HOUR * 60 + (y / rowPx) * 60);
 }
 
 /**
@@ -156,6 +158,7 @@ export function WeekGrid({
   entries,
   jobs,
   onWeekChange,
+  compact = false,
 }: {
   anchorIso: string;
   entries: WeekEntry[];
@@ -163,8 +166,14 @@ export function WeekGrid({
   /** If provided, controls week navigation (used to embed the grid outside
    * /income without redirecting the page). Default: navigate to /income?week. */
   onWeekChange?: (iso: string) => void;
+  /** Smaller row height + footer hidden — for previews like the per-client
+   * dashboard where the full-size grid would overwhelm the page. */
+  compact?: boolean;
 }) {
   const router = useRouter();
+  const rowPx = compact ? ROW_PX_COMPACT : ROW_PX_DEFAULT;
+  const topFromMin = useMemo(() => makeTopFromMin(rowPx), [rowPx]);
+  const minFromY = useMemo(() => makeMinFromY(rowPx), [rowPx]);
   const anchor = useMemo(() => new Date(`${anchorIso}T12:00:00`), [anchorIso]);
   const days = useMemo(() => weekDates(anchor), [anchor]);
   const todayIso = localISODate(new Date());
@@ -243,7 +252,7 @@ export function WeekGrid({
         const dy = ev.clientY - d.pointerStart.y;
         const dx = ev.clientX - d.pointerStart.x;
         const moved = d.moved || Math.abs(dx) > 4 || Math.abs(dy) > 4;
-        const deltaMin = snap((dy / ROW_PX) * 60);
+        const deltaMin = snap((dy / rowPx) * 60);
         let newStart = d.origStart;
         let newEnd = d.origEnd;
         let newDate = d.origDate;
@@ -550,7 +559,7 @@ export function WeekGrid({
                     <div
                       key={i}
                       className="text-[10px] text-muted-foreground pr-2 pt-1 text-right tabular-nums"
-                      style={{ height: ROW_PX }}
+                      style={{ height: rowPx }}
                     >
                       {String((START_HOUR + i) % 24).padStart(2, "0")}:00
                     </div>
@@ -570,6 +579,9 @@ export function WeekGrid({
                       isToday={isToday}
                       segments={layoutDay(segments)}
                       draggedEntryId={drag?.entryId ?? null}
+                      rowPx={rowPx}
+                      topFromMin={topFromMin}
+                      minFromY={minFromY}
                       onStartDrag={startDrag}
                       onCreateDraft={(d) => {
                         setDraft(d);
@@ -584,7 +596,7 @@ export function WeekGrid({
         </CardContent>
       </Card>
 
-      {weekTotals.perClient.length > 0 && (
+      {weekTotals.perClient.length > 0 && !compact && (
         <Card>
           <CardContent className="p-5">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
@@ -648,6 +660,9 @@ function DayColumn({
   isToday,
   segments,
   draggedEntryId,
+  rowPx,
+  topFromMin,
+  minFromY,
   onStartDrag,
   onCreateDraft,
 }: {
@@ -655,6 +670,9 @@ function DayColumn({
   isToday: boolean;
   segments: LaidOutSegment[];
   draggedEntryId: string | null;
+  rowPx: number;
+  topFromMin: (min: number) => number;
+  minFromY: (y: number) => number;
   onStartDrag: (
     segment: Segment,
     mode: "move" | "resize-top" | "resize-bottom",
@@ -726,14 +744,14 @@ function DayColumn({
         "relative border-l border-border cursor-crosshair select-none",
         isToday && "bg-accent/[0.04]",
       )}
-      style={{ height: HOURS * ROW_PX }}
+      style={{ height: HOURS * rowPx }}
     >
       {/* Hour gridlines */}
       {Array.from({ length: HOURS }).map((_, i) => (
         <div
           key={i}
           className="border-b border-border/40"
-          style={{ height: ROW_PX }}
+          style={{ height: rowPx }}
         />
       ))}
       {/* 30-min subgridlines */}
@@ -741,7 +759,7 @@ function DayColumn({
         <div
           key={`half-${i}`}
           className="absolute left-0 right-0 border-b border-border/20"
-          style={{ top: i * ROW_PX + ROW_PX / 2 }}
+          style={{ top: i * rowPx + rowPx / 2 }}
         />
       ))}
 
@@ -878,7 +896,7 @@ function DayColumn({
           className="absolute left-1 right-1 rounded-md border-2 border-dashed border-accent bg-accent/10 pointer-events-none"
           style={{
             top: topFromMin(dragLo),
-            height: Math.max(ROW_PX / 4, topFromMin(dragHi) - topFromMin(dragLo)),
+            height: Math.max(rowPx / 4, topFromMin(dragHi) - topFromMin(dragLo)),
           }}
         >
           <div className="text-[10px] text-accent font-medium tabular-nums px-2 pt-1">

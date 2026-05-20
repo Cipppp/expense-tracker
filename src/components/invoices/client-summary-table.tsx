@@ -227,6 +227,7 @@ function ClientRow({
                 entries={clientEntries}
                 jobs={filteredJobs}
                 onWeekChange={onAnchorChange}
+                compact
               />
             </div>
           </td>
