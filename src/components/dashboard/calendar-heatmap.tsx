@@ -55,6 +55,13 @@ export function CalendarHeatmap({
     [cells],
   );
 
+  const stats = useMemo(() => {
+    const withData = cells.filter((c) => c.data && c.data.ron > 0);
+    const total = withData.reduce((a, c) => a + (c.data?.ron ?? 0), 0);
+    const avg = withData.length > 0 ? total / withData.length : 0;
+    return { total, avg, daysWithSpend: withData.length };
+  }, [cells]);
+
   function nav(delta: number) {
     let m = month + delta;
     let y = year;
@@ -112,11 +119,12 @@ export function CalendarHeatmap({
           const ron = c.data?.ron ?? 0;
           const intensity = max > 0 ? ron / max : 0;
           const opacity = ron > 0 ? 0.1 + intensity * 0.85 : 0;
+          const isHot = intensity > 0.6;
           const trigger = (
             <button
               type="button"
               className={cn(
-                "aspect-square rounded-md flex flex-col items-center justify-center text-[10px] relative transition-all duration-200 ease-expo w-full",
+                "aspect-square rounded-md flex flex-col items-center justify-center gap-0.5 relative transition-all duration-200 ease-expo w-full px-0.5",
                 ron > 0 ? "hover:scale-110 cursor-pointer" : "cursor-default",
               )}
               style={{
@@ -128,12 +136,22 @@ export function CalendarHeatmap({
             >
               <span
                 className={cn(
-                  "tabular-nums leading-none",
-                  intensity > 0.6 ? "text-white font-medium" : "text-foreground",
+                  "tabular-nums leading-none text-[10px]",
+                  isHot ? "text-white font-medium" : "text-foreground",
                 )}
               >
                 {c.day}
               </span>
+              {ron > 0 && (
+                <span
+                  className={cn(
+                    "tabular-nums leading-none text-[9px]",
+                    isHot ? "text-white/85" : "text-muted-foreground",
+                  )}
+                >
+                  {compactRon(ron)}
+                </span>
+              )}
             </button>
           );
 
@@ -160,21 +178,51 @@ export function CalendarHeatmap({
         })}
       </div>
 
-      <div className="flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground">
-        <span>Less</span>
-        <div className="flex gap-0.5">
-          {[0.1, 0.3, 0.5, 0.7, 0.95].map((o) => (
-            <div
-              key={o}
-              className="h-2.5 w-2.5 rounded-sm"
-              style={{ backgroundColor: `hsl(var(--accent) / ${o})` }}
-            />
-          ))}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-[10px] text-muted-foreground pt-1">
+        {stats.daysWithSpend > 0 && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
+            <span>
+              Avg/day · <span className="text-foreground font-medium">{fmtRon(stats.avg)}</span>
+            </span>
+            <span>
+              Max ·{" "}
+              <span className="text-foreground font-medium">{fmtRon(max)}</span>
+            </span>
+            <span className="hidden sm:inline">
+              Total ·{" "}
+              <span className="text-foreground font-medium">
+                {fmtRon(stats.total)}
+              </span>
+            </span>
+          </div>
+        )}
+        <div className="flex items-center gap-1.5 ml-auto">
+          <span>Less</span>
+          <div className="flex gap-0.5">
+            {[0.1, 0.3, 0.5, 0.7, 0.95].map((o) => (
+              <div
+                key={o}
+                className="h-2.5 w-2.5 rounded-sm"
+                style={{ backgroundColor: `hsl(var(--accent) / ${o})` }}
+              />
+            ))}
+          </div>
+          <span>More</span>
         </div>
-        <span>More</span>
       </div>
     </div>
   );
+}
+
+/**
+ * Compact RON formatter for the small heatmap cells. Falls back to whole
+ * RON values below 1000 and "Xk" above to fit a 9px font.
+ */
+function compactRon(bani: number): string {
+  const ron = Math.round(bani / 100);
+  if (ron < 1000) return String(ron);
+  if (ron < 10000) return `${(ron / 1000).toFixed(1)}k`;
+  return `${Math.round(ron / 1000)}k`;
 }
 
 function DayDetail({
