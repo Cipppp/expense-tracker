@@ -19,7 +19,7 @@ export default async function NewInvoicePage(props: {
         <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
           Invoices
         </div>
-        <h1 className="mt-1 font-display text-4xl tracking-tight">New invoice</h1>
+        <h1 className="mt-1 font-display text-2xl sm:text-4xl tracking-tight">New invoice</h1>
       </header>
 
       <Card>

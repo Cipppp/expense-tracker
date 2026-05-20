@@ -158,7 +158,7 @@ export function UnifiedMonthlyChart({
         </TabsList>
       </Tabs>
 
-      <div className="h-[380px] w-full">
+      <div className="h-[300px] sm:h-[380px] w-full">
         {view === "taxes" && <TaxesChart key="taxes" data={taxesData} />}
         {view === "categories" && (
           <CategoriesChart key="categories" data={catData} keys={catKeys} colors={catColorMap} />

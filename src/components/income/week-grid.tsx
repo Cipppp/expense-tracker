@@ -425,7 +425,7 @@ export function WeekGrid({
 
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex items-center gap-1">
           <Button
             variant="outline"
@@ -435,7 +435,7 @@ export function WeekGrid({
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <div className="px-3 text-sm font-medium tabular-nums">{weekLabel}</div>
+          <div className="px-2 sm:px-3 text-xs sm:text-sm font-medium tabular-nums whitespace-nowrap">{weekLabel}</div>
           <Button
             variant="outline"
             size="icon"
@@ -458,7 +458,7 @@ export function WeekGrid({
           </Button>
         </div>
 
-        <div className="flex items-start gap-6 text-sm">
+        <div className="flex items-start gap-4 sm:gap-6 text-sm">
           <div>
             <div className="text-xs uppercase tracking-wider text-muted-foreground">
               Week

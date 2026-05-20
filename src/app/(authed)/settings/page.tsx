@@ -24,7 +24,7 @@ export default async function SettingsPage() {
         <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
           Settings
         </div>
-        <h1 className="mt-1 font-display text-4xl tracking-tight">
+        <h1 className="mt-1 font-display text-2xl sm:text-4xl tracking-tight">
           Tax, FX & clients
         </h1>
       </header>

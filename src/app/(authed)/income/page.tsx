@@ -73,18 +73,18 @@ export default async function IncomePage(props: {
 
   return (
     <div className="space-y-8">
-      <header className="flex items-end justify-between gap-4">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
             Income
           </div>
-          <h1 className="mt-1 font-display text-4xl tracking-tight">Time tracker</h1>
+          <h1 className="mt-1 font-display text-2xl sm:text-4xl tracking-tight">Time tracker</h1>
         </div>
         <div className="text-right">
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
             Total YTD
           </div>
-          <div className="font-display text-2xl tabular-nums text-success">
+          <div className="font-display text-xl sm:text-2xl tabular-nums text-success">
             {fmtUsd(totalYtd)}
           </div>
         </div>

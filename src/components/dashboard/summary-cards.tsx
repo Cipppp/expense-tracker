@@ -1,37 +1,30 @@
 import { ArrowDownRight, ArrowUpRight, Receipt, Wallet } from "@/lib/icons";
 import { Card, CardContent } from "@/components/ui/card";
-import { fmtRon, fmtUsd } from "@/lib/format";
+import { fmtUsd } from "@/lib/format";
 
 export function SummaryCards({
-  spentRon,
   spentUsd,
   earnedUsd,
   count,
 }: {
-  spentRon: number;
   spentUsd: number;
   earnedUsd: number;
   count: number;
 }) {
   const netUsd = earnedUsd - spentUsd;
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <Stat
-        label="Spent YTD (RON)"
-        value={fmtRon(spentRon)}
-        accent="destructive"
-        icon={<ArrowDownRight className="h-4 w-4" />}
-      />
-      <Stat
-        label="Spent YTD (USD)"
-        value={fmtUsd(spentUsd)}
-        accent="muted"
-      />
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <Stat
         label="Earned YTD"
         value={fmtUsd(earnedUsd)}
         accent="success"
         icon={<ArrowUpRight className="h-4 w-4" />}
+      />
+      <Stat
+        label="Spent YTD"
+        value={fmtUsd(spentUsd)}
+        accent="destructive"
+        icon={<ArrowDownRight className="h-4 w-4" />}
       />
       <Stat
         label={netUsd >= 0 ? "Net YTD" : "Net YTD (in red)"}
@@ -71,12 +64,12 @@ function Stat({
           : "text-foreground";
   return (
     <Card className="overflow-hidden">
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between text-xs uppercase tracking-wider text-muted-foreground">
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-center justify-between text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground">
           {label}
           <span className={accentClass}>{icon}</span>
         </div>
-        <div className={`mt-2 font-display text-2xl tracking-tight num ${accentClass}`}>
+        <div className={`mt-2 font-display text-xl sm:text-2xl tracking-tight num ${accentClass}`}>
           {value}
         </div>
         {footer && (

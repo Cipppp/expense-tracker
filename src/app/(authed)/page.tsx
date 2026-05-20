@@ -41,8 +41,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <header className="flex items-end justify-between gap-4">
-        <div>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
           <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
             {now.toLocaleDateString("en-GB", {
               weekday: "long",
@@ -51,22 +51,21 @@ export default async function DashboardPage() {
               year: "numeric",
             })}
           </div>
-          <h1 className="mt-1 font-display text-4xl tracking-tight text-balance">
+          <h1 className="mt-1 font-display text-2xl sm:text-4xl tracking-tight text-balance">
             Dashboard
           </h1>
         </div>
-        <div className="hidden md:block text-right">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">
+        <div className="text-right">
+          <div className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground">
             FX rate
           </div>
-          <div className="font-mono text-sm">
+          <div className="font-mono text-xs sm:text-sm">
             1 RON ≈ ${settings.fxRonToUsd.toFixed(4)}
           </div>
         </div>
       </header>
 
       <SummaryCards
-        spentRon={ytd.spentRon}
         spentUsd={ytd.spentUsd}
         earnedUsd={ytd.earnedUsd}
         count={ytd.count}
