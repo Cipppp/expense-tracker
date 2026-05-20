@@ -154,6 +154,23 @@ export function WeekGrid({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draft, setDraft] = useState<EntryDraft | null>(null);
 
+  // Drag state for moving / resizing time blocks. `moved` flips true once
+  // the pointer crosses a small threshold — until then we treat the gesture
+  // as a click that opens the edit dialog.
+  type DragMode = "move" | "resize-top" | "resize-bottom";
+  type DragState = {
+    entryId: string;
+    mode: DragMode;
+    origStart: number;
+    origEnd: number;
+    origDate: string;
+    pointerStart: { x: number; y: number };
+    current: { start: number; end: number; date: string };
+    moved: boolean;
+  };
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const gridBodyRef = useRef<HTMLDivElement | null>(null);
+
   function openEdit(e: WeekEntry) {
     setDraft({
       id: e.id,
@@ -165,6 +182,120 @@ export function WeekGrid({
     });
     setDialogOpen(true);
   }
+
+  function startDrag(
+    entry: WeekEntry,
+    mode: DragMode,
+    e: React.PointerEvent,
+  ) {
+    e.stopPropagation();
+    e.preventDefault();
+    setDrag({
+      entryId: entry.id,
+      mode,
+      origStart: entry.startMinutes ?? 540,
+      origEnd: entry.endMinutes ?? 1020,
+      origDate: entry.date,
+      pointerStart: { x: e.clientX, y: e.clientY },
+      current: {
+        start: entry.startMinutes ?? 540,
+        end: entry.endMinutes ?? 1020,
+        date: entry.date,
+      },
+      moved: false,
+    });
+  }
+
+  useEffect(() => {
+    if (!drag) return;
+    function snap(min: number) {
+      return Math.round(min / SLOT_MIN) * SLOT_MIN;
+    }
+    function onMove(ev: PointerEvent) {
+      setDrag((d) => {
+        if (!d) return d;
+        const dy = ev.clientY - d.pointerStart.y;
+        const dx = ev.clientX - d.pointerStart.x;
+        const moved = d.moved || Math.abs(dx) > 4 || Math.abs(dy) > 4;
+        const deltaMin = snap((dy / ROW_PX) * 60);
+        let newStart = d.origStart;
+        let newEnd = d.origEnd;
+        let newDate = d.origDate;
+        if (d.mode === "move") {
+          newStart = d.origStart + deltaMin;
+          newEnd = d.origEnd + deltaMin;
+          // Horizontal day swap: find which day column the cursor sits over.
+          const body = gridBodyRef.current;
+          if (body) {
+            const rect = body.getBoundingClientRect();
+            // Body grid: 56px hour-label col + 7 equal-width day cols.
+            const dayStart = rect.left + 56;
+            const dayWidth = (rect.right - dayStart) / 7;
+            const col = Math.floor((ev.clientX - dayStart) / dayWidth);
+            const colClamped = Math.max(0, Math.min(6, col));
+            const origCol = days.findIndex(
+              (dd) => localISODate(dd) === d.origDate,
+            );
+            if (origCol !== -1 && colClamped !== origCol) {
+              newDate = localISODate(days[colClamped]);
+            }
+          }
+        } else if (d.mode === "resize-bottom") {
+          newEnd = Math.max(d.origStart + SLOT_MIN, d.origEnd + deltaMin);
+        } else if (d.mode === "resize-top") {
+          newStart = Math.min(d.origEnd - SLOT_MIN, d.origStart + deltaMin);
+        }
+        // Clamp to grid time window
+        newStart = Math.max(START_HOUR * 60, newStart);
+        newEnd = Math.min(END_HOUR * 60, newEnd);
+        return {
+          ...d,
+          current: { start: newStart, end: newEnd, date: newDate },
+          moved,
+        };
+      });
+    }
+    async function onUp() {
+      const d = drag;
+      if (!d) return;
+      setDrag(null);
+      if (!d.moved) {
+        // Treat as a click — open the edit dialog.
+        const entry = entries.find((e) => e.id === d.entryId);
+        if (entry) openEdit(entry);
+        return;
+      }
+      const changed =
+        d.current.start !== d.origStart ||
+        d.current.end !== d.origEnd ||
+        d.current.date !== d.origDate;
+      if (!changed) return;
+      try {
+        const res = await fetch(`/api/income/${d.entryId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: d.current.date,
+            startMinutes: d.current.start,
+            endMinutes: d.current.end,
+          }),
+        });
+        if (!res.ok) throw new Error("update failed");
+        router.refresh();
+      } catch {
+        // Surface failure quietly; the row will snap back on next refresh.
+      }
+    }
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+    return () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drag, entries, days, router]);
 
   function navWeek(delta: number) {
     const d = new Date(anchor);
@@ -345,6 +476,7 @@ export function WeekGrid({
 
               {/* Grid body */}
               <div
+                ref={gridBodyRef}
                 className="grid relative"
                 style={{ gridTemplateColumns: "56px repeat(7, 1fr)" }}
               >
@@ -361,10 +493,28 @@ export function WeekGrid({
                   ))}
                 </div>
 
-                {/* Day columns */}
+                {/* Day columns. Entries here reflect the LIVE drag state — if
+                    an entry is being dragged we relocate it to the target
+                    day on the fly so the visual matches the cursor. */}
                 {days.map((d) => {
                   const iso = localISODate(d);
-                  const dayEntries = byDay.get(iso) ?? [];
+                  const base = byDay.get(iso) ?? [];
+                  // Filter out the dragged entry from its origin if it's
+                  // currently over a different day.
+                  let dayEntries =
+                    drag && drag.origDate === iso && drag.current.date !== iso
+                      ? base.filter((e) => e.id !== drag.entryId)
+                      : base.slice();
+                  // Add the dragged entry to its destination day if not
+                  // already here.
+                  if (drag && drag.current.date === iso) {
+                    const sourceArr =
+                      drag.origDate === iso ? base : (byDay.get(drag.origDate) ?? []);
+                    const e = sourceArr.find((x) => x.id === drag.entryId);
+                    if (e && !dayEntries.some((x) => x.id === e.id)) {
+                      dayEntries.push(e);
+                    }
+                  }
                   const isToday = iso === todayIso;
                   return (
                     <DayColumn
@@ -373,7 +523,9 @@ export function WeekGrid({
                       iso={iso}
                       isToday={isToday}
                       entries={layoutDay(dayEntries)}
+                      drag={drag}
                       onEditEntry={openEdit}
+                      onStartDrag={startDrag}
                       onCreateDraft={(d) => {
                         setDraft(d);
                         setDialogOpen(true);
@@ -446,23 +598,42 @@ export function WeekGrid({
   );
 }
 
+type EntryDragState = {
+  entryId: string;
+  mode: "move" | "resize-top" | "resize-bottom";
+  origStart: number;
+  origEnd: number;
+  origDate: string;
+  pointerStart: { x: number; y: number };
+  current: { start: number; end: number; date: string };
+  moved: boolean;
+};
+
 function DayColumn({
   date,
   iso,
   isToday,
   entries,
+  drag,
   onEditEntry,
+  onStartDrag,
   onCreateDraft,
 }: {
   date: Date;
   iso: string;
   isToday: boolean;
   entries: LaidOutEntry[];
+  drag: EntryDragState | null;
   onEditEntry: (e: WeekEntry) => void;
+  onStartDrag: (
+    entry: WeekEntry,
+    mode: "move" | "resize-top" | "resize-bottom",
+    e: React.PointerEvent,
+  ) => void;
   onCreateDraft: (d: EntryDraft) => void;
 }) {
   const colRef = useRef<HTMLDivElement>(null);
-  const [drag, setDrag] = useState<{ startMin: number; endMin: number } | null>(null);
+  const [createDrag, setCreateDrag] = useState<{ startMin: number; endMin: number } | null>(null);
 
   const minFromEvent = useCallback((clientY: number): number => {
     const el = colRef.current;
@@ -477,18 +648,18 @@ function DayColumn({
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest("[data-entry-block]")) return;
     const start = minFromEvent(e.clientY);
-    setDrag({ startMin: start, endMin: start + SLOT_MIN });
+    setCreateDrag({ startMin: start, endMin: start + SLOT_MIN });
   }
 
   useEffect(() => {
-    if (!drag) return;
+    if (!createDrag) return;
     function onMove(ev: MouseEvent) {
-      if (!drag) return;
+      if (!createDrag) return;
       const m = minFromEvent(ev.clientY);
-      setDrag((cur) => (cur ? { ...cur, endMin: m } : cur));
+      setCreateDrag((cur) => (cur ? { ...cur, endMin: m } : cur));
     }
     function onUp() {
-      setDrag((cur) => {
+      setCreateDrag((cur) => {
         if (!cur) return null;
         const lo = Math.min(cur.startMin, cur.endMin);
         const hi = Math.max(cur.startMin, cur.endMin);
@@ -511,10 +682,10 @@ function DayColumn({
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [drag, iso, minFromEvent, onCreateDraft]);
+  }, [createDrag, iso, minFromEvent, onCreateDraft]);
 
-  const dragLo = drag ? Math.min(drag.startMin, drag.endMin) : 0;
-  const dragHi = drag ? Math.max(drag.startMin, drag.endMin) : 0;
+  const dragLo = createDrag ? Math.min(createDrag.startMin, createDrag.endMin) : 0;
+  const dragHi = createDrag ? Math.max(createDrag.startMin, createDrag.endMin) : 0;
 
   return (
     <div
@@ -545,67 +716,105 @@ function DayColumn({
 
       {/* Existing entries — packed into lanes, side-by-side when overlapping */}
       {entries.map((e) => {
-        const top = topFromMin(e.startMinutes ?? 0);
-        const height = topFromMin(e.endMinutes ?? 0) - top;
-        // Each lane is an equal slice of the column width. With N=1 the entry
-        // takes the full width; with N=3 each one is ~33%.
+        // If this entry is being dragged, paint it at its current dragged
+        // position. The parent already moved it into this column's array.
+        const isDragging = drag?.entryId === e.id;
+        const startMin = isDragging
+          ? drag!.current.start
+          : (e.startMinutes ?? 0);
+        const endMin = isDragging
+          ? drag!.current.end
+          : (e.endMinutes ?? 0);
+        const top = topFromMin(startMin);
+        const height = topFromMin(endMin) - top;
         const laneWidthPct = 100 / e.totalLanes;
         const leftPct = e.laneIndex * laneWidthPct;
         const isNarrow = e.totalLanes >= 3;
         return (
-          <button
+          <div
             key={e.id}
             data-entry-block
-            type="button"
-            onClick={(ev) => {
-              ev.stopPropagation();
-              onEditEntry(e);
-            }}
-            title={`${e.jobName} · ${minutesToTime(e.startMinutes ?? 0)}–${minutesToTime(e.endMinutes ?? 0)} · ${fmtDuration(e.hours)}`}
-            className="group/entry absolute rounded-md text-left px-1.5 py-1 overflow-hidden border transition-all duration-150 ease-expo hover:shadow-md hover:z-50 hover:scale-[1.02]"
+            className="absolute"
             style={{
               top: top + 1,
               height: Math.max(18, height - 2),
               left: `calc(${leftPct}% + 2px)`,
               width: `calc(${laneWidthPct}% - 4px)`,
-              zIndex: 10 + e.laneIndex,
-              backgroundColor: `${e.jobColor}33`, // 20% opacity
-              borderColor: `${e.jobColor}80`, // 50% opacity
-              color: e.jobColor,
+              zIndex: isDragging ? 100 : 10 + e.laneIndex,
             }}
           >
-            <div className="flex items-baseline gap-1 min-w-0">
-              <span
-                className="h-1.5 w-1.5 rounded-full shrink-0"
-                style={{ backgroundColor: e.jobColor }}
+            <div
+              onPointerDown={(ev) =>
+                onStartDrag(
+                  e,
+                  "move",
+                  ev as unknown as React.PointerEvent,
+                )
+              }
+              title={`${e.jobName} · ${minutesToTime(startMin)}–${minutesToTime(endMin)} · ${fmtDuration(e.hours)}`}
+              className={cn(
+                "group/entry absolute inset-0 rounded-md text-left px-1.5 py-1 overflow-hidden border touch-none select-none",
+                "transition-shadow duration-150 ease-expo",
+                isDragging
+                  ? "shadow-lg cursor-grabbing scale-[1.02]"
+                  : "cursor-grab hover:shadow-md hover:scale-[1.01]",
+              )}
+              style={{
+                backgroundColor: `${e.jobColor}33`,
+                borderColor: `${e.jobColor}80`,
+                color: e.jobColor,
+              }}
+            >
+              {/* Top resize grip — 5px hot zone, ns-resize cursor */}
+              <div
+                onPointerDown={(ev) => {
+                  ev.stopPropagation();
+                  onStartDrag(e, "resize-top", ev as unknown as React.PointerEvent);
+                }}
+                className="absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize z-10"
+                aria-label="Resize start"
               />
-              <span
-                className={cn(
-                  "font-medium truncate text-foreground",
-                  isNarrow ? "text-[10px]" : "text-[11px]",
-                )}
-              >
-                {e.jobName}
-              </span>
+              {/* Bottom resize grip */}
+              <div
+                onPointerDown={(ev) => {
+                  ev.stopPropagation();
+                  onStartDrag(e, "resize-bottom", ev as unknown as React.PointerEvent);
+                }}
+                className="absolute bottom-0 left-0 right-0 h-1.5 cursor-ns-resize z-10"
+                aria-label="Resize end"
+              />
+              <div className="flex items-baseline gap-1 min-w-0 pointer-events-none">
+                <span
+                  className="h-1.5 w-1.5 rounded-full shrink-0"
+                  style={{ backgroundColor: e.jobColor }}
+                />
+                <span
+                  className={cn(
+                    "font-medium truncate text-foreground",
+                    isNarrow ? "text-[10px]" : "text-[11px]",
+                  )}
+                >
+                  {e.jobName}
+                </span>
+              </div>
+              {height > 28 && !isNarrow && (
+                <div className="text-[10px] tabular-nums text-muted-foreground mt-0.5 pointer-events-none">
+                  {minutesToTime(startMin)}–{minutesToTime(endMin)}
+                  {height > 48 && ` · ${fmtDuration((endMin - startMin) / 60)}`}
+                </div>
+              )}
+              {height > 28 && isNarrow && (
+                <div className="text-[9px] tabular-nums text-muted-foreground mt-0.5 pointer-events-none">
+                  {fmtDuration((endMin - startMin) / 60)}
+                </div>
+              )}
             </div>
-            {height > 28 && !isNarrow && (
-              <div className="text-[10px] tabular-nums text-muted-foreground mt-0.5">
-                {minutesToTime(e.startMinutes ?? 0)}–
-                {minutesToTime(e.endMinutes ?? 0)}
-                {height > 48 && ` · ${fmtDuration(e.hours)}`}
-              </div>
-            )}
-            {height > 28 && isNarrow && (
-              <div className="text-[9px] tabular-nums text-muted-foreground mt-0.5">
-                {fmtDuration(e.hours)}
-              </div>
-            )}
-          </button>
+          </div>
         );
       })}
 
-      {/* Drag ghost */}
-      {drag && (
+      {/* Create-drag ghost (when dragging in an empty area to create new) */}
+      {createDrag && (
         <div
           className="absolute left-1 right-1 rounded-md border-2 border-dashed border-accent bg-accent/10 pointer-events-none"
           style={{
