@@ -97,6 +97,16 @@ export async function PATCH(
     await db.income.deleteMany({ where: { id: existing.paidIncomeId } });
   }
 
+  // Voiding an invoice releases the billed entries back to "unbilled" so
+  // they can be picked up by a replacement invoice. Non-void status changes
+  // leave the linked entries alone.
+  if (v.status === "void") {
+    await db.income.updateMany({
+      where: { invoiceId: id },
+      data: { invoiceId: null },
+    });
+  }
+
   const updated = await db.invoice.update({
     where: { id },
     data,

@@ -61,12 +61,18 @@ model Income {
   hourlyRate   Float?
   amountUsd    Int      // in cents — derived for hourly, manual for projects
   notes        String?
+  // Optional link to the invoice that billed this entry. Set when the user
+  // generates an invoice from logged hours; cleared (SetNull) if the invoice
+  // is deleted so the hours reappear as unbilled in the dashboard.
+  invoiceId    String?
+  invoice      Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@index([date])
   @@index([jobId])
   @@index([source])
+  @@index([invoiceId])
 }
 
 model Job {
@@ -127,6 +133,10 @@ model Invoice {
   paidIncomeId String?  @unique               // linked Income row created on mark-paid
 
   lines        InvoiceLine[]
+  // Time entries (Income rows) that this invoice bills. Set when the user
+  // generates an invoice from logged hours; cleared automatically when the
+  // invoice is deleted (Income.invoice uses onDelete: SetNull).
+  billedEntries Income[]
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

@@ -39,6 +39,8 @@ export type WeekEntry = {
   amountUsd: number;
   description: string;
   currency: string; // "USD" | "EUR" | "RON"
+  invoiceId: string | null;       // null = unbilled
+  invoiceNumber: string | null;   // e.g. "CP 0012" for the badge
 };
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
@@ -830,6 +832,14 @@ function DayColumn({
                 <span className="font-medium text-[11px] truncate text-foreground">
                   {e.jobName}
                 </span>
+                {e.invoiceNumber && (
+                  <span
+                    className="text-[9px] font-mono tabular-nums opacity-70 shrink-0"
+                    title={`Billed on ${e.invoiceNumber}`}
+                  >
+                    ✓ {e.invoiceNumber}
+                  </span>
+                )}
                 {s.role === "tail" && (
                   <span className="text-[9px] uppercase tracking-wider opacity-60 ml-auto pl-1">
                     cont.

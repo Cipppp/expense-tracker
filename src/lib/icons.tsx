@@ -50,6 +50,7 @@ import { UploadSimple } from "@phosphor-icons/react/dist/ssr/UploadSimple";
 import { Wallet as PWallet } from "@phosphor-icons/react/dist/ssr/Wallet";
 import { WarningCircle } from "@phosphor-icons/react/dist/ssr/WarningCircle";
 import { CircleNotch } from "@phosphor-icons/react/dist/ssr/CircleNotch";
+import { Clock as PClock } from "@phosphor-icons/react/dist/ssr/Clock";
 import { X as PX } from "@phosphor-icons/react/dist/ssr/X";
 
 // Re-exports — keep Lucide names so existing callsites work. Phosphor's
@@ -79,6 +80,7 @@ export const Fingerprint = PFingerprint;
 export const Laptop = PLaptop;
 export const LayoutDashboard = SquaresFour;
 export const Loader2 = CircleNotch;
+export const Clock = PClock;
 export const Lock = PLock;
 export const LogOut = SignOut;
 export const Menu = PList;

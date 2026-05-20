@@ -236,6 +236,100 @@ export async function getDailyExpenseSummary(year: number, month: number) {
   return out;
 }
 
+export type ClientInvoicingSummary = {
+  jobId: string;
+  name: string;
+  color: string;
+  currency: string;
+  hoursWorked: number;
+  hoursInvoiced: number;
+  hoursOutstanding: number;
+  amountInvoiced: number;        // in client's currency (major units, not cents)
+  invoiceCount: number;
+  lastInvoiceAt: Date | null;
+};
+
+/**
+ * Per-client aggregates for the invoicing dashboard. "Hours worked" comes
+ * from Income (whatever the client logged this year). "Hours invoiced" is
+ * the subset that's been linked to an Invoice (Income.invoiceId set).
+ * Outstanding = the diff — the hours the user still needs to bill.
+ */
+export async function getClientInvoicingSummaries(
+  year: number,
+): Promise<ClientInvoicingSummary[]> {
+  const yearStart = new Date(year, 0, 1);
+  const yearEnd = new Date(year, 11, 31, 23, 59, 59);
+
+  const [jobs, incomeRows, invoices] = await Promise.all([
+    db.job.findMany({ orderBy: { name: "asc" } }),
+    db.income.findMany({
+      where: {
+        jobId: { not: null },
+        date: { gte: yearStart, lte: yearEnd },
+        hours: { not: null },
+      },
+      select: { jobId: true, hours: true, invoiceId: true },
+    }),
+    db.invoice.findMany({
+      where: {
+        status: { not: "void" },
+        jobId: { not: null },
+        issuedAt: { gte: yearStart, lte: yearEnd },
+      },
+      include: { lines: true },
+      orderBy: { issuedAt: "desc" },
+    }),
+  ]);
+
+  const out: ClientInvoicingSummary[] = jobs.map((j) => ({
+    jobId: j.id,
+    name: j.name,
+    color: j.color,
+    currency: j.defaultCurrency ?? "USD",
+    hoursWorked: 0,
+    hoursInvoiced: 0,
+    hoursOutstanding: 0,
+    amountInvoiced: 0,
+    invoiceCount: 0,
+    lastInvoiceAt: null,
+  }));
+
+  const byId = new Map(out.map((c) => [c.jobId, c]));
+
+  for (const r of incomeRows) {
+    const c = byId.get(r.jobId!);
+    if (!c) continue;
+    const h = r.hours ?? 0;
+    c.hoursWorked += h;
+    if (r.invoiceId) c.hoursInvoiced += h;
+  }
+
+  for (const inv of invoices) {
+    const c = byId.get(inv.jobId!);
+    if (!c) continue;
+    c.invoiceCount += 1;
+    if (!c.lastInvoiceAt || inv.issuedAt > c.lastInvoiceAt) {
+      c.lastInvoiceAt = inv.issuedAt;
+    }
+    // Match currency to the client's default — invoices in a different
+    // currency would skew the total; surface them separately if it ever
+    // becomes a pattern.
+    if (inv.invoiceCurrency === c.currency) {
+      const lineTotal = inv.lines.reduce((a, l) => a + l.amount, 0);
+      c.amountInvoiced += lineTotal;
+    }
+  }
+
+  for (const c of out) {
+    c.hoursOutstanding = Math.max(0, c.hoursWorked - c.hoursInvoiced);
+  }
+
+  // Default sort: clients with the most outstanding hours first — that's
+  // what the user came to this page to see.
+  return out.sort((a, b) => b.hoursOutstanding - a.hoursOutstanding);
+}
+
 /** YTD totals — used in the Dashboard summary cards. Excluded rows skipped. */
 export async function getYtd(year: number) {
   const expenses = await getYearExpenses(year);

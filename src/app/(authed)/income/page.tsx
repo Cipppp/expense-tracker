@@ -38,7 +38,7 @@ export default async function IncomePage(props: {
         date: { gte: weekStart, lte: weekEnd },
         jobId: { not: null },
       },
-      include: { job: true },
+      include: { job: true, invoice: { select: { number: true, series: true } } },
       orderBy: { date: "asc" },
     }),
     db.income.findMany({
@@ -65,6 +65,10 @@ export default async function IncomePage(props: {
     amountUsd: r.amountUsd,
     description: r.description,
     currency: r.job?.defaultCurrency ?? "USD",
+    invoiceId: r.invoiceId,
+    invoiceNumber: r.invoice
+      ? `${r.invoice.series} ${r.invoice.number}`
+      : null,
   }));
 
   return (

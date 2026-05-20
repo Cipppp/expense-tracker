@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fmtDate } from "@/lib/format";
+import { getClientInvoicingSummaries } from "@/lib/queries";
+import { ClientSummaryTable } from "@/components/invoices/client-summary-table";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +23,14 @@ const STATUS_VARIANT: Record<
 };
 
 export default async function InvoicesPage() {
-  const invoices = await db.invoice.findMany({
-    orderBy: [{ issuedAt: "desc" }, { seriesNumber: "desc" }],
-    include: { lines: true },
-  });
+  const year = new Date().getFullYear();
+  const [invoices, clientSummaries] = await Promise.all([
+    db.invoice.findMany({
+      orderBy: [{ issuedAt: "desc" }, { seriesNumber: "desc" }],
+      include: { lines: true },
+    }),
+    getClientInvoicingSummaries(year),
+  ]);
 
   const total = invoices.length;
   const paid = invoices.filter((i) => i.status === "paid").length;
@@ -45,7 +52,13 @@ export default async function InvoicesPage() {
         </Button>
       </header>
 
-      <Card>
+      <Tabs defaultValue="list">
+        <TabsList>
+          <TabsTrigger value="list">All invoices</TabsTrigger>
+          <TabsTrigger value="clients">By client · {year}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="list" className="mt-6">
+          <Card>
         <CardHeader className="flex flex-row items-baseline justify-between">
           <CardTitle className="text-lg">
             {total} {total === 1 ? "invoice" : "invoices"} ·{" "}
@@ -113,6 +126,24 @@ export default async function InvoicesPage() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="clients" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">By client · {year}</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Hours you&apos;ve worked vs. hours actually invoiced. Outstanding
+                = what&apos;s ready to bill.
+              </p>
+            </CardHeader>
+            <Separator />
+            <CardContent className="p-0">
+              <ClientSummaryTable clients={clientSummaries} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

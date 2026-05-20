@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "@/lib/icons";
+import { Plus, Trash2, Clock } from "@/lib/icons";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { fmtCurrency, fmtDuration } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 type JobOption = {
   id: string;
@@ -80,8 +82,25 @@ export function InvoiceForm({
 
   const [lines, setLines] = useState<Line[]>([emptyLine()]);
 
+  // Unbilled time-tracker hours for the picked client. The user can tick
+  // months to auto-add invoice lines + link those Income rows on save.
+  type UnbilledGroup = {
+    month: string; // yyyy-mm
+    hours: number;
+    amount: number; // cents
+    entries: { id: string; date: string; hours: number; description: string }[];
+  };
+  const [unbilled, setUnbilled] = useState<UnbilledGroup[] | null>(null);
+  const [unbilledLoading, setUnbilledLoading] = useState(false);
+  const [pickedMonths, setPickedMonths] = useState<Set<string>>(new Set());
+  // Income row IDs to tag with the new invoice on save.
+  const [linkedIncomeIds, setLinkedIncomeIds] = useState<string[]>([]);
+
   function applyJob(id: string) {
     setJobId(id);
+    setUnbilled(null);
+    setPickedMonths(new Set());
+    setLinkedIncomeIds([]);
     const j = jobs.find((x) => x.id === id);
     if (!j) return;
     setClientName(j.name);
@@ -93,6 +112,79 @@ export function InvoiceForm({
     setInvoiceCurrency(
       (j.defaultCurrency as "RON" | "USD" | "EUR") ?? "RON",
     );
+  }
+
+  // Fetch unbilled hours whenever the client changes.
+  useEffect(() => {
+    if (!jobId) return;
+    let cancelled = false;
+    setUnbilledLoading(true);
+    fetch(`/api/income/unbilled?jobId=${encodeURIComponent(jobId)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        setUnbilled(data.groups ?? []);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setUnbilled([]);
+      })
+      .finally(() => {
+        if (!cancelled) setUnbilledLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId]);
+
+  /**
+   * Replace any auto-generated lines with one consolidated line per picked
+   * month, and remember the Income IDs that those hours come from so we can
+   * tag them with the new invoice on save.
+   */
+  function addPickedToLines(nextPicked: Set<string>) {
+    if (!unbilled || !selectedJob) return;
+    const monthName = (ym: string) =>
+      new Date(`${ym}-15T12:00:00Z`).toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      });
+    const ids: string[] = [];
+    const generated: Line[] = [];
+    for (const g of unbilled) {
+      if (!nextPicked.has(g.month)) continue;
+      for (const e of g.entries) ids.push(e.id);
+      generated.push({
+        description: `Consulting services — ${monthName(g.month)}`,
+        unit: "h",
+        quantity: String(g.hours),
+        unitPrice: String(selectedJob.rateUsd),
+      });
+    }
+    // Keep manual (non-generated) lines around; replace the previous batch
+    // of auto lines. We use a marker on the description prefix.
+    setLines((prev) => {
+      const manual = prev.filter(
+        (l) => !l.description.startsWith("Consulting services — "),
+      );
+      // If everything's been removed manually but the user picks months
+      // again, drop the empty placeholder.
+      const cleaned = manual.filter(
+        (l) => l.description.trim() || Number(l.unitPrice) > 0,
+      );
+      return [...generated, ...cleaned];
+    });
+    setLinkedIncomeIds(ids);
+  }
+
+  function toggleMonth(ym: string) {
+    setPickedMonths((cur) => {
+      const next = new Set(cur);
+      if (next.has(ym)) next.delete(ym);
+      else next.add(ym);
+      addPickedToLines(next);
+      return next;
+    });
   }
 
   function updateLine(i: number, key: keyof Line, value: string) {
@@ -142,6 +234,7 @@ export function InvoiceForm({
             quantity: Number(l.quantity),
             unitPrice: Number(l.unitPrice),
           })),
+        incomeIds: linkedIncomeIds.length ? linkedIncomeIds : undefined,
       }),
     });
     setPending(false);
@@ -268,6 +361,65 @@ export function InvoiceForm({
           />
         </Field>
       </div>
+
+      {/* Unbilled hours picker — pull periods straight from the time
+          tracker. Each picked month becomes a "Consulting services — Apr
+          2026" line at the client's rate, and the corresponding Income
+          rows get tagged with this invoice on save. */}
+      {jobId && (
+        <div className="space-y-2 rounded-md border border-border bg-secondary/30 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Clock className="h-3.5 w-3.5 text-accent" />
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              Pull from time tracker
+            </Label>
+          </div>
+          {unbilledLoading ? (
+            <p className="text-xs text-muted-foreground">Looking up unbilled hours…</p>
+          ) : !unbilled || unbilled.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              No unbilled hours for {selectedJob?.name ?? "this client"}.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {unbilled.map((g) => {
+                const picked = pickedMonths.has(g.month);
+                const label = new Date(`${g.month}-15T12:00:00Z`).toLocaleDateString(
+                  "en-US",
+                  { month: "short", year: "numeric" },
+                );
+                return (
+                  <button
+                    key={g.month}
+                    type="button"
+                    onClick={() => toggleMonth(g.month)}
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-all duration-200 ease-expo",
+                      picked
+                        ? "border-accent bg-accent/15 text-accent"
+                        : "border-border hover:border-foreground/40",
+                    )}
+                  >
+                    <span className="font-medium">{label}</span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {fmtDuration(g.hours)}
+                      {selectedJob && (
+                        <>
+                          {" · "}
+                          {fmtCurrency(
+                            Math.round(g.hours * selectedJob.rateUsd * 100),
+                            invoiceCurrency,
+                          )}
+                        </>
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Lines */}
       <div className="space-y-2">

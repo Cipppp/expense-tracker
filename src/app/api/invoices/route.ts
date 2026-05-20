@@ -27,6 +27,10 @@ const Body = z.object({
   bnrRate: z.coerce.number().positive().optional().nullable(),
   footerNote: z.string().optional().nullable(),
   lines: z.array(LineInput).min(1),
+  // IDs of Income rows whose hours feed this invoice — they'll get tagged
+  // with the new invoiceId so the dashboard knows they're billed and the
+  // calendar can show a "✓ invoiced" badge.
+  incomeIds: z.array(z.string()).optional(),
 });
 
 export async function GET() {
@@ -81,6 +85,19 @@ export async function POST(req: Request) {
     },
     include: { lines: true },
   });
+
+  // Link the picked time entries to the new invoice. Scoped to the same
+  // client so a stray id from another job can't accidentally tag itself in.
+  if (v.incomeIds && v.incomeIds.length > 0) {
+    await db.income.updateMany({
+      where: {
+        id: { in: v.incomeIds },
+        invoiceId: null,
+        ...(v.jobId ? { jobId: v.jobId } : {}),
+      },
+      data: { invoiceId: invoice.id },
+    });
+  }
 
   return NextResponse.json({
     ok: true,
