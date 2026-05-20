@@ -31,8 +31,8 @@ export type EntryDraft = {
   id?: string;
   date: string;          // yyyy-mm-dd
   jobId: string | null;
-  startMinutes: number;  // 0-1440
-  endMinutes: number;
+  startMinutes: number;  // 0-1440 (wall-clock of the start day)
+  endMinutes: number;    // >= startMinutes; values > 1440 mean "next day"
   description: string;
 };
 
@@ -64,7 +64,11 @@ export function TimeEntryDialog({
     return Math.max(0, (form.endMinutes - form.startMinutes) / 60);
   }, [form]);
   const valid =
-    !!form && !!form.jobId && form.endMinutes > form.startMinutes;
+    !!form &&
+    !!form.jobId &&
+    form.endMinutes > form.startMinutes &&
+    form.endMinutes - form.startMinutes <= 24 * 60;
+  const crossesMidnight = !!form && form.endMinutes > 1440;
 
   async function save() {
     if (!form || !job || !valid) return;
@@ -198,16 +202,41 @@ export function TimeEntryDialog({
               </Label>
               <TimePicker
                 value={form.startMinutes}
-                onChange={(v) => setForm({ ...form, startMinutes: v })}
+                onChange={(v) =>
+                  setForm({
+                    ...form,
+                    startMinutes: v,
+                    // If pushing start past end, auto-bump end into the next
+                    // day so the range stays positive.
+                    endMinutes:
+                      v >= form.endMinutes
+                        ? (form.endMinutes % 1440) + 1440
+                        : form.endMinutes,
+                  })
+                }
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                End
-              </Label>
+              <div className="flex items-baseline justify-between gap-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  End
+                </Label>
+                {crossesMidnight && (
+                  <span className="text-[10px] uppercase tracking-wider text-accent">
+                    +next day
+                  </span>
+                )}
+              </div>
               <TimePicker
                 value={form.endMinutes}
-                onChange={(v) => setForm({ ...form, endMinutes: v })}
+                onChange={(v) =>
+                  setForm({
+                    ...form,
+                    // Picker emits a wall-clock minute (0–1440). If that's
+                    // at or before the start, interpret as next-day.
+                    endMinutes: v > form.startMinutes ? v : v + 1440,
+                  })
+                }
               />
             </div>
           </div>

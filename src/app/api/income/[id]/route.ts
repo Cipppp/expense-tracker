@@ -7,7 +7,7 @@ const Update = z.object({
   date: z.string().optional(),
   jobId: z.string().optional().nullable(),
   startMinutes: z.number().int().min(0).max(1440).optional(),
-  endMinutes: z.number().int().min(0).max(1440).optional(),
+  endMinutes: z.number().int().min(0).max(2880).optional(),
   description: z.string().optional(),
   notes: z.string().optional().nullable(),
 });

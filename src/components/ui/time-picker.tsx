@@ -13,8 +13,10 @@ import {
  * Two themed dropdowns for hour + minute, replacing native <input type=time>.
  * Hour: 00–23, minute: in steps of `stepMinutes` (default 15).
  *
- * Value/onChange use minutes-since-midnight (0–1440) to match the
- * existing time-entry data model.
+ * Value uses minutes-since-the-day's-start. Values >= 1440 are interpreted
+ * as "next day" — the picker shows wall-clock (hour mod 24) and onChange
+ * emits the picker's wall-clock value; the parent decides how to combine
+ * with its start time to detect overnight (see time-entry-dialog).
  */
 export function TimePicker({
   value,
@@ -27,7 +29,7 @@ export function TimePicker({
   stepMinutes?: number;
   id?: string;
 }) {
-  const safe = Math.max(0, Math.min(24 * 60, value));
+  const safe = Math.max(0, value);
   const hour = Math.floor(safe / 60) % 24;
   const minute = safe % 60;
 

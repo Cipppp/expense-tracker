@@ -19,7 +19,9 @@ const TimeEntry = z.object({
   date: z.string(),
   jobId: z.string().min(1),
   startMinutes: z.number().int().min(0).max(1440),
-  endMinutes: z.number().int().min(0).max(1440),
+  // Up to 24h past the start of the day, so a shift that crosses midnight
+  // can end at e.g. 30:00 (06:00 next day).
+  endMinutes: z.number().int().min(0).max(2880),
   description: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
 });

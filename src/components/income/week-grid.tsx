@@ -47,7 +47,7 @@ const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 // END_HOUR can exceed 24 — hours past midnight render in the same day's
 // column (so an entry 18:00→02:00 stays on the day it started).
 const START_HOUR = 6;
-const END_HOUR = 26; // shows 06:00 → 02:00 next day
+const END_HOUR = 30; // shows 06:00 → 06:00 next day (full 24h shift envelope)
 const HOURS = END_HOUR - START_HOUR;
 const ROW_PX = 52; // 1h = 52px → 15min = 13px
 const SLOT_MIN = 15; // snap to 15-minute slots
