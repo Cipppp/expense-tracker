@@ -60,39 +60,79 @@ function minFromY(y: number): number {
   return Math.max(START_HOUR * 60, START_HOUR * 60 + (y / ROW_PX) * 60);
 }
 
-type LaidOutEntry = WeekEntry & { stackIndex: number };
+type LaidOutEntry = WeekEntry & { laneIndex: number; totalLanes: number };
 
 /**
- * Overlapping entries stack on top of each other (cards-fanned-out style):
- *   - Each entry is full-width minus a left offset based on its stack index.
- *   - Translucent fills let colors blend in overlap zones.
- *   - z-index follows stack order; hover brings to front.
- *
- * stackIndex = number of earlier entries that overlap this one in time.
+ * Google Calendar-style overlap layout: entries that overlap in time are
+ * grouped, then packed greedily into lanes within their group. Each entry
+ * gets `laneIndex` (0..totalLanes-1) so the renderer can compute
+ *   left = (laneIndex / totalLanes) * 100%
+ *   width = (1 / totalLanes) * 100%
+ * Result: N overlapping jobs render side-by-side at 1/N width each — no
+ * occlusion regardless of N.
  */
 function layoutDay(entries: WeekEntry[]): LaidOutEntry[] {
+  // 1. Sort by start, then by length desc so longer entries pack first.
   const sorted = [...entries].sort((a, b) => {
     const sa = a.startMinutes ?? 0;
     const sb = b.startMinutes ?? 0;
     if (sa !== sb) return sa - sb;
-    // tie-break by length asc so shorter entries land on top
     const la = (a.endMinutes ?? 0) - (a.startMinutes ?? 0);
     const lb = (b.endMinutes ?? 0) - (b.startMinutes ?? 0);
-    return la - lb;
+    return lb - la;
   });
 
-  return sorted.map((e, i) => {
-    const eStart = e.startMinutes ?? 0;
-    const eEnd = e.endMinutes ?? 0;
-    let overlaps = 0;
-    for (let j = 0; j < i; j++) {
-      const o = sorted[j];
-      const oStart = o.startMinutes ?? 0;
-      const oEnd = o.endMinutes ?? 0;
-      if (eStart < oEnd && eEnd > oStart) overlaps++;
+  // 2. Group transitively-overlapping entries together. A new entry joins an
+  // existing group if it overlaps with that group's union time range.
+  type Group = {
+    entries: WeekEntry[];
+    minStart: number;
+    maxEnd: number;
+  };
+  const groups: Group[] = [];
+  for (const e of sorted) {
+    const start = e.startMinutes ?? 0;
+    const end = e.endMinutes ?? 0;
+    const target = groups.find(
+      (g) => start < g.maxEnd && end > g.minStart,
+    );
+    if (target) {
+      target.entries.push(e);
+      target.minStart = Math.min(target.minStart, start);
+      target.maxEnd = Math.max(target.maxEnd, end);
+    } else {
+      groups.push({ entries: [e], minStart: start, maxEnd: end });
     }
-    return { ...e, stackIndex: overlaps };
-  });
+  }
+
+  // 3. Within each group, pack greedily into lanes: assign each entry to the
+  // first lane whose last entry has already ended.
+  const result: LaidOutEntry[] = [];
+  for (const g of groups) {
+    const laneEnds: number[] = []; // end-min of the latest entry in each lane
+    const laneOf = new Map<string, number>();
+    for (const e of g.entries) {
+      const start = e.startMinutes ?? 0;
+      const end = e.endMinutes ?? 0;
+      let lane = laneEnds.findIndex((le) => le <= start);
+      if (lane === -1) {
+        lane = laneEnds.length;
+        laneEnds.push(end);
+      } else {
+        laneEnds[lane] = end;
+      }
+      laneOf.set(e.id, lane);
+    }
+    const totalLanes = laneEnds.length;
+    for (const e of g.entries) {
+      result.push({
+        ...e,
+        laneIndex: laneOf.get(e.id) ?? 0,
+        totalLanes,
+      });
+    }
+  }
+  return result;
 }
 
 export function WeekGrid({
@@ -478,13 +518,15 @@ function DayColumn({
         />
       ))}
 
-      {/* Existing entries — stacked with translucent fills so colors blend */}
+      {/* Existing entries — packed into lanes, side-by-side when overlapping */}
       {entries.map((e) => {
         const top = topFromMin(e.startMinutes ?? 0);
         const height = topFromMin(e.endMinutes ?? 0) - top;
-        // Each layer in a stack offsets right + shrinks slightly so the
-        // edges of lower layers peek out on the left.
-        const offset = e.stackIndex * 10;
+        // Each lane is an equal slice of the column width. With N=1 the entry
+        // takes the full width; with N=3 each one is ~33%.
+        const laneWidthPct = 100 / e.totalLanes;
+        const leftPct = e.laneIndex * laneWidthPct;
+        const isNarrow = e.totalLanes >= 3;
         return (
           <button
             key={e.id}
@@ -494,32 +536,43 @@ function DayColumn({
               ev.stopPropagation();
               onEditEntry(e);
             }}
-            className="group/entry absolute rounded-md text-left px-2 py-1 overflow-hidden border-2 transition-all duration-150 ease-expo hover:shadow-md hover:!z-50 hover:scale-[1.01] backdrop-blur-[1px]"
+            title={`${e.jobName} · ${minutesToTime(e.startMinutes ?? 0)}–${minutesToTime(e.endMinutes ?? 0)} · ${fmtDuration(e.hours)}`}
+            className="group/entry absolute rounded-md text-left px-1.5 py-1 overflow-hidden border transition-all duration-150 ease-expo hover:shadow-md hover:z-50 hover:scale-[1.02]"
             style={{
               top: top + 1,
               height: Math.max(18, height - 2),
-              left: `${4 + offset}px`,
-              right: `4px`,
-              zIndex: 10 + e.stackIndex,
-              backgroundColor: `${e.jobColor}40`,  // 25% opacity
-              borderColor: `${e.jobColor}80`,      // 50% opacity
+              left: `calc(${leftPct}% + 2px)`,
+              width: `calc(${laneWidthPct}% - 4px)`,
+              zIndex: 10 + e.laneIndex,
+              backgroundColor: `${e.jobColor}33`, // 20% opacity
+              borderColor: `${e.jobColor}80`, // 50% opacity
               color: e.jobColor,
             }}
           >
-            <div className="flex items-baseline gap-1.5 min-w-0">
+            <div className="flex items-baseline gap-1 min-w-0">
               <span
                 className="h-1.5 w-1.5 rounded-full shrink-0"
                 style={{ backgroundColor: e.jobColor }}
               />
-              <span className="text-[11px] font-medium truncate text-foreground">
+              <span
+                className={cn(
+                  "font-medium truncate text-foreground",
+                  isNarrow ? "text-[10px]" : "text-[11px]",
+                )}
+              >
                 {e.jobName}
               </span>
             </div>
-            {height > 26 && (
+            {height > 28 && !isNarrow && (
               <div className="text-[10px] tabular-nums text-muted-foreground mt-0.5">
                 {minutesToTime(e.startMinutes ?? 0)}–
                 {minutesToTime(e.endMinutes ?? 0)}
-                {height > 44 && ` · ${fmtDuration(e.hours)}`}
+                {height > 48 && ` · ${fmtDuration(e.hours)}`}
+              </div>
+            )}
+            {height > 28 && isNarrow && (
+              <div className="text-[9px] tabular-nums text-muted-foreground mt-0.5">
+                {fmtDuration(e.hours)}
               </div>
             )}
           </button>
