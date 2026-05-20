@@ -354,7 +354,13 @@ export function WeekGrid({
     const hours = entries.reduce((a, b) => a + b.hours, 0);
     const perClient = new Map<
       string,
-      { name: string; color: string; hours: number; usd: number }
+      {
+        name: string;
+        color: string;
+        hours: number;
+        amount: number; // in the client's own currency (cents)
+        currency: string;
+      }
     >();
     // Per-currency cents totals. The stored amount represents the amount in
     // the client's contract currency (we display it with the right symbol).
@@ -362,9 +368,16 @@ export function WeekGrid({
     for (const e of entries) {
       const key = e.jobId ?? e.jobName;
       const cur =
-        perClient.get(key) ?? { name: e.jobName, color: e.jobColor, hours: 0, usd: 0 };
+        perClient.get(key) ??
+        {
+          name: e.jobName,
+          color: e.jobColor,
+          hours: 0,
+          amount: 0,
+          currency: e.currency || "USD",
+        };
       cur.hours += e.hours;
-      cur.usd += e.amountUsd;
+      cur.amount += e.amountUsd;
       perClient.set(key, cur);
       const c = e.currency || "USD";
       byCurrency[c] = (byCurrency[c] ?? 0) + e.amountUsd;
@@ -583,7 +596,7 @@ export function WeekGrid({
                       {fmtDuration(c.hours)}
                     </span>
                     <span className="text-foreground font-medium min-w-[64px] text-right">
-                      {fmtUsd(c.usd)}
+                      {fmtCurrency(c.amount, c.currency)}
                     </span>
                   </div>
                 </div>
