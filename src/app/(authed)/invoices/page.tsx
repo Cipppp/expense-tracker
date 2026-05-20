@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, localISODate } from "@/lib/format";
 import { getClientInvoicingSummaries } from "@/lib/queries";
 import { ClientSummaryTable } from "@/components/invoices/client-summary-table";
+import type { WeekEntry } from "@/components/income/week-grid";
 
 export const dynamic = "force-dynamic";
 
@@ -24,16 +25,68 @@ const STATUS_VARIANT: Record<
 
 export default async function InvoicesPage() {
   const year = new Date().getFullYear();
-  const [invoices, clientSummaries] = await Promise.all([
+  const yearStart = new Date(year, 0, 1);
+  const yearEnd = new Date(year, 11, 31, 23, 59, 59);
+
+  const [invoices, clientSummaries, jobs, incomeRows] = await Promise.all([
     db.invoice.findMany({
       orderBy: [{ issuedAt: "desc" }, { seriesNumber: "desc" }],
       include: { lines: true },
     }),
     getClientInvoicingSummaries(year),
+    db.job.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+    db.income.findMany({
+      where: {
+        date: { gte: yearStart, lte: yearEnd },
+        jobId: { not: null },
+      },
+      include: {
+        job: true,
+        invoice: { select: { number: true, series: true } },
+      },
+      orderBy: { date: "asc" },
+    }),
   ]);
 
   const total = invoices.length;
   const paid = invoices.filter((i) => i.status === "paid").length;
+
+  // Per-job map of WeekEntry — fed to the expandable calendar previews.
+  // Pre-bucketing here keeps the client component small and avoids running
+  // the same filter for every render of every row.
+  const entriesByJob = new Map<string, WeekEntry[]>();
+  for (const r of incomeRows) {
+    if (!r.jobId) continue;
+    const arr = entriesByJob.get(r.jobId) ?? [];
+    arr.push({
+      id: r.id,
+      date: localISODate(r.date),
+      jobId: r.jobId,
+      jobName: r.job?.name ?? r.source,
+      jobColor: r.job?.color ?? "#999999",
+      startMinutes: r.startMinutes,
+      endMinutes: r.endMinutes,
+      hours: r.hours ?? 0,
+      amountUsd: r.amountUsd,
+      description: r.description,
+      currency: r.job?.defaultCurrency ?? "USD",
+      invoiceId: r.invoiceId,
+      invoiceNumber: r.invoice
+        ? `${r.invoice.series} ${r.invoice.number}`
+        : null,
+    });
+    entriesByJob.set(r.jobId, arr);
+  }
+  const entriesByJobObj = Object.fromEntries(entriesByJob);
+
+  // JobOpt-shaped projection for the time-entry dialog inside each preview.
+  const jobOpts = jobs.map((j) => ({
+    id: j.id,
+    name: j.name,
+    rateUsd: j.rateUsd,
+    color: j.color,
+    defaultCurrency: j.defaultCurrency,
+  }));
 
   return (
     <div className="space-y-8">
@@ -139,7 +192,11 @@ export default async function InvoicesPage() {
             </CardHeader>
             <Separator />
             <CardContent className="p-0">
-              <ClientSummaryTable clients={clientSummaries} />
+              <ClientSummaryTable
+                clients={clientSummaries}
+                entriesByJob={entriesByJobObj}
+                jobs={jobOpts}
+              />
             </CardContent>
           </Card>
         </TabsContent>

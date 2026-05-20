@@ -155,10 +155,14 @@ export function WeekGrid({
   anchorIso,
   entries,
   jobs,
+  onWeekChange,
 }: {
   anchorIso: string;
   entries: WeekEntry[];
   jobs: JobOpt[];
+  /** If provided, controls week navigation (used to embed the grid outside
+   * /income without redirecting the page). Default: navigate to /income?week. */
+  onWeekChange?: (iso: string) => void;
 }) {
   const router = useRouter();
   const anchor = useMemo(() => new Date(`${anchorIso}T12:00:00`), [anchorIso]);
@@ -330,7 +334,9 @@ export function WeekGrid({
   function navWeek(delta: number) {
     const d = new Date(anchor);
     d.setDate(d.getDate() + delta * 7);
-    router.push(`/income?week=${localISODate(d)}`);
+    const nextIso = localISODate(d);
+    if (onWeekChange) onWeekChange(nextIso);
+    else router.push(`/income?week=${nextIso}`);
   }
 
   // Build the per-day segment buckets, overlaying live drag state so the
@@ -432,7 +438,11 @@ export function WeekGrid({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push(`/income?week=${todayIso}`)}
+            onClick={() =>
+              onWeekChange
+                ? onWeekChange(todayIso)
+                : router.push(`/income?week=${todayIso}`)
+            }
             className="ml-2"
           >
             Today
