@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { baniFromRon, centsFromUsd } from "@/lib/format";
+import { baniFromRon, centsFromUsd, dateAtNoonUTC } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       fxRate,
       frequency: v.frequency,
       dayOfMonth: v.dayOfMonth,
-      startsAt: v.startsAt ? new Date(`${v.startsAt}T12:00:00`) : new Date(),
+      startsAt: v.startsAt ? dateAtNoonUTC(v.startsAt) : new Date(),
       notes: v.notes ?? null,
     },
   });

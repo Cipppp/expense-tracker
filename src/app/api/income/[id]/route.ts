@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { centsFromUsd } from "@/lib/format";
+import { centsFromUsd, dateAtNoonUTC } from "@/lib/format";
 
 const Update = z.object({
   date: z.string().optional(),
@@ -46,7 +46,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const row = await db.income.update({
     where: { id },
     data: {
-      date: v.date ? new Date(`${v.date}T12:00:00`) : undefined,
+      date: v.date ? dateAtNoonUTC(v.date) : undefined,
       jobId,
       source: job ? job.name : existing.source,
       startMinutes,

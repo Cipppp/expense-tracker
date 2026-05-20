@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { dateAtNoonUTC } from "@/lib/format";
 import { getNextInvoiceNumber, sumLines } from "@/lib/invoice";
 
 export const dynamic = "force-dynamic";
@@ -62,8 +63,8 @@ export async function POST(req: Request) {
       number,
       series,
       seriesNumber,
-      issuedAt: new Date(`${v.issuedAt}T12:00:00`),
-      dueAt: v.dueAt ? new Date(`${v.dueAt}T12:00:00`) : null,
+      issuedAt: dateAtNoonUTC(v.issuedAt),
+      dueAt: v.dueAt ? dateAtNoonUTC(v.dueAt) : null,
       jobId: v.jobId ?? null,
       clientName: v.clientName,
       clientCompany: v.clientCompany,

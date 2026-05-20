@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { centsFromUsd } from "@/lib/format";
+import { centsFromUsd, dateAtNoonUTC } from "@/lib/format";
 
 /**
  * Time entry shape:
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     const amountUsd = centsFromUsd(hours * job.rateUsd);
     const row = await db.income.create({
       data: {
-        date: new Date(`${v.date}T12:00:00`),
+        date: dateAtNoonUTC(v.date),
         description: v.description?.trim() || `${hours.toFixed(2)}h · ${job.name}`,
         source: job.name,
         jobId: job.id,
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
 
   const row = await db.income.create({
     data: {
-      date: new Date(`${v.date}T12:00:00`),
+      date: dateAtNoonUTC(v.date),
       description: v.description,
       source: v.source,
       amountUsd: centsFromUsd(v.amountUsd),

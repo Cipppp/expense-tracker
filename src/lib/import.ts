@@ -18,6 +18,7 @@ import { db } from "@/lib/db";
 import {
   baniFromRon,
   centsFromUsd,
+  dateAtNoonUTC,
   monthKey,
 } from "@/lib/format";
 import {
@@ -133,7 +134,7 @@ export async function importRevolutCsv(
     const amountUsdCents = centsFromUsd(absRon * settings.fxRonToUsd);
     const merchant = canonicalMerchant(r.description);
     const category = categorize(r.description, rules);
-    const date = new Date(`${day}T12:00:00`);
+    const date = dateAtNoonUTC(day);
 
     toInsert.push({
       date,

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { centsFromUsd } from "@/lib/format";
+import { centsFromUsd, dateAtNoonUTC } from "@/lib/format";
 
 const Update = z.object({
   status: z.enum(["draft", "issued", "paid", "void"]).optional(),
@@ -56,7 +56,7 @@ export async function PATCH(
   if (v.status) data.status = v.status;
   if (v.footerNote !== undefined) data.footerNote = v.footerNote;
   if (v.paidAt !== undefined) {
-    data.paidAt = v.paidAt ? new Date(`${v.paidAt}T12:00:00`) : null;
+    data.paidAt = v.paidAt ? dateAtNoonUTC(v.paidAt) : null;
   }
 
   // Transition to paid: create the linked Income entry if not already there.

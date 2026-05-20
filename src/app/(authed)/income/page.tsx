@@ -2,7 +2,13 @@ import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { fmtUsd, localISODate, weekDates } from "@/lib/format";
+import {
+  endOfUTCDay,
+  fmtUsd,
+  localISODate,
+  startOfUTCDay,
+  weekDates,
+} from "@/lib/format";
 import { WeekGrid, type WeekEntry } from "@/components/income/week-grid";
 import { LumpSumForm } from "@/components/income/lump-sum-form";
 import { LumpSumList } from "@/components/income/lump-sum-list";
@@ -17,9 +23,12 @@ export default async function IncomePage(props: {
     ? new Date(`${params.week}T12:00:00`)
     : new Date();
   const days = weekDates(anchor);
-  const weekStart = days[0];
-  const weekEnd = new Date(days[6]);
-  weekEnd.setHours(23, 59, 59, 999);
+  // Span the full UTC calendar days of the week. Stored entries live at
+  // noon UTC, so [startOfUTCDay(Mon), endOfUTCDay(Sun)] always catches them
+  // regardless of the server's timezone. Don't use the raw `days[i]` here —
+  // those are noon-in-server-local-time and miss entries on Vercel (UTC).
+  const weekStart = startOfUTCDay(days[0]);
+  const weekEnd = endOfUTCDay(days[6]);
   const year = new Date().getFullYear();
 
   const [allJobs, weekRows, ytdIncome, lumpSumRows] = await Promise.all([

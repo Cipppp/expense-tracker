@@ -115,6 +115,43 @@ export function localISODate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * Parse a yyyy-mm-dd as a calendar day anchored at noon UTC.
+ *
+ * We store date-only records (time entries, invoices, subscriptions…) at
+ * noon UTC so the stored instant lands on the same calendar day regardless
+ * of the reader's timezone. Don't use `new Date("yyyy-mm-ddT12:00:00")` —
+ * that's parsed as *local* noon, which produces different UTC timestamps
+ * on a Bucharest machine vs. on Vercel (UTC), and then breaks any range
+ * query whose bounds were computed in a different timezone than the write.
+ */
+export function dateAtNoonUTC(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 12, 0, 0, 0));
+}
+
+/** Midnight UTC of the given Date's calendar day (UTC components). */
+export function startOfUTCDay(d: Date): Date {
+  return new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0),
+  );
+}
+
+/** 23:59:59.999 UTC of the given Date's calendar day. */
+export function endOfUTCDay(d: Date): Date {
+  return new Date(
+    Date.UTC(
+      d.getUTCFullYear(),
+      d.getUTCMonth(),
+      d.getUTCDate(),
+      23,
+      59,
+      59,
+      999,
+    ),
+  );
+}
+
 /** Monday-start week. Returns array of 7 dates. */
 export function weekDates(anchor: Date): Date[] {
   const d = new Date(anchor);

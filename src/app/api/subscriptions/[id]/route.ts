@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { baniFromRon, centsFromUsd } from "@/lib/format";
+import { baniFromRon, centsFromUsd, dateAtNoonUTC } from "@/lib/format";
 
 const Update = z.object({
   name: z.string().min(1).optional(),
@@ -41,7 +41,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (v.dayOfMonth !== undefined) data.dayOfMonth = v.dayOfMonth;
   if (v.active !== undefined) data.active = v.active;
   if (v.endsAt !== undefined) {
-    data.endsAt = v.endsAt ? new Date(`${v.endsAt}T12:00:00`) : null;
+    data.endsAt = v.endsAt ? dateAtNoonUTC(v.endsAt) : null;
   }
 
   const sub = await db.subscription.update({ where: { id }, data });
