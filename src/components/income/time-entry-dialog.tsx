@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TimePicker } from "@/components/ui/time-picker";
-import { fmtDuration, fmtUsd, localISODate } from "@/lib/format";
+import { fmtCurrency, fmtDuration, fmtRate, localISODate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type JobOpt = {
@@ -119,7 +119,12 @@ export function TimeEntryDialog({
 
   if (!form) return null;
 
-  const usdPreview = job ? fmtUsd(Math.round(hours * job.rateUsd * 100)) : "—";
+  const earnedPreview = job
+    ? fmtCurrency(
+        Math.round(hours * job.rateUsd * 100),
+        job.defaultCurrency || "USD",
+      )
+    : "—";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -177,7 +182,7 @@ export function TimeEntryDialog({
                           selected ? "opacity-90" : "text-muted-foreground",
                         )}
                       >
-                        ${j.rateUsd}/h
+                        {fmtRate(j.rateUsd, j.defaultCurrency || "USD")}
                       </span>
                     </button>
                   );
@@ -233,7 +238,7 @@ export function TimeEntryDialog({
               </span>
             </div>
             <div className="font-display text-lg tabular-nums text-success">
-              {valid ? usdPreview : "—"}
+              {valid ? earnedPreview : "—"}
             </div>
           </div>
         </div>

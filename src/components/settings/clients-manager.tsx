@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { fmtRate } from "@/lib/format";
 import {
   Popover,
   PopoverContent,
@@ -360,7 +361,7 @@ function ClientRowEditor({
             )}
           </div>
           <div className="text-xs text-muted-foreground tabular-nums">
-            ${client.rateUsd}/hour · invoices in {client.defaultCurrency || "USD"}
+            {fmtRate(client.rateUsd, client.defaultCurrency || "USD")} · invoices in {client.defaultCurrency || "USD"}
           </div>
         </div>
       </div>

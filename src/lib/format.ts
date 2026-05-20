@@ -43,6 +43,13 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   RON: " RON",
 };
 
+/** Hourly rate badge: "$25/h", "€26/h", "100 RON/h". */
+export function fmtRate(rate: number, currency: string): string {
+  if (currency === "RON") return `${rate} RON/h`;
+  const sym = currency === "EUR" ? "€" : "$";
+  return `${sym}${rate}/h`;
+}
+
 /** Format a cents-denominated amount with the right currency symbol. */
 export function fmtCurrency(cents: number, currency: string): string {
   const major = Math.round(cents) / 100;

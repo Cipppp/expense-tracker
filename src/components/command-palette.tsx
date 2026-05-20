@@ -17,6 +17,7 @@ import {
   Moon,
 } from "@/lib/icons";
 import { useTheme } from "next-themes";
+import { fmtRate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -71,7 +72,7 @@ export function CommandPalette() {
               type: "client",
               id: j.id,
               title: j.name,
-              subtitle: j.companyName || `$${j.rateUsd}/h`,
+              subtitle: j.companyName || fmtRate(j.rateUsd, j.defaultCurrency || "USD"),
               href: `/invoices/new?jobId=${j.id}`,
             });
           }
