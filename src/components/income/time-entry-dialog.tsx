@@ -206,12 +206,19 @@ export function TimeEntryDialog({
                   setForm({
                     ...form,
                     startMinutes: v,
-                    // If pushing start past end, auto-bump end into the next
-                    // day so the range stays positive.
-                    endMinutes:
-                      v >= form.endMinutes
-                        ? (form.endMinutes % 1440) + 1440
-                        : form.endMinutes,
+                    // Keep the range valid as the user slides the start
+                    // around. Two cases the user can hit:
+                    // - Start crosses past current end → bump end to next
+                    //   day (e.g. 22→04 stays a 6h overnight).
+                    // - End was carried over from an earlier overnight
+                    //   choice but the new start makes the span > 24h →
+                    //   drop the +1440 so we land back on the same day.
+                    endMinutes: (() => {
+                      let end = form.endMinutes;
+                      if (v >= end) end = (end % 1440) + 1440;
+                      if (end > 1440 && end - v > 24 * 60) end = end - 1440;
+                      return end;
+                    })(),
                   })
                 }
               />

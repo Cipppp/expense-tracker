@@ -43,14 +43,15 @@ export type WeekEntry = {
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
-// Hour range shown on the grid. Tweak as your day shifts.
-// END_HOUR can exceed 24 — hours past midnight render in the same day's
-// column (so an entry 18:00→02:00 stays on the day it started).
-const START_HOUR = 6;
-const END_HOUR = 30; // shows 06:00 → 06:00 next day (full 24h shift envelope)
+// Grid spans the full calendar day, midnight-to-midnight. Overnight entries
+// split into two visual segments: a "head" on the start day clipped at
+// 24:00, and a "tail" on the next day starting at 00:00.
+const START_HOUR = 0;
+const END_HOUR = 24;
 const HOURS = END_HOUR - START_HOUR;
 const ROW_PX = 52; // 1h = 52px → 15min = 13px
 const SLOT_MIN = 15; // snap to 15-minute slots
+const DAY_MIN = 24 * 60;
 
 function snap(minutes: number): number {
   return Math.round(minutes / SLOT_MIN) * SLOT_MIN;
@@ -62,79 +63,90 @@ function minFromY(y: number): number {
   return Math.max(START_HOUR * 60, START_HOUR * 60 + (y / ROW_PX) * 60);
 }
 
-type LaidOutEntry = WeekEntry & { laneIndex: number; totalLanes: number };
+/**
+ * Visual slice of an entry on a single day column. Same-day entries produce
+ * one "full" segment; overnight entries produce a "head" (start → 24:00 on
+ * the start day) and a "tail" (00:00 → end-1440 on the next day).
+ */
+type Segment = {
+  entry: WeekEntry;
+  role: "full" | "head" | "tail";
+  start: number; // 0..1440, within the segment's column
+  end: number;   // 0..1440
+};
+
+type LaidOutSegment = Segment & {
+  /** how many earlier segments overlap this one in time (0 = front-most). */
+  stackIndex: number;
+  /** how many later segments overlap this one — used to size the visible
+   * "shoulder" of cards that sit underneath. */
+  stackBelow: number;
+};
+
+/** yyyy-mm-dd → yyyy-mm-dd shifted by N days (tz-safe via UTC anchor). */
+function shiftIsoDate(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+}
 
 /**
- * Google Calendar-style overlap layout: entries that overlap in time are
- * grouped, then packed greedily into lanes within their group. Each entry
- * gets `laneIndex` (0..totalLanes-1) so the renderer can compute
- *   left = (laneIndex / totalLanes) * 100%
- *   width = (1 / totalLanes) * 100%
- * Result: N overlapping jobs render side-by-side at 1/N width each — no
- * occlusion regardless of N.
+ * Given an entry with raw start/end (end may exceed 1440 for overnight),
+ * return one or two `{ date, segment }` pairs ready to be bucketed per day.
  */
-function layoutDay(entries: WeekEntry[]): LaidOutEntry[] {
-  // 1. Sort by start, then by length desc so longer entries pack first.
-  const sorted = [...entries].sort((a, b) => {
-    const sa = a.startMinutes ?? 0;
-    const sb = b.startMinutes ?? 0;
-    if (sa !== sb) return sa - sb;
-    const la = (a.endMinutes ?? 0) - (a.startMinutes ?? 0);
-    const lb = (b.endMinutes ?? 0) - (b.startMinutes ?? 0);
-    return lb - la;
+function entrySegments(
+  entry: WeekEntry,
+  start: number,
+  end: number,
+  date: string,
+): Array<{ date: string; segment: Segment }> {
+  if (end <= DAY_MIN) {
+    return [
+      {
+        date,
+        segment: { entry, role: "full", start, end },
+      },
+    ];
+  }
+  return [
+    {
+      date,
+      segment: { entry, role: "head", start, end: DAY_MIN },
+    },
+    {
+      date: shiftIsoDate(date, 1),
+      segment: { entry, role: "tail", start: 0, end: end - DAY_MIN },
+    },
+  ];
+}
+
+/**
+ * Cascade overlap layout: overlapping segments stack on top of each other
+ * (full-width minus a left offset based on stack index), translucent enough
+ * to read what's underneath, with each card's left "shoulder" sticking out
+ * so the back cards stay clickable. stackBelow is how many later segments
+ * cover *this* one — used to decide if we need to leave a visible shoulder.
+ */
+function layoutDay(segments: Segment[]): LaidOutSegment[] {
+  const sorted = [...segments].sort((a, b) => {
+    if (a.start !== b.start) return a.start - b.start;
+    return a.end - b.end;
   });
 
-  // 2. Group transitively-overlapping entries together. A new entry joins an
-  // existing group if it overlaps with that group's union time range.
-  type Group = {
-    entries: WeekEntry[];
-    minStart: number;
-    maxEnd: number;
-  };
-  const groups: Group[] = [];
-  for (const e of sorted) {
-    const start = e.startMinutes ?? 0;
-    const end = e.endMinutes ?? 0;
-    const target = groups.find(
-      (g) => start < g.maxEnd && end > g.minStart,
-    );
-    if (target) {
-      target.entries.push(e);
-      target.minStart = Math.min(target.minStart, start);
-      target.maxEnd = Math.max(target.maxEnd, end);
-    } else {
-      groups.push({ entries: [e], minStart: start, maxEnd: end });
+  return sorted.map((s, i) => {
+    let stackIndex = 0;
+    let stackBelow = 0;
+    for (let j = 0; j < sorted.length; j++) {
+      if (j === i) continue;
+      const o = sorted[j];
+      const overlaps = s.start < o.end && s.end > o.start;
+      if (!overlaps) continue;
+      if (j < i) stackIndex += 1;
+      else stackBelow += 1;
     }
-  }
-
-  // 3. Within each group, pack greedily into lanes: assign each entry to the
-  // first lane whose last entry has already ended.
-  const result: LaidOutEntry[] = [];
-  for (const g of groups) {
-    const laneEnds: number[] = []; // end-min of the latest entry in each lane
-    const laneOf = new Map<string, number>();
-    for (const e of g.entries) {
-      const start = e.startMinutes ?? 0;
-      const end = e.endMinutes ?? 0;
-      let lane = laneEnds.findIndex((le) => le <= start);
-      if (lane === -1) {
-        lane = laneEnds.length;
-        laneEnds.push(end);
-      } else {
-        laneEnds[lane] = end;
-      }
-      laneOf.set(e.id, lane);
-    }
-    const totalLanes = laneEnds.length;
-    for (const e of g.entries) {
-      result.push({
-        ...e,
-        laneIndex: laneOf.get(e.id) ?? 0,
-        totalLanes,
-      });
-    }
-  }
-  return result;
+    return { ...s, stackIndex, stackBelow };
+  });
 }
 
 export function WeekGrid({
@@ -163,7 +175,9 @@ export function WeekGrid({
     mode: DragMode;
     origStart: number;
     origEnd: number;
-    origDate: string;
+    origDate: string;       // entry.date (start day)
+    origRenderDate: string; // column where the drag began
+    segmentRole: "full" | "head" | "tail";
     pointerStart: { x: number; y: number };
     current: { start: number; end: number; date: string };
     moved: boolean;
@@ -184,18 +198,24 @@ export function WeekGrid({
   }
 
   function startDrag(
-    entry: WeekEntry,
+    segment: Segment,
     mode: DragMode,
     e: React.PointerEvent,
+    renderDate: string,
   ) {
     e.stopPropagation();
     e.preventDefault();
+    const entry = segment.entry;
     setDrag({
       entryId: entry.id,
       mode,
       origStart: entry.startMinutes ?? 540,
       origEnd: entry.endMinutes ?? 1020,
       origDate: entry.date,
+      // The column where the user grabbed this segment — may differ from
+      // the entry's start date (for a tail segment grabbed on day+1).
+      origRenderDate: renderDate,
+      segmentRole: segment.role,
       pointerStart: { x: e.clientX, y: e.clientY },
       current: {
         start: entry.startMinutes ?? 540,
@@ -224,20 +244,27 @@ export function WeekGrid({
         if (d.mode === "move") {
           newStart = d.origStart + deltaMin;
           newEnd = d.origEnd + deltaMin;
-          // Horizontal day swap: find which day column the cursor sits over.
+          // Horizontal day swap: figure out how many columns the cursor
+          // has crossed relative to where the drag started, then apply the
+          // same offset to the entry's start date. This works regardless
+          // of which segment (head or tail) was grabbed.
           const body = gridBodyRef.current;
           if (body) {
             const rect = body.getBoundingClientRect();
-            // Body grid: 56px hour-label col + 7 equal-width day cols.
             const dayStart = rect.left + 56;
             const dayWidth = (rect.right - dayStart) / 7;
             const col = Math.floor((ev.clientX - dayStart) / dayWidth);
             const colClamped = Math.max(0, Math.min(6, col));
+            const renderOrigCol = days.findIndex(
+              (dd) => localISODate(dd) === d.origRenderDate,
+            );
             const origCol = days.findIndex(
               (dd) => localISODate(dd) === d.origDate,
             );
-            if (origCol !== -1 && colClamped !== origCol) {
-              newDate = localISODate(days[colClamped]);
+            if (renderOrigCol !== -1 && origCol !== -1) {
+              const delta = colClamped - renderOrigCol;
+              const targetCol = Math.max(0, Math.min(6, origCol + delta));
+              newDate = localISODate(days[targetCol]);
             }
           }
         } else if (d.mode === "resize-bottom") {
@@ -245,9 +272,10 @@ export function WeekGrid({
         } else if (d.mode === "resize-top") {
           newStart = Math.min(d.origEnd - SLOT_MIN, d.origStart + deltaMin);
         }
-        // Clamp to grid time window
-        newStart = Math.max(START_HOUR * 60, newStart);
-        newEnd = Math.min(END_HOUR * 60, newEnd);
+        // Time-axis clamps. End may run past 1440 (overnight); cap at
+        // start + 24h to avoid runaway shifts; start stays inside one day.
+        newStart = Math.max(0, Math.min(DAY_MIN, newStart));
+        newEnd = Math.min(newStart + 24 * 60, Math.max(0, newEnd));
         return {
           ...d,
           current: { start: newStart, end: newEnd, date: newDate },
@@ -303,16 +331,24 @@ export function WeekGrid({
     router.push(`/income?week=${localISODate(d)}`);
   }
 
+  // Build the per-day segment buckets, overlaying live drag state so the
+  // visual matches the cursor during a drag without mutating real entries.
   const byDay = useMemo(() => {
-    const m = new Map<string, WeekEntry[]>();
+    const m = new Map<string, Segment[]>();
     for (const e of entries) {
       if (e.startMinutes == null || e.endMinutes == null) continue;
-      const arr = m.get(e.date) ?? [];
-      arr.push(e);
-      m.set(e.date, arr);
+      const isDragging = drag?.entryId === e.id;
+      const start = isDragging ? drag!.current.start : e.startMinutes;
+      const end = isDragging ? drag!.current.end : e.endMinutes;
+      const date = isDragging ? drag!.current.date : e.date;
+      for (const { date: d, segment } of entrySegments(e, start, end, date)) {
+        const arr = m.get(d) ?? [];
+        arr.push(segment);
+        m.set(d, arr);
+      }
     }
     return m;
-  }, [entries]);
+  }, [entries, drag]);
 
   const weekTotals = useMemo(() => {
     const hours = entries.reduce((a, b) => a + b.hours, 0);
@@ -432,8 +468,11 @@ export function WeekGrid({
                 {days.map((d, i) => {
                   const iso = localISODate(d);
                   const isToday = iso === todayIso;
+                  // Sum the visible segment durations on this day — for an
+                  // overnight entry the head shows on day N and the tail
+                  // on day N+1, so each column counts only its own slice.
                   const dayHours = (byDay.get(iso) ?? []).reduce(
-                    (a, b) => a + b.hours,
+                    (a, b) => a + (b.end - b.start) / 60,
                     0,
                   );
                   return (
@@ -493,38 +532,19 @@ export function WeekGrid({
                   ))}
                 </div>
 
-                {/* Day columns. Entries here reflect the LIVE drag state — if
-                    an entry is being dragged we relocate it to the target
-                    day on the fly so the visual matches the cursor. */}
+                {/* Day columns. byDay already reflects live drag state so
+                    each column just renders its bucket of segments. */}
                 {days.map((d) => {
                   const iso = localISODate(d);
-                  const base = byDay.get(iso) ?? [];
-                  // Filter out the dragged entry from its origin if it's
-                  // currently over a different day.
-                  let dayEntries =
-                    drag && drag.origDate === iso && drag.current.date !== iso
-                      ? base.filter((e) => e.id !== drag.entryId)
-                      : base.slice();
-                  // Add the dragged entry to its destination day if not
-                  // already here.
-                  if (drag && drag.current.date === iso) {
-                    const sourceArr =
-                      drag.origDate === iso ? base : (byDay.get(drag.origDate) ?? []);
-                    const e = sourceArr.find((x) => x.id === drag.entryId);
-                    if (e && !dayEntries.some((x) => x.id === e.id)) {
-                      dayEntries.push(e);
-                    }
-                  }
+                  const segments = byDay.get(iso) ?? [];
                   const isToday = iso === todayIso;
                   return (
                     <DayColumn
                       key={iso}
-                      date={d}
                       iso={iso}
                       isToday={isToday}
-                      entries={layoutDay(dayEntries)}
-                      drag={drag}
-                      onEditEntry={openEdit}
+                      segments={layoutDay(segments)}
+                      draggedEntryId={drag?.entryId ?? null}
                       onStartDrag={startDrag}
                       onCreateDraft={(d) => {
                         setDraft(d);
@@ -598,37 +618,23 @@ export function WeekGrid({
   );
 }
 
-type EntryDragState = {
-  entryId: string;
-  mode: "move" | "resize-top" | "resize-bottom";
-  origStart: number;
-  origEnd: number;
-  origDate: string;
-  pointerStart: { x: number; y: number };
-  current: { start: number; end: number; date: string };
-  moved: boolean;
-};
-
 function DayColumn({
-  date,
   iso,
   isToday,
-  entries,
-  drag,
-  onEditEntry,
+  segments,
+  draggedEntryId,
   onStartDrag,
   onCreateDraft,
 }: {
-  date: Date;
   iso: string;
   isToday: boolean;
-  entries: LaidOutEntry[];
-  drag: EntryDragState | null;
-  onEditEntry: (e: WeekEntry) => void;
+  segments: LaidOutSegment[];
+  draggedEntryId: string | null;
   onStartDrag: (
-    entry: WeekEntry,
+    segment: Segment,
     mode: "move" | "resize-top" | "resize-bottom",
     e: React.PointerEvent,
+    renderDate: string,
   ) => void;
   onCreateDraft: (d: EntryDraft) => void;
 }) {
@@ -714,50 +720,58 @@ function DayColumn({
         />
       ))}
 
-      {/* Existing entries — packed into lanes, side-by-side when overlapping */}
-      {entries.map((e) => {
-        // If this entry is being dragged, paint it at its current dragged
-        // position. The parent already moved it into this column's array.
-        const isDragging = drag?.entryId === e.id;
-        const startMin = isDragging
-          ? drag!.current.start
-          : (e.startMinutes ?? 0);
-        const endMin = isDragging
-          ? drag!.current.end
-          : (e.endMinutes ?? 0);
-        const top = topFromMin(startMin);
-        const height = topFromMin(endMin) - top;
-        const laneWidthPct = 100 / e.totalLanes;
-        const leftPct = e.laneIndex * laneWidthPct;
-        const isNarrow = e.totalLanes >= 3;
+      {/* Segments — stacked with a cascading left offset so a small left
+          shoulder of each card behind stays clickable. Overnight entries
+          appear as two segments (head clipped at 24:00 on the start day,
+          tail rendered at 00:00 on the next day). */}
+      {segments.map((s) => {
+        const e = s.entry;
+        const isMe = draggedEntryId === e.id;
+        const top = topFromMin(s.start);
+        const height = topFromMin(s.end) - top;
+        // Each subsequent stack layer shifts right by 10px — the leftmost
+        // sliver of every card behind stays exposed so the user can click
+        // it directly without needing to bring it forward first.
+        const offset = s.stackIndex * 10;
+
+        // Resize grips only make sense on real edges, not at midnight
+        // (which is fixed by the day split).
+        const showTopResize = s.role === "full" || s.role === "head";
+        const showBottomResize = s.role === "full" || s.role === "tail";
+        const headRadius = s.role === "tail" ? "rounded-b-md" : s.role === "head" ? "rounded-t-md" : "rounded-md";
+
+        const fullStartMin = e.startMinutes ?? 0;
+        const fullEndMin = e.endMinutes ?? 0;
         return (
           <div
-            key={e.id}
+            key={`${e.id}-${s.role}`}
             data-entry-block
             className="absolute"
             style={{
               top: top + 1,
               height: Math.max(18, height - 2),
-              left: `calc(${leftPct}% + 2px)`,
-              width: `calc(${laneWidthPct}% - 4px)`,
-              zIndex: isDragging ? 100 : 10 + e.laneIndex,
+              left: 4 + offset,
+              right: 4,
+              zIndex: isMe ? 100 : 10 + s.stackIndex,
             }}
           >
             <div
               onPointerDown={(ev) =>
                 onStartDrag(
-                  e,
+                  s,
                   "move",
                   ev as unknown as React.PointerEvent,
+                  iso,
                 )
               }
-              title={`${e.jobName} · ${minutesToTime(startMin)}–${minutesToTime(endMin)} · ${fmtDuration(e.hours)}`}
+              title={`${e.jobName} · ${minutesToTime(fullStartMin)}–${minutesToTime(fullEndMin)} · ${fmtDuration(e.hours)}${e.description ? ` · ${e.description}` : ""}`}
               className={cn(
-                "group/entry absolute inset-0 rounded-md text-left px-1.5 py-1 overflow-hidden border touch-none select-none",
-                "transition-shadow duration-150 ease-expo",
-                isDragging
+                "group/entry absolute inset-0 text-left px-2 py-1 overflow-hidden border-2 touch-none select-none backdrop-blur-[1px]",
+                "transition-all duration-150 ease-expo hover:shadow-md hover:!z-50 hover:scale-[1.005]",
+                headRadius,
+                isMe
                   ? "shadow-lg cursor-grabbing scale-[1.02]"
-                  : "cursor-grab hover:shadow-md hover:scale-[1.01]",
+                  : "cursor-grab",
               )}
               style={{
                 backgroundColor: `${e.jobColor}33`,
@@ -765,47 +779,59 @@ function DayColumn({
                 color: e.jobColor,
               }}
             >
-              {/* Top resize grip — 5px hot zone, ns-resize cursor */}
-              <div
-                onPointerDown={(ev) => {
-                  ev.stopPropagation();
-                  onStartDrag(e, "resize-top", ev as unknown as React.PointerEvent);
-                }}
-                className="absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize z-10"
-                aria-label="Resize start"
-              />
-              {/* Bottom resize grip */}
-              <div
-                onPointerDown={(ev) => {
-                  ev.stopPropagation();
-                  onStartDrag(e, "resize-bottom", ev as unknown as React.PointerEvent);
-                }}
-                className="absolute bottom-0 left-0 right-0 h-1.5 cursor-ns-resize z-10"
-                aria-label="Resize end"
-              />
-              <div className="flex items-baseline gap-1 min-w-0 pointer-events-none">
+              {showTopResize && (
+                <div
+                  onPointerDown={(ev) => {
+                    ev.stopPropagation();
+                    onStartDrag(
+                      s,
+                      "resize-top",
+                      ev as unknown as React.PointerEvent,
+                      iso,
+                    );
+                  }}
+                  className="absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize z-10"
+                  aria-label="Resize start"
+                />
+              )}
+              {showBottomResize && (
+                <div
+                  onPointerDown={(ev) => {
+                    ev.stopPropagation();
+                    onStartDrag(
+                      s,
+                      "resize-bottom",
+                      ev as unknown as React.PointerEvent,
+                      iso,
+                    );
+                  }}
+                  className="absolute bottom-0 left-0 right-0 h-1.5 cursor-ns-resize z-10"
+                  aria-label="Resize end"
+                />
+              )}
+              <div className="flex items-baseline gap-1.5 min-w-0 pointer-events-none">
                 <span
                   className="h-1.5 w-1.5 rounded-full shrink-0"
                   style={{ backgroundColor: e.jobColor }}
                 />
-                <span
-                  className={cn(
-                    "font-medium truncate text-foreground",
-                    isNarrow ? "text-[10px]" : "text-[11px]",
-                  )}
-                >
+                <span className="font-medium text-[11px] truncate text-foreground">
                   {e.jobName}
                 </span>
+                {s.role === "tail" && (
+                  <span className="text-[9px] uppercase tracking-wider opacity-60 ml-auto pl-1">
+                    cont.
+                  </span>
+                )}
               </div>
-              {height > 28 && !isNarrow && (
+              {height > 28 && (
                 <div className="text-[10px] tabular-nums text-muted-foreground mt-0.5 pointer-events-none">
-                  {minutesToTime(startMin)}–{minutesToTime(endMin)}
-                  {height > 48 && ` · ${fmtDuration((endMin - startMin) / 60)}`}
+                  {minutesToTime(fullStartMin)}–{minutesToTime(fullEndMin)}
+                  {height > 48 && ` · ${fmtDuration(e.hours)}`}
                 </div>
               )}
-              {height > 28 && isNarrow && (
-                <div className="text-[9px] tabular-nums text-muted-foreground mt-0.5 pointer-events-none">
-                  {fmtDuration((endMin - startMin) / 60)}
+              {height > 56 && e.description && (
+                <div className="text-[10px] leading-snug text-muted-foreground/90 mt-1 line-clamp-3 pointer-events-none">
+                  {e.description}
                 </div>
               )}
             </div>
