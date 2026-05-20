@@ -18,6 +18,7 @@ import {
   type JobOpt,
 } from "@/components/income/time-entry-dialog";
 import {
+  fmtCurrency,
   fmtDuration,
   fmtUsd,
   localISODate,
@@ -37,6 +38,7 @@ export type WeekEntry = {
   hours: number;
   amountUsd: number;
   description: string;
+  currency: string; // "USD" | "EUR" | "RON"
 };
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
@@ -183,11 +185,13 @@ export function WeekGrid({
 
   const weekTotals = useMemo(() => {
     const hours = entries.reduce((a, b) => a + b.hours, 0);
-    const usd = entries.reduce((a, b) => a + b.amountUsd, 0);
     const perClient = new Map<
       string,
       { name: string; color: string; hours: number; usd: number }
     >();
+    // Per-currency cents totals. The stored amount represents the amount in
+    // the client's contract currency (we display it with the right symbol).
+    const byCurrency: Record<string, number> = {};
     for (const e of entries) {
       const key = e.jobId ?? e.jobName;
       const cur =
@@ -195,10 +199,20 @@ export function WeekGrid({
       cur.hours += e.hours;
       cur.usd += e.amountUsd;
       perClient.set(key, cur);
+      const c = e.currency || "USD";
+      byCurrency[c] = (byCurrency[c] ?? 0) + e.amountUsd;
+    }
+    // Convert per-currency subtotals to USD for the grand total.
+    // Hardcoded approximation: 1 EUR ≈ 1.08 USD, 1 RON ≈ 0.22 USD.
+    const FX: Record<string, number> = { USD: 1, EUR: 1.08, RON: 0.22 };
+    let totalUsd = 0;
+    for (const [c, cents] of Object.entries(byCurrency)) {
+      totalUsd += cents * (FX[c] ?? 1);
     }
     return {
       hours,
-      usd,
+      totalUsd,
+      byCurrency,
       perClient: Array.from(perClient.values()).sort((a, b) => b.hours - a.hours),
     };
   }, [entries]);
@@ -243,7 +257,7 @@ export function WeekGrid({
           </Button>
         </div>
 
-        <div className="flex items-center gap-6 text-sm">
+        <div className="flex items-start gap-6 text-sm">
           <div>
             <div className="text-xs uppercase tracking-wider text-muted-foreground">
               Week
@@ -257,8 +271,19 @@ export function WeekGrid({
               Earned
             </div>
             <div className="font-display text-lg tabular-nums text-success">
-              {fmtUsd(weekTotals.usd)}
+              {fmtUsd(weekTotals.totalUsd)}
             </div>
+            {Object.keys(weekTotals.byCurrency).length > 1 && (
+              <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5 space-x-2">
+                {Object.entries(weekTotals.byCurrency)
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([c, cents]) => (
+                    <span key={c}>
+                      {fmtCurrency(cents, c)}
+                    </span>
+                  ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

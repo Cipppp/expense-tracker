@@ -37,6 +37,26 @@ export function fmtUsd(cents: number): string {
   })}`;
 }
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$",
+  EUR: "€",
+  RON: " RON",
+};
+
+/** Format a cents-denominated amount with the right currency symbol. */
+export function fmtCurrency(cents: number, currency: string): string {
+  const major = Math.round(cents) / 100;
+  const sign = major < 0 ? "-" : "";
+  const abs = Math.abs(major).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const sym = CURRENCY_SYMBOLS[currency] ?? `${currency} `;
+  // Symbol prefix for $/€, suffix for RON
+  if (currency === "RON") return `${sign}${abs}${sym}`;
+  return `${sign}${sym}${abs}`;
+}
+
 export function fmtDate(d: Date | string, locale = "en-GB"): string {
   const date = typeof d === "string" ? new Date(d) : d;
   return date.toLocaleDateString(locale, {

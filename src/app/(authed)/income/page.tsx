@@ -55,6 +55,7 @@ export default async function IncomePage(props: {
     hours: r.hours ?? 0,
     amountUsd: r.amountUsd,
     description: r.description,
+    currency: r.job?.defaultCurrency ?? "USD",
   }));
 
   return (
@@ -90,6 +91,7 @@ export default async function IncomePage(props: {
               name: j.name,
               rateUsd: j.rateUsd,
               color: j.color,
+              defaultCurrency: j.defaultCurrency,
             }))}
           />
         </TabsContent>

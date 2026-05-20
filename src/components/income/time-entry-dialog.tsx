@@ -15,13 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  fmtDuration,
-  fmtUsd,
-  localISODate,
-  minutesToTime,
-  timeToMinutes,
-} from "@/lib/format";
+import { TimePicker } from "@/components/ui/time-picker";
+import { fmtDuration, fmtUsd, localISODate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type JobOpt = {
@@ -29,6 +24,7 @@ export type JobOpt = {
   name: string;
   rateUsd: number;
   color: string;
+  defaultCurrency?: string;
 };
 
 export type EntryDraft = {
@@ -192,37 +188,21 @@ export function TimeEntryDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label
-                htmlFor="start"
-                className="text-xs uppercase tracking-wider text-muted-foreground"
-              >
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
                 Start
               </Label>
-              <Input
-                id="start"
-                type="time"
-                step={900}
-                value={minutesToTime(form.startMinutes)}
-                onChange={(e) =>
-                  setForm({ ...form, startMinutes: timeToMinutes(e.target.value) })
-                }
+              <TimePicker
+                value={form.startMinutes}
+                onChange={(v) => setForm({ ...form, startMinutes: v })}
               />
             </div>
             <div className="space-y-2">
-              <Label
-                htmlFor="end"
-                className="text-xs uppercase tracking-wider text-muted-foreground"
-              >
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
                 End
               </Label>
-              <Input
-                id="end"
-                type="time"
-                step={900}
-                value={minutesToTime(form.endMinutes)}
-                onChange={(e) =>
-                  setForm({ ...form, endMinutes: timeToMinutes(e.target.value) })
-                }
+              <TimePicker
+                value={form.endMinutes}
+                onChange={(v) => setForm({ ...form, endMinutes: v })}
               />
             </div>
           </div>
