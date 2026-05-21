@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Command } from "cmdk";
 import {
   LayoutDashboard,
@@ -15,10 +16,12 @@ import {
   Building2,
   Sun,
   Moon,
+  Clock,
 } from "@/lib/icons";
 import { useTheme } from "next-themes";
-import { fmtRate } from "@/lib/format";
+import { fmtDuration, fmtRate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { parseQuickLog } from "@/lib/quick-log";
 
 const NAV_ITEMS = [
   { value: "/", label: "Dashboard", icon: LayoutDashboard, keywords: "home overview" },
@@ -38,12 +41,17 @@ type Recent = {
   href: string;
 };
 
+type JobLite = { id: string; name: string };
+
 export function CommandPalette() {
   const router = useRouter();
   const { setTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Recent[]>([]);
+  const [jobsLite, setJobsLite] = useState<JobLite[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [query, setQuery] = useState("");
+  const [logging, setLogging] = useState(false);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -65,8 +73,13 @@ export function CommandPalette() {
           fetch("/api/jobs"),
         ]);
         const items: Recent[] = [];
+        const allJobs: JobLite[] = [];
         if (jobRes && jobRes.ok) {
           const { jobs } = await jobRes.json();
+          for (const j of jobs) {
+            if (j.active === false) continue;
+            allJobs.push({ id: j.id, name: j.name });
+          }
           for (const j of jobs.slice(0, 12)) {
             items.push({
               type: "client",
@@ -77,6 +90,7 @@ export function CommandPalette() {
             });
           }
         }
+        setJobsLite(allJobs);
         if (expRes && expRes.ok) {
           const { expenses } = await expRes.json();
           for (const e of expenses.slice(0, 15)) {
@@ -101,6 +115,53 @@ export function CommandPalette() {
     router.push(href);
   }
 
+  // Parse the current input as a time-log entry. Returns null when the
+  // query clearly isn't a log (no time/hours and no client matched).
+  const parsed = useMemo(() => {
+    const q = query.trim();
+    if (q.length < 2) return null;
+    if (jobsLite.length === 0) return null;
+    const p = parseQuickLog(q, jobsLite);
+    // Only show the preview if we recognized SOMETHING actionable:
+    // either a time range/hours, OR a client name.
+    if (p.startMinutes !== null || p.jobId) return p;
+    return null;
+  }, [query, jobsLite]);
+
+  async function commitQuickLog() {
+    if (!parsed || parsed.missing.length > 0 || logging) return;
+    setLogging(true);
+    try {
+      const res = await fetch("/api/income", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "time",
+          date: parsed.date,
+          jobId: parsed.jobId,
+          startMinutes: parsed.startMinutes,
+          endMinutes: parsed.endMinutes,
+          description: parsed.description,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error("Could not log time", {
+          description: String(err?.error ?? ""),
+        });
+        return;
+      }
+      toast.success(
+        `Logged ${fmtDuration(parsed.hours ?? 0)} on ${parsed.jobName}`,
+      );
+      setQuery("");
+      setOpen(false);
+      router.refresh();
+    } finally {
+      setLogging(false);
+    }
+  }
+
   return (
     <>
       {open && (
@@ -118,11 +179,32 @@ export function CommandPalette() {
                 "rounded-lg border border-border bg-popover text-popover-foreground shadow-2xl overflow-hidden",
               )}
               shouldFilter
+              // When a quick-log preview is showing, Enter commits the log
+              // instead of selecting whichever list item happens to have
+              // focus. Otherwise let cmdk handle navigation normally.
+              onKeyDown={(e) => {
+                if (
+                  e.key === "Enter" &&
+                  parsed &&
+                  parsed.missing.length === 0 &&
+                  !e.metaKey &&
+                  !e.ctrlKey
+                ) {
+                  // Only intercept if the focused item is the quick-log preview.
+                  const active = document.querySelector('[cmdk-item][data-selected="true"]');
+                  if (!active || active.getAttribute("data-quicklog") === "true") {
+                    e.preventDefault();
+                    commitQuickLog();
+                  }
+                }
+              }}
             >
               <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
                 <Search className="h-4 w-4 text-muted-foreground" />
                 <Command.Input
-                  placeholder="Search expenses, clients, pages…"
+                  value={query}
+                  onValueChange={setQuery}
+                  placeholder='Search or log time — "8h netop today fix bug"'
                   className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
                   autoFocus
                 />
@@ -134,6 +216,63 @@ export function CommandPalette() {
                 <Command.Empty className="px-3 py-6 text-sm text-muted-foreground text-center">
                   No matches.
                 </Command.Empty>
+
+                {parsed && (
+                  <Command.Group className="px-1 py-1">
+                    <div className="text-[10px] uppercase tracking-wider text-accent px-2 pt-1 pb-0.5">
+                      Quick-log time
+                    </div>
+                    <Command.Item
+                      value={`__quicklog__ ${query}`}
+                      data-quicklog="true"
+                      forceMount
+                      onSelect={commitQuickLog}
+                      className={cn(
+                        "flex items-start gap-2 px-2 py-2 rounded-md text-sm cursor-pointer data-[selected=true]:bg-accent/10 border border-transparent",
+                        parsed.missing.length === 0
+                          ? "data-[selected=true]:border-accent/40"
+                          : "opacity-80",
+                      )}
+                    >
+                      <Clock className="h-3.5 w-3.5 mt-0.5 text-accent shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">
+                          {parsed.missing.length === 0 ? (
+                            <>
+                              Log{" "}
+                              <span className="text-accent tabular-nums">
+                                {fmtDuration(parsed.hours ?? 0)}
+                              </span>{" "}
+                              on{" "}
+                              <span className="text-accent">{parsed.jobName}</span>
+                            </>
+                          ) : (
+                            <>
+                              Quick-log <span className="text-muted-foreground">— missing {parsed.missing.join(", ")}</span>
+                            </>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
+                          {parsed.date}
+                          {parsed.startMinutes !== null && parsed.endMinutes !== null && (
+                            <>
+                              {" · "}
+                              {formatTimeRange(parsed.startMinutes, parsed.endMinutes)}
+                            </>
+                          )}
+                          {parsed.description && (
+                            <span className="ml-1 italic text-muted-foreground/80">
+                              · {parsed.description}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <kbd className="text-[10px] font-mono text-muted-foreground border border-border rounded px-1.5 py-0.5 shrink-0">
+                        ↵
+                      </kbd>
+                    </Command.Item>
+                  </Command.Group>
+                )}
 
                 <Command.Group heading="Navigate" className="px-1 py-1">
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 pt-1 pb-0.5">
@@ -244,4 +383,10 @@ export function CommandPalette() {
       )}
     </>
   );
+}
+
+function formatTimeRange(start: number, end: number): string {
+  const s = `${String(Math.floor(start / 60) % 24).padStart(2, "0")}:${String(start % 60).padStart(2, "0")}`;
+  const e = `${String(Math.floor(end / 60) % 24).padStart(2, "0")}:${String(end % 60).padStart(2, "0")}`;
+  return end > 1440 ? `${s}–${e} (+next day)` : `${s}–${e}`;
 }

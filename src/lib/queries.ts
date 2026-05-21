@@ -339,3 +339,96 @@ export async function getYtd(year: number) {
   const earnedUsd = income.reduce((a, b) => a + b.amountUsd, 0);
   return { spentRon, spentUsd, earnedUsd, count: expenses.length };
 }
+
+export type MonthTotals = {
+  spentRon: number;
+  spentUsd: number;
+  earnedUsd: number;
+};
+
+/** Totals for one calendar month — used for MoM deltas. */
+export async function getMonthTotals(
+  year: number,
+  month: number,
+): Promise<MonthTotals> {
+  const start = startOfMonth(year, month);
+  const end = endOfMonth(year, month);
+  const [expenses, income] = await Promise.all([
+    db.expense.findMany({
+      where: { date: { gte: start, lte: end }, excluded: false },
+      select: { amountRon: true, amountUsd: true },
+    }),
+    db.income.findMany({
+      where: { date: { gte: start, lte: end } },
+      select: { amountUsd: true },
+    }),
+  ]);
+  return {
+    spentRon: expenses.reduce((a, b) => a + b.amountRon, 0),
+    spentUsd: expenses.reduce((a, b) => a + b.amountUsd, 0),
+    earnedUsd: income.reduce((a, b) => a + b.amountUsd, 0),
+  };
+}
+
+export type TaxProjection = {
+  monthsElapsed: number;
+  earnedRonProjected: number;     // bani, full year
+  spentRonProjected: number;       // bani, full year (operating)
+  microTaxRon: number;             // bani
+  fixedContribRon: number;         // bani — (BS+BAS + CAM) × 12
+  profitBeforeDivRon: number;      // bani
+  dividendTaxRon: number;          // bani
+  netToOwnerRon: number;           // bani
+};
+
+/**
+ * End-of-year tax projection for the Romanian micro-SRL setup. We linearly
+ * extrapolate YTD numbers to a full year, then apply the standard math from
+ * Settings (microPct, dividendePct, bsBasRon, camRon, fxRonToUsd). All
+ * outputs are in BANI so the Dashboard can use fmtRon directly.
+ *
+ * Caveats: the projection assumes the rest of the year matches the run
+ * rate. New clients, slowdowns, and one-off expenses will distort it.
+ * Best used as "if I keep going at this pace, here's what EOY looks like".
+ */
+export async function getTaxProjection(
+  year: number,
+  ref: Date = new Date(),
+): Promise<TaxProjection> {
+  const [ytd, settings] = await Promise.all([getYtd(year), getSettings()]);
+
+  // Months elapsed including the current partial month — Apr 15 → 3.5.
+  const monthIdx = ref.getMonth();        // 0..11
+  const dayOfMonth = ref.getDate();
+  const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+  const monthsElapsed = Math.max(0.1, monthIdx + dayOfMonth / daysInMonth);
+
+  // USD cents → RON bani. fxRonToUsd is RON-per-USD-ish, e.g. 0.2255 means
+  // 1 RON ≈ $0.2255, so 1 USD ≈ 1 / 0.2255 RON. Cents × (1 / fx) = bani.
+  const earnedRonYtd = ytd.earnedUsd / settings.fxRonToUsd;
+  const spentRonYtd = ytd.spentRon;
+
+  const scale = 12 / monthsElapsed;
+  const earnedRonProjected = Math.round(earnedRonYtd * scale);
+  const spentRonProjected = Math.round(spentRonYtd * scale);
+
+  const microTaxRon = Math.round(earnedRonProjected * settings.microPct);
+  const fixedContribRon = (settings.bsBasRon + settings.camRon) * 12;
+  const profitBeforeDivRon =
+    earnedRonProjected - microTaxRon - spentRonProjected - fixedContribRon;
+  const dividendTaxRon = Math.round(
+    Math.max(0, profitBeforeDivRon) * settings.dividendePct,
+  );
+  const netToOwnerRon = profitBeforeDivRon - dividendTaxRon;
+
+  return {
+    monthsElapsed,
+    earnedRonProjected,
+    spentRonProjected,
+    microTaxRon,
+    fixedContribRon,
+    profitBeforeDivRon,
+    dividendTaxRon,
+    netToOwnerRon,
+  };
+}

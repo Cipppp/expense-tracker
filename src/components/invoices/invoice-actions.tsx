@@ -5,13 +5,25 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Check, Send, RotateCcw, Trash2 } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
+import { fmtDate } from "@/lib/format";
 
 export function InvoiceActions({
   id,
   status,
+  overdue,
+  reminderContext,
 }: {
   id: string;
   status: string;
+  overdue?: boolean;
+  reminderContext?: {
+    series: string;
+    number: string;
+    clientCompany: string;
+    dueAt: string | null;
+    total: number;
+    currency: string;
+  };
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -50,8 +62,35 @@ export function InvoiceActions({
     });
   }
 
+  function sendReminder() {
+    if (!reminderContext) return;
+    const r = reminderContext;
+    const dueLine = r.dueAt
+      ? `Due date: ${fmtDate(r.dueAt)}\n`
+      : "";
+    const subject = `Reminder: Invoice ${r.series} ${r.number} from PROJECT CIP S.R.L.`;
+    const body =
+      `Hi,\n\n` +
+      `Just a friendly reminder that invoice ${r.series} ${r.number} for ${r.total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${r.currency} ` +
+      `(${r.clientCompany}) is still outstanding.\n` +
+      dueLine +
+      `\nThe PDF is attached for your reference.\n\n` +
+      `Thanks,\nCiprian / Project CIP S.R.L.`;
+    const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailto;
+  }
+
   return (
     <div className="flex flex-wrap gap-2">
+      {overdue && reminderContext && (
+        <Button
+          variant="destructive"
+          onClick={sendReminder}
+        >
+          <Send className="h-3.5 w-3.5" />
+          Send reminder
+        </Button>
+      )}
       {status === "draft" && (
         <Button
           variant="outline"

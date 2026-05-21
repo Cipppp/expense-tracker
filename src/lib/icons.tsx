@@ -101,4 +101,5 @@ export const TrendingUp = PTrendUp;
 export const Upload = UploadSimple;
 export const Wallet = PWallet;
 export const AlertCircle = WarningCircle;
+export { WarningCircle };
 export const X = PX;

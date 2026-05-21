@@ -2,13 +2,16 @@ import {
   getDailyExpenseSummary,
   getMonthlyAggregates,
   getMonthlyCategoryBreakdown,
+  getMonthTotals,
   getSettings,
+  getTaxProjection,
   getTopMerchants,
   getYtd,
 } from "@/lib/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
+import { TaxProjectionCard } from "@/components/dashboard/tax-projection";
 import { TopMerchants } from "@/components/dashboard/top-merchants";
 import { UnifiedMonthlyChart } from "@/components/dashboard/unified-monthly-chart";
 import { CalendarHeatmap } from "@/components/dashboard/calendar-heatmap";
@@ -21,13 +24,30 @@ export default async function DashboardPage() {
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
 
-  const [settings, ytd, monthly, top, categories, daily] = await Promise.all([
+  const prevMonthDate = new Date(year, month - 2, 1);
+  const prevYear = prevMonthDate.getFullYear();
+  const prevMonth = prevMonthDate.getMonth() + 1;
+
+  const [
+    settings,
+    ytd,
+    monthly,
+    top,
+    categories,
+    daily,
+    taxProjection,
+    thisMonth,
+    lastMonth,
+  ] = await Promise.all([
     getSettings(),
     getYtd(year),
     getMonthlyAggregates(year),
     getTopMerchants(year, month, 5),
     getMonthlyCategoryBreakdown(year),
     getDailyExpenseSummary(year, month),
+    getTaxProjection(year, now),
+    getMonthTotals(year, month),
+    getMonthTotals(prevYear, prevMonth),
   ]);
   const dailyForHeatmap = daily.map((d) => ({
     date: `${year}-${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`,
@@ -69,7 +89,12 @@ export default async function DashboardPage() {
         spentUsd={ytd.spentUsd}
         earnedUsd={ytd.earnedUsd}
         count={ytd.count}
+        thisMonth={thisMonth}
+        lastMonth={lastMonth}
+        lastMonthLabel={fmtMonth(prevYear, prevMonth)}
       />
+
+      <TaxProjectionCard projection={taxProjection} />
 
       {/* Row 1: chart + heatmap, side by side, similar natural heights */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

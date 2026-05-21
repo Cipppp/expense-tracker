@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Clock } from "@/lib/icons";
+import { Plus, Trash2, Clock, RefreshCw } from "@/lib/icons";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,6 +78,11 @@ export function InvoiceForm({
     (selectedJob?.defaultCurrency as "RON" | "USD" | "EUR") ?? "RON",
   );
   const [bnrRate, setBnrRate] = useState<string>("");
+  const [bnrLoading, setBnrLoading] = useState(false);
+  const [bnrSource, setBnrSource] = useState<{
+    date: string;
+    fellBack: boolean;
+  } | null>(null);
   const [footerNote, setFooterNote] = useState("");
 
   const [lines, setLines] = useState<Line[]>([emptyLine()]);
@@ -209,6 +214,45 @@ export function InvoiceForm({
   const bnrRateNum = Number(bnrRate) || 0;
   const legalTotal = needsBnrRate && bnrRateNum > 0 ? subtotal * bnrRateNum : subtotal;
 
+  // Pull the official BNR reference rate. Returns true if a rate was set.
+  async function fetchBnrRate(force = false) {
+    if (invoiceCurrency === "RON") return false;
+    if (bnrLoading) return false;
+    if (!force && bnrRate.trim()) return false;
+    setBnrLoading(true);
+    try {
+      const res = await fetch(
+        `/api/bnr-rate?currency=${invoiceCurrency}&date=${issuedAt}`,
+      );
+      const data = await res.json();
+      if (!res.ok || typeof data.rate !== "number") {
+        toast.error(data?.error ?? "Could not fetch BNR rate");
+        return false;
+      }
+      setBnrRate(String(data.rate));
+      setBnrSource({ date: data.date, fellBack: !!data.fellBack });
+      if (data.fellBack) {
+        toast.info(`Used BNR rate from ${data.date} (no publication for ${issuedAt})`);
+      }
+      return true;
+    } catch (err) {
+      toast.error(`Could not fetch BNR rate: ${err instanceof Error ? err.message : "unknown"}`);
+      return false;
+    } finally {
+      setBnrLoading(false);
+    }
+  }
+
+  // Auto-fill the rate whenever the currency turns non-RON or the issue
+  // date changes, unless the user already typed something custom.
+  useEffect(() => {
+    if (!needsBnrRate) return;
+    // Reset stale source label if currency switches.
+    setBnrSource(null);
+    fetchBnrRate(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoiceCurrency, issuedAt]);
+
   async function submit() {
     setPending(true);
     const res = await fetch("/api/invoices", {
@@ -304,14 +348,37 @@ export function InvoiceForm({
         </Field>
         {needsBnrRate && (
           <Field label={`BNR rate ${invoiceCurrency}/RON`}>
-            <Input
-              type="number"
-              step="0.0001"
-              min="0"
-              value={bnrRate}
-              onChange={(e) => setBnrRate(e.target.value)}
-              placeholder="e.g. 4.4085"
-            />
+            <div className="flex gap-1.5">
+              <Input
+                type="number"
+                step="0.0001"
+                min="0"
+                value={bnrRate}
+                onChange={(e) => {
+                  setBnrRate(e.target.value);
+                  setBnrSource(null);
+                }}
+                placeholder={bnrLoading ? "Loading…" : "e.g. 4.4085"}
+                disabled={bnrLoading}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => fetchBnrRate(true)}
+                disabled={bnrLoading}
+                title="Re-fetch BNR rate"
+                aria-label="Re-fetch BNR rate"
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", bnrLoading && "animate-spin")} />
+              </Button>
+            </div>
+            {bnrSource && (
+              <p className="text-[10px] text-muted-foreground mt-1">
+                BNR · {bnrSource.date}
+                {bnrSource.fellBack && " (rolled back to last business day)"}
+              </p>
+            )}
           </Field>
         )}
       </div>

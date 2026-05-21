@@ -43,6 +43,11 @@ export default async function InvoicePage(props: {
       ? total
       : total * (inv.bnrRate ?? 1);
 
+  const isOverdue =
+    inv.status === "issued" &&
+    inv.dueAt !== null &&
+    inv.dueAt < new Date();
+
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -89,7 +94,19 @@ export default async function InvoicePage(props: {
               PDF
             </a>
           </Button>
-          <InvoiceActions id={inv.id} status={inv.status} />
+          <InvoiceActions
+            id={inv.id}
+            status={inv.status}
+            overdue={isOverdue}
+            reminderContext={{
+              series: inv.series,
+              number: inv.number,
+              clientCompany: inv.clientCompany,
+              dueAt: inv.dueAt ? inv.dueAt.toISOString() : null,
+              total,
+              currency: inv.invoiceCurrency,
+            }}
+          />
         </div>
       </header>
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, FileText } from "@/lib/icons";
+import { Plus, FileText, WarningCircle } from "@/lib/icons";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +50,11 @@ export default async function InvoicesPage() {
 
   const total = invoices.length;
   const paid = invoices.filter((i) => i.status === "paid").length;
+  // Issued + past dueAt = overdue. Voided / draft are excluded.
+  const now = new Date();
+  const isOverdue = (inv: { status: string; dueAt: Date | null }) =>
+    inv.status === "issued" && inv.dueAt !== null && inv.dueAt < now;
+  const overdueCount = invoices.filter(isOverdue).length;
 
   // Per-job map of WeekEntry — fed to the expandable calendar previews.
   // Pre-bucketing here keeps the client component small and avoids running
@@ -106,6 +111,20 @@ export default async function InvoicesPage() {
         </Button>
       </header>
 
+      {overdueCount > 0 && (
+        <div className="flex items-start gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
+          <WarningCircle className="h-4 w-4 mt-0.5 text-destructive shrink-0" />
+          <div className="text-foreground">
+            <span className="font-medium">{overdueCount} overdue</span>
+            {" "}
+            <span className="text-muted-foreground">
+              {overdueCount === 1 ? "invoice has" : "invoices have"} a due date
+              in the past and aren&apos;t marked paid yet.
+            </span>
+          </div>
+        </div>
+      )}
+
       <Tabs defaultValue="list">
         <TabsList>
           <TabsTrigger value="list">All invoices</TabsTrigger>
@@ -136,6 +155,7 @@ export default async function InvoicesPage() {
             <div className="divide-y divide-border/60">
               {invoices.map((inv) => {
                 const total = inv.lines.reduce((a, l) => a + l.amount, 0);
+                const overdue = isOverdue(inv);
                 return (
                   <Link
                     key={inv.id}
@@ -154,6 +174,18 @@ export default async function InvoicesPage() {
                       </div>
                       <div className="text-[11px] text-muted-foreground truncate">
                         {fmtDate(inv.issuedAt)}
+                        {inv.dueAt && (
+                          <>
+                            {" · due "}
+                            <span
+                              className={
+                                overdue ? "text-destructive font-medium" : ""
+                              }
+                            >
+                              {fmtDate(inv.dueAt)}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="col-span-3 sm:col-span-2 text-right tabular-nums text-sm">
@@ -165,7 +197,12 @@ export default async function InvoicesPage() {
                         {inv.invoiceCurrency}
                       </span>
                     </div>
-                    <div className="col-span-12 sm:col-span-3 flex sm:justify-end">
+                    <div className="col-span-12 sm:col-span-3 flex sm:justify-end gap-1.5">
+                      {overdue && (
+                        <Badge variant="destructive" className="text-[10px]">
+                          overdue
+                        </Badge>
+                      )}
                       <Badge
                         variant={STATUS_VARIANT[inv.status] ?? "outline"}
                         className="text-[10px]"
