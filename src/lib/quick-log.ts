@@ -47,6 +47,11 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/** Strip non-alnum and lowercase — used for fuzzy client-name comparison. */
+function normalize(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 const DAY_OF_WEEK = [
   { names: ["sunday", "duminica", "duminică"], day: 0 },
   { names: ["monday", "luni"], day: 1 },
@@ -131,22 +136,75 @@ export function parseQuickLog(
     }
   }
 
-  // 4. Client match — case-insensitive substring against jobs. Longest
-  //    name wins (so "safeINIT" beats "safe" if both were configured).
+  // 4. Client match — try increasingly flexible strategies. Longest name
+  //    wins so "safeINIT" beats a hypothetical "safe".
+  //
+  //   a) exact word match, case-insensitive: "safeinit" → safeINIT ✓
+  //   b) normalized token window: "safe init" / "safe-init" → safeINIT ✓
+  //   c) prefix match on a single token (≥3 chars): "safe" → safeINIT ✓
+  //      (only fires when there's no ambiguity — multiple clients sharing
+  //      the same prefix means we skip this strategy)
   let job: JobCandidate | null = null;
-  let jobMatch: RegExpMatchArray | null = null;
+  let matchedText: string | null = null;
   const sortedJobs = [...jobs].sort((a, b) => b.name.length - a.name.length);
+
+  // a) exact \bNAME\b /i
   for (const j of sortedJobs) {
     const re = new RegExp(`\\b${escapeRegex(j.name)}\\b`, "i");
     const m = remaining.match(re);
     if (m) {
       job = j;
-      jobMatch = m;
+      matchedText = m[0];
       break;
     }
   }
-  if (job && jobMatch) {
-    remaining = remaining.replace(jobMatch[0], " ").replace(/\s+/g, " ");
+
+  // b) normalized window: try to match consecutive tokens against each
+  //    job's normalized name (alnum-only, lowercase). This lets the user
+  //    type "safe init", "safe-init", or "safe.init" — they all collapse
+  //    to "safeinit" which equals normalize("safeINIT").
+  if (!job) {
+    const tokens = remaining.trim().split(/\s+/).filter(Boolean);
+    outer: for (const j of sortedJobs) {
+      const target = normalize(j.name);
+      if (!target) continue;
+      for (let start = 0; start < tokens.length; start++) {
+        let combined = "";
+        for (let end = start; end < Math.min(start + 4, tokens.length); end++) {
+          combined += normalize(tokens[end]);
+          if (combined === target) {
+            job = j;
+            matchedText = tokens.slice(start, end + 1).join(" ");
+            break outer;
+          }
+          if (!target.startsWith(combined)) break;
+        }
+      }
+    }
+  }
+
+  // c) single-token prefix match, only when unambiguous.
+  if (!job) {
+    const tokens = remaining.trim().split(/\s+/).filter(Boolean);
+    for (const t of tokens) {
+      const n = normalize(t);
+      if (n.length < 3) continue;
+      const candidates = sortedJobs.filter((j) =>
+        normalize(j.name).startsWith(n),
+      );
+      if (candidates.length === 1) {
+        job = candidates[0];
+        matchedText = t;
+        break;
+      }
+    }
+  }
+
+  if (job && matchedText) {
+    // Escape regex meta-chars in the matched text — could contain dashes etc.
+    remaining = remaining
+      .replace(new RegExp(escapeRegex(matchedText), "i"), " ")
+      .replace(/\s+/g, " ");
   }
 
   const description = remaining.trim();
