@@ -12,6 +12,9 @@ import {
   Settings as SettingsIcon,
   LogOut,
   Menu,
+  ChevronLeft,
+  ChevronRight,
+  Search,
 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -34,11 +37,36 @@ const nav = [
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const;
 
+const STORAGE_KEY = "et:sidebar-collapsed";
+
 export function AppShell({ children }: { children: React.ReactNode }) {
+  // Start uncollapsed; hydrate from localStorage on mount. Avoids the SSR
+  // layout shift that would happen if we tried to read storage during SSR.
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved === "1") setCollapsed(true);
+    } catch {
+      // private mode / SSR boundary — fall through to default
+    }
+  }, []);
+  function toggleCollapsed() {
+    setCollapsed((c) => {
+      const next = !c;
+      try {
+        localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }
+
   return (
     <div className="flex min-h-[100dvh]">
       <CommandPalette />
-      <DesktopSidebar />
+      <DesktopSidebar collapsed={collapsed} onToggle={toggleCollapsed} />
       <main className="flex-1 min-w-0 flex flex-col">
         <MobileHeader />
         <div className="px-4 md:px-10 py-6 md:py-8 max-w-[1400px] animate-fade-in flex-1">
@@ -49,22 +77,53 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function DesktopSidebar() {
+function DesktopSidebar({
+  collapsed,
+  onToggle,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
   const pathname = usePathname();
   return (
-    <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-border bg-card/50 sticky top-0 h-[100dvh] self-start">
-      <div className="px-5 py-6">
-        <Link href="/" className="block">
-          <div className="font-display text-xl tracking-tight leading-none">
-            expense tracker
-          </div>
-          <div className="mt-1 text-xs text-muted-foreground uppercase tracking-[0.15em]">
-            Project CIP SRL
-          </div>
+    <aside
+      className={cn(
+        "hidden md:flex shrink-0 flex-col border-r border-border bg-card/50 sticky top-0 h-[100dvh] self-start",
+        "transition-[width] duration-300 ease-expo",
+        collapsed ? "w-14" : "w-60",
+      )}
+    >
+      {/* Brand — collapses to a small monogram. */}
+      <div
+        className={cn(
+          "py-6 transition-[padding] duration-300 ease-expo",
+          collapsed ? "px-2 flex justify-center" : "px-5",
+        )}
+      >
+        <Link
+          href="/"
+          className="block"
+          title={collapsed ? "Project CIP SRL" : undefined}
+        >
+          {collapsed ? (
+            <div className="font-display text-lg leading-none tracking-tight h-7 w-7 flex items-center justify-center">
+              et
+            </div>
+          ) : (
+            <>
+              <div className="font-display text-xl tracking-tight leading-none">
+                expense tracker
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground uppercase tracking-[0.15em]">
+                Project CIP SRL
+              </div>
+            </>
+          )}
         </Link>
       </div>
       <Separator />
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
+        <SearchTrigger collapsed={collapsed} />
         {nav.map(({ href, label, icon: Icon }) => {
           const active =
             href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -72,8 +131,10 @@ function DesktopSidebar() {
             <Link
               key={href}
               href={href}
+              title={collapsed ? label : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-200 ease-expo",
+                "flex items-center gap-3 rounded-md text-sm transition-colors duration-200 ease-expo",
+                collapsed ? "justify-center px-0 py-2" : "px-3 py-2",
                 active
                   ? "bg-accent/10 text-accent font-medium"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground",
@@ -81,29 +142,103 @@ function DesktopSidebar() {
             >
               <Icon
                 className={cn(
-                  "h-4 w-4",
+                  "h-4 w-4 shrink-0",
                   active ? "text-accent" : "text-muted-foreground",
                 )}
               />
-              {label}
+              <span className={cn("truncate", collapsed && "sr-only")}>
+                {label}
+              </span>
             </Link>
           );
         })}
       </nav>
       <Separator />
-      <div className="px-3 py-3 space-y-2">
-        <ThemeToggle variant="labeled" />
+      <div
+        className={cn(
+          "py-3 space-y-2 transition-[padding] duration-300 ease-expo",
+          collapsed ? "px-2" : "px-3",
+        )}
+      >
+        {collapsed ? (
+          <div className="flex justify-center">
+            <ThemeToggle variant="icon" />
+          </div>
+        ) : (
+          <ThemeToggle variant="labeled" />
+        )}
         <form action="/api/auth/logout" method="post">
           <button
             type="submit"
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            title={collapsed ? "Sign out" : undefined}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-md text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors",
+              collapsed ? "justify-center px-0 py-2" : "px-3 py-2",
+            )}
           >
-            <LogOut className="h-4 w-4" />
-            Sign out
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span className={cn(collapsed && "sr-only")}>Sign out</span>
           </button>
         </form>
       </div>
+      <Separator />
+      {/* Collapse / expand toggle — sits in its own slim row at the bottom
+          so the chevron stays predictable regardless of nav length. */}
+      <button
+        type="button"
+        onClick={onToggle}
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        className={cn(
+          "flex items-center gap-2 py-2 text-[11px] text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors",
+          collapsed ? "justify-center px-0" : "px-4 justify-end",
+        )}
+      >
+        {collapsed ? (
+          <ChevronRight className="h-3.5 w-3.5" />
+        ) : (
+          <>
+            <span>Collapse</span>
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </>
+        )}
+      </button>
     </aside>
+  );
+}
+
+/**
+ * Surfaces the Cmd+K palette in the sidebar so newcomers actually find it.
+ * Dispatches a synthetic keydown so we don't have to wire a context just
+ * for this one consumer.
+ */
+function SearchTrigger({ collapsed }: { collapsed: boolean }) {
+  function open() {
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "k", metaKey: true }),
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={open}
+      title={collapsed ? "Search or quick-log (⌘K)" : undefined}
+      className={cn(
+        "w-full flex items-center gap-3 rounded-md text-sm transition-colors duration-200 ease-expo",
+        "text-muted-foreground hover:bg-secondary hover:text-foreground",
+        collapsed ? "justify-center px-0 py-2" : "px-3 py-2",
+      )}
+    >
+      <Search className="h-4 w-4 shrink-0" />
+      <span className={cn("flex-1 text-left truncate", collapsed && "sr-only")}>
+        Search
+      </span>
+      {!collapsed && (
+        <kbd className="font-mono text-[10px] text-muted-foreground border border-border rounded px-1 py-px">
+          ⌘K
+        </kbd>
+      )}
+    </button>
   );
 }
 
