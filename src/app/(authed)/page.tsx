@@ -15,7 +15,8 @@ import { TaxProjectionCard } from "@/components/dashboard/tax-projection";
 import { TopMerchants } from "@/components/dashboard/top-merchants";
 import { UnifiedMonthlyChart } from "@/components/dashboard/unified-monthly-chart";
 import { CalendarHeatmap } from "@/components/dashboard/calendar-heatmap";
-import { fmtMonth } from "@/lib/format";
+import { CurrencyToggle } from "@/components/currency-toggle";
+import { fmtMonth, type DisplayCurrency } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,8 @@ export default async function DashboardPage() {
 
   const startMonth =
     year === settings.startYear ? settings.startMonth : 1;
+  const displayCurrency: DisplayCurrency =
+    (settings.displayCurrency as DisplayCurrency) ?? "USD";
 
   return (
     <div className="space-y-8">
@@ -75,14 +78,10 @@ export default async function DashboardPage() {
             Dashboard
           </h1>
         </div>
-        <div className="text-right">
-          <div className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground">
-            FX rate
-          </div>
-          <div className="font-mono text-xs sm:text-sm">
-            1 RON ≈ ${settings.fxRonToUsd.toFixed(4)}
-          </div>
-        </div>
+        <CurrencyToggle
+          value={displayCurrency}
+          fxRonToUsd={settings.fxRonToUsd}
+        />
       </header>
 
       <SummaryCards
@@ -92,9 +91,15 @@ export default async function DashboardPage() {
         thisMonth={thisMonth}
         lastMonth={lastMonth}
         lastMonthLabel={fmtMonth(prevYear, prevMonth)}
+        displayCurrency={displayCurrency}
+        fxRonToUsd={settings.fxRonToUsd}
       />
 
-      <TaxProjectionCard projection={taxProjection} />
+      <TaxProjectionCard
+        projection={taxProjection}
+        displayCurrency={displayCurrency}
+        fxRonToUsd={settings.fxRonToUsd}
+      />
 
       {/* Row 1: chart + heatmap, side by side, similar natural heights */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -117,6 +122,7 @@ export default async function DashboardPage() {
               microPct={settings.microPct}
               dividendePct={settings.dividendePct}
               startMonth={startMonth}
+              displayCurrency={displayCurrency}
             />
           </CardContent>
         </Card>
@@ -134,6 +140,8 @@ export default async function DashboardPage() {
               year={year}
               month={month}
               daily={dailyForHeatmap}
+              displayCurrency={displayCurrency}
+              fxRonToUsd={settings.fxRonToUsd}
             />
           </CardContent>
         </Card>
@@ -145,12 +153,16 @@ export default async function DashboardPage() {
           <CardHeader>
             <CardTitle>Top merchants</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              {fmtMonth(year, month)} — sorted by RON spent.
+              {fmtMonth(year, month)} — sorted by amount spent.
             </p>
           </CardHeader>
           <Separator />
           <CardContent className="pt-6">
-            <TopMerchants items={top} />
+            <TopMerchants
+              items={top}
+              displayCurrency={displayCurrency}
+              fxRonToUsd={settings.fxRonToUsd}
+            />
           </CardContent>
         </Card>
 

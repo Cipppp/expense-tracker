@@ -93,33 +93,46 @@ function DesktopSidebar({
         collapsed ? "w-14" : "w-60",
       )}
     >
-      {/* Brand — collapses to a small monogram. */}
+      {/* Brand row — the chevron toggle sits inline with the wordmark so
+          it stays in the user's line of sight. When collapsed, the toggle
+          becomes the only thing visible up top (clicking expands again). */}
       <div
         className={cn(
-          "py-6 transition-[padding] duration-300 ease-expo",
-          collapsed ? "px-2 flex justify-center" : "px-5",
+          "py-6 transition-[padding] duration-300 ease-expo flex items-start",
+          collapsed ? "px-2 justify-center" : "px-5 justify-between gap-2",
         )}
       >
-        <Link
-          href="/"
-          className="block"
-          title={collapsed ? "Project CIP SRL" : undefined}
-        >
-          {collapsed ? (
-            <div className="font-display text-lg leading-none tracking-tight h-7 w-7 flex items-center justify-center">
-              et
-            </div>
-          ) : (
-            <>
-              <div className="font-display text-xl tracking-tight leading-none">
+        {collapsed ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label="Expand sidebar"
+            title="Expand sidebar"
+            className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        ) : (
+          <>
+            <Link href="/" className="block min-w-0">
+              <div className="font-display text-xl tracking-tight leading-none truncate">
                 expense tracker
               </div>
-              <div className="mt-1 text-xs text-muted-foreground uppercase tracking-[0.15em]">
+              <div className="mt-1 text-[11px] text-muted-foreground uppercase tracking-[0.15em] truncate">
                 Project CIP SRL
               </div>
-            </>
-          )}
-        </Link>
+            </Link>
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
+              className="shrink-0 -mr-1 mt-0.5 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+          </>
+        )}
       </div>
       <Separator />
       <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
@@ -181,28 +194,6 @@ function DesktopSidebar({
           </button>
         </form>
       </div>
-      <Separator />
-      {/* Collapse / expand toggle — sits in its own slim row at the bottom
-          so the chevron stays predictable regardless of nav length. */}
-      <button
-        type="button"
-        onClick={onToggle}
-        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className={cn(
-          "flex items-center gap-2 py-2 text-[11px] text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors",
-          collapsed ? "justify-center px-0" : "px-4 justify-end",
-        )}
-      >
-        {collapsed ? (
-          <ChevronRight className="h-3.5 w-3.5" />
-        ) : (
-          <>
-            <span>Collapse</span>
-            <ChevronLeft className="h-3.5 w-3.5" />
-          </>
-        )}
-      </button>
     </aside>
   );
 }
@@ -234,9 +225,9 @@ function SearchTrigger({ collapsed }: { collapsed: boolean }) {
         Search
       </span>
       {!collapsed && (
-        <kbd className="font-mono text-[10px] text-muted-foreground border border-border rounded px-1 py-px">
+        <span className="font-mono text-[10px] tracking-tight text-muted-foreground/70">
           ⌘K
-        </kbd>
+        </span>
       )}
     </button>
   );

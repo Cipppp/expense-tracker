@@ -4,7 +4,11 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "@/lib/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { fmtRon } from "@/lib/format";
+import {
+  fmtDisplay,
+  ronBaniToDisplay,
+  type DisplayCurrency,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type DailyTotal = {
@@ -18,11 +22,17 @@ export function CalendarHeatmap({
   year: initialYear,
   month: initialMonth,
   daily,
+  displayCurrency,
+  fxRonToUsd,
 }: {
   year: number;
   month: number;
   daily: DailyTotal[];
+  displayCurrency: DisplayCurrency;
+  fxRonToUsd: number;
 }) {
+  const fmtMoney = (bani: number) =>
+    fmtDisplay(ronBaniToDisplay(bani, displayCurrency, fxRonToUsd), displayCurrency);
   const [{ year, month }, setRange] = useState({
     year: initialYear,
     month: initialMonth,
@@ -171,7 +181,13 @@ export function CalendarHeatmap({
                 align="center"
                 side="top"
               >
-                <DayDetail data={c.data!} day={c.day!} year={year} month={month} />
+                <DayDetail
+                  data={c.data!}
+                  day={c.day!}
+                  year={year}
+                  month={month}
+                  fmt={fmtMoney}
+                />
               </PopoverContent>
             </Popover>
           );
@@ -182,16 +198,16 @@ export function CalendarHeatmap({
         {stats.daysWithSpend > 0 && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
             <span>
-              Avg/day · <span className="text-foreground font-medium">{fmtRon(stats.avg)}</span>
+              Avg/day · <span className="text-foreground font-medium">{fmtMoney(stats.avg)}</span>
             </span>
             <span>
               Max ·{" "}
-              <span className="text-foreground font-medium">{fmtRon(max)}</span>
+              <span className="text-foreground font-medium">{fmtMoney(max)}</span>
             </span>
             <span className="hidden sm:inline">
               Total ·{" "}
               <span className="text-foreground font-medium">
-                {fmtRon(stats.total)}
+                {fmtMoney(stats.total)}
               </span>
             </span>
           </div>
@@ -230,12 +246,15 @@ function DayDetail({
   day,
   year,
   month,
+  fmt,
 }: {
   data: DailyTotal;
   day: number;
   year: number;
   month: number;
+  fmt: (bani: number) => string;
 }) {
+  const fmtMoney = fmt;
   const dateLabel = new Date(year, month - 1, day).toLocaleDateString("en-GB", {
     weekday: "long",
     day: "numeric",
@@ -250,7 +269,7 @@ function DayDetail({
         </div>
         <div className="flex items-baseline justify-between mt-0.5">
           <span className="font-display text-lg tabular-nums">
-            {fmtRon(data.ron)}
+            {fmtMoney(data.ron)}
           </span>
           <span className="text-[10px] text-muted-foreground">
             {data.count} {data.count === 1 ? "transaction" : "transactions"}
@@ -268,7 +287,7 @@ function DayDetail({
               <div className="text-[10px] text-muted-foreground">{t.category}</div>
             </div>
             <span className="tabular-nums font-semibold shrink-0">
-              {fmtRon(t.amountRon)}
+              {fmtMoney(t.amountRon)}
             </span>
           </li>
         ))}

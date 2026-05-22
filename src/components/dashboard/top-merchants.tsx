@@ -1,10 +1,20 @@
-import { fmtRon, fmtUsd } from "@/lib/format";
+import {
+  fmtDisplay,
+  ronBaniToDisplay,
+  type DisplayCurrency,
+} from "@/lib/format";
 
 export function TopMerchants({
   items,
+  displayCurrency,
+  fxRonToUsd,
 }: {
   items: Array<{ merchant: string; count: number; amountRon: number; amountUsd: number }>;
+  displayCurrency: DisplayCurrency;
+  fxRonToUsd: number;
 }) {
+  const fmt = (bani: number) =>
+    fmtDisplay(ronBaniToDisplay(bani, displayCurrency, fxRonToUsd), displayCurrency);
   if (items.length === 0) {
     return (
       <div className="py-6 text-sm text-muted-foreground text-center">
@@ -29,9 +39,8 @@ export function TopMerchants({
                 </span>
                 <span className="text-[10px] text-muted-foreground">×{m.count}</span>
               </span>
-              <span className="text-sm tabular-nums shrink-0">
-                <span className="text-foreground">{fmtRon(m.amountRon)}</span>
-                <span className="text-muted-foreground"> · {fmtUsd(m.amountUsd)}</span>
+              <span className="text-sm tabular-nums shrink-0 text-foreground">
+                {fmt(m.amountRon)}
               </span>
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">

@@ -4,11 +4,14 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   endOfUTCDay,
-  fmtUsd,
+  fmtDisplay,
   localISODate,
   startOfUTCDay,
+  usdCentsToDisplay,
   weekDates,
+  type DisplayCurrency,
 } from "@/lib/format";
+import { getSettings } from "@/lib/queries";
 import { WeekGrid, type WeekEntry } from "@/components/income/week-grid";
 import { LumpSumForm } from "@/components/income/lump-sum-form";
 import { LumpSumList } from "@/components/income/lump-sum-list";
@@ -31,7 +34,7 @@ export default async function IncomePage(props: {
   const weekEnd = endOfUTCDay(days[6]);
   const year = new Date().getFullYear();
 
-  const [allJobs, weekRows, ytdIncome, lumpSumRows] = await Promise.all([
+  const [allJobs, weekRows, ytdIncome, lumpSumRows, settings] = await Promise.all([
     db.job.findMany({ orderBy: { name: "asc" } }),
     db.income.findMany({
       where: {
@@ -48,10 +51,17 @@ export default async function IncomePage(props: {
       where: { jobId: null, date: { gte: new Date(year, 0, 1) } },
       orderBy: { date: "desc" },
     }),
+    getSettings(),
   ]);
 
   const activeJobs = allJobs.filter((j) => j.active);
   const totalYtd = ytdIncome.reduce((a, b) => a + b.amountUsd, 0);
+  const displayCurrency: DisplayCurrency =
+    (settings.displayCurrency as DisplayCurrency) ?? "USD";
+  const totalYtdDisplay = fmtDisplay(
+    usdCentsToDisplay(totalYtd, displayCurrency, settings.fxRonToUsd),
+    displayCurrency,
+  );
 
   const weekEntries: WeekEntry[] = weekRows.map((r) => ({
     id: r.id,
@@ -85,7 +95,7 @@ export default async function IncomePage(props: {
             Total YTD
           </div>
           <div className="font-display text-xl sm:text-2xl tabular-nums text-success">
-            {fmtUsd(totalYtd)}
+            {totalYtdDisplay}
           </div>
         </div>
       </header>

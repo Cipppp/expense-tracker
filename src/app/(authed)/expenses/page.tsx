@@ -10,7 +10,13 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { baniFromRon, fmtMonth, fmtRon, fmtUsd } from "@/lib/format";
+import {
+  baniFromRon,
+  fmtDisplay,
+  fmtMonth,
+  ronBaniToDisplay,
+  type DisplayCurrency,
+} from "@/lib/format";
 import { MonthFilter } from "@/components/expenses/month-filter";
 import { ExpenseFilters as ExpenseFiltersBar } from "@/components/expenses/expense-filters";
 import { SortableHeader } from "@/components/expenses/sortable-header";
@@ -86,6 +92,13 @@ export default async function ExpensesPage(props: {
     filters.maxRon != null ||
     filters.q
   );
+  const displayCurrency: DisplayCurrency =
+    (settings.displayCurrency as DisplayCurrency) ?? "USD";
+  const fmtMoney = (bani: number) =>
+    fmtDisplay(
+      ronBaniToDisplay(bani, displayCurrency, settings.fxRonToUsd),
+      displayCurrency,
+    );
 
   return (
     <div className="space-y-8">
@@ -106,10 +119,10 @@ export default async function ExpensesPage(props: {
               {isFiltered ? "Filtered total" : "Month total"}
             </div>
             <div className="font-display text-lg tabular-nums">
-              {fmtRon(monthTotalRon)}
+              {fmtMoney(monthTotalRon)}
             </div>
             <div className="text-xs text-muted-foreground tabular-nums">
-              ≈ {fmtUsd(monthTotalUsd)} · {included.length} txn
+              {included.length} txn
               {excludedCount > 0 && (
                 <span className="ml-1">· {excludedCount} excluded</span>
               )}
@@ -120,7 +133,7 @@ export default async function ExpensesPage(props: {
               Year total
             </div>
             <div className="font-display text-lg tabular-nums">
-              {fmtRon(yearTotalRon)}
+              {fmtMoney(yearTotalRon)}
             </div>
           </div>
         </div>

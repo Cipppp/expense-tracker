@@ -1,6 +1,7 @@
 import { ArrowDownRight, ArrowUpRight, Receipt, Wallet } from "@/lib/icons";
 import { Card, CardContent } from "@/components/ui/card";
-import { fmtUsd } from "@/lib/format";
+import { fmtDisplay, usdCentsToDisplay } from "@/lib/format";
+import type { DisplayCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { MonthTotals } from "@/lib/queries";
 
@@ -11,6 +12,8 @@ export function SummaryCards({
   thisMonth,
   lastMonth,
   lastMonthLabel,
+  displayCurrency,
+  fxRonToUsd,
 }: {
   spentUsd: number;
   earnedUsd: number;
@@ -18,7 +21,12 @@ export function SummaryCards({
   thisMonth: MonthTotals;
   lastMonth: MonthTotals;
   lastMonthLabel: string;
+  displayCurrency: DisplayCurrency;
+  fxRonToUsd: number;
 }) {
+  const conv = (cents: number) =>
+    usdCentsToDisplay(cents, displayCurrency, fxRonToUsd);
+  const fmt = (cents: number) => fmtDisplay(conv(cents), displayCurrency);
   const netUsd = earnedUsd - spentUsd;
   const thisNet = thisMonth.earnedUsd - thisMonth.spentUsd;
   const lastNet = lastMonth.earnedUsd - lastMonth.spentUsd;
@@ -26,7 +34,7 @@ export function SummaryCards({
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <Stat
         label="Earned YTD"
-        value={fmtUsd(earnedUsd)}
+        value={fmt(earnedUsd)}
         accent="success"
         icon={<ArrowUpRight className="h-4 w-4" />}
         delta={
@@ -35,12 +43,14 @@ export function SummaryCards({
             prev={lastMonth.earnedUsd}
             higherIsGood
             prevLabel={lastMonthLabel}
+            displayCurrency={displayCurrency}
+            fxRonToUsd={fxRonToUsd}
           />
         }
       />
       <Stat
         label="Spent YTD"
-        value={fmtUsd(spentUsd)}
+        value={fmt(spentUsd)}
         accent="destructive"
         icon={<ArrowDownRight className="h-4 w-4" />}
         delta={
@@ -49,12 +59,14 @@ export function SummaryCards({
             prev={lastMonth.spentUsd}
             higherIsGood={false}
             prevLabel={lastMonthLabel}
+            displayCurrency={displayCurrency}
+            fxRonToUsd={fxRonToUsd}
           />
         }
       />
       <Stat
         label={netUsd >= 0 ? "Net YTD" : "Net YTD (in red)"}
-        value={fmtUsd(netUsd)}
+        value={fmt(netUsd)}
         accent={netUsd >= 0 ? "default" : "destructive"}
         icon={<Wallet className="h-4 w-4" />}
         delta={
@@ -63,6 +75,8 @@ export function SummaryCards({
             prev={lastNet}
             higherIsGood
             prevLabel={lastMonthLabel}
+            displayCurrency={displayCurrency}
+            fxRonToUsd={fxRonToUsd}
           />
         }
         footer={
@@ -85,12 +99,18 @@ function Delta({
   prev,
   higherIsGood,
   prevLabel,
+  displayCurrency,
+  fxRonToUsd,
 }: {
   now: number;
   prev: number;
   higherIsGood: boolean;
   prevLabel: string;
+  displayCurrency: DisplayCurrency;
+  fxRonToUsd: number;
 }) {
+  const fmt = (cents: number) =>
+    fmtDisplay(usdCentsToDisplay(cents, displayCurrency, fxRonToUsd), displayCurrency);
   if (prev === 0 && now === 0) {
     return (
       <span className="text-muted-foreground">No data vs {prevLabel}</span>
@@ -100,7 +120,7 @@ function Delta({
     // No baseline to compare against — show this-month only.
     return (
       <span className="text-muted-foreground">
-        {fmtUsd(now)} this month · new vs {prevLabel}
+        {fmt(now)} this month · new vs {prevLabel}
       </span>
     );
   }
@@ -111,7 +131,7 @@ function Delta({
   return (
     <span className="inline-flex items-baseline gap-1.5">
       <span className="text-muted-foreground tabular-nums">
-        {fmtUsd(now)} this month
+        {fmt(now)} this month
       </span>
       <span
         className={cn(

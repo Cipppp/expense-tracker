@@ -43,6 +43,39 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   RON: " RON",
 };
 
+/**
+ * App-wide display currency — chosen via the Dashboard dropdown. Storage
+ * stays in its native unit (USD cents for income, RON bani for expenses)
+ * and we convert only at the edges.
+ */
+export type DisplayCurrency = "USD" | "RON";
+
+/** Convert a USD-cent amount into the display currency's minor unit. */
+export function usdCentsToDisplay(
+  cents: number,
+  display: DisplayCurrency,
+  fxRonToUsd: number,
+): number {
+  if (display === "USD") return cents;
+  // RON: 1 USD = (1 / fxRonToUsd) RON → cents × (1 / fxRonToUsd) = bani
+  return Math.round(cents / fxRonToUsd);
+}
+
+/** Convert a RON-bani amount into the display currency's minor unit. */
+export function ronBaniToDisplay(
+  bani: number,
+  display: DisplayCurrency,
+  fxRonToUsd: number,
+): number {
+  if (display === "RON") return bani;
+  return Math.round(bani * fxRonToUsd);
+}
+
+/** Format an amount that's already in the display currency's minor unit. */
+export function fmtDisplay(amount: number, display: DisplayCurrency): string {
+  return display === "USD" ? fmtUsd(amount) : fmtRon(amount);
+}
+
 /** Hourly rate badge: "$25/h", "€26/h", "100 RON/h". */
 export function fmtRate(rate: number, currency: string): string {
   if (currency === "RON") return `${rate} RON/h`;

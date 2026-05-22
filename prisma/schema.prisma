@@ -187,6 +187,9 @@ model Subscription {
 // Single-row settings table.
 model Settings {
   id              Int    @id @default(1)
+  // App-wide display currency. Storage is unchanged (USD cents for income,
+  // RON bani for expenses) — this only affects formatting in the UI.
+  displayCurrency String @default("USD") // USD | RON
   fxRonToUsd      Float  @default(0.2255)
   // Romanian micro-enterprise tax inputs.
   bsBasRon        Int    @default(141500) // 1415.00 RON in bani

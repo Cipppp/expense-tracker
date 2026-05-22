@@ -12,7 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { fmtRon, ronFromBani } from "@/lib/format";
+import { ronFromBani, type DisplayCurrency } from "@/lib/format";
 
 export type MonthlyDatum = {
   label: string;
@@ -66,6 +66,7 @@ export function UnifiedMonthlyChart({
   microPct,
   dividendePct,
   startMonth,
+  displayCurrency,
 }: {
   monthly: MonthlyDatum[];
   categories: MonthlyCategoryDatum[];
@@ -75,8 +76,20 @@ export function UnifiedMonthlyChart({
   microPct: number;
   dividendePct: number;
   startMonth: number;
+  displayCurrency: DisplayCurrency;
 }) {
   const [view, setView] = useState<View>("net");
+
+  // Convert any RON-major-unit value into the display currency's major
+  // unit. We chart in major units (e.g., 1415 RON = 1415 or $319.08).
+  const ronToDisplay = (ron: number) =>
+    displayCurrency === "RON" ? ron : ron * fxRonToUsd;
+  const usdToDisplay = (usd: number) =>
+    displayCurrency === "USD" ? usd : usd / fxRonToUsd;
+  const formatMoney = (v: number) =>
+    displayCurrency === "USD"
+      ? `$${v.toLocaleString("en-US", { maximumFractionDigits: 0 })}`
+      : `${v.toLocaleString("ro-RO", { maximumFractionDigits: 0 })} RON`;
 
   const slice = monthly.slice(startMonth - 1);
   const catSlice = categories.slice(startMonth - 1);
@@ -93,14 +106,14 @@ export function UnifiedMonthlyChart({
       const netOwner = Math.max(0, beforeDiv - dividende);
       return {
         label: m.label,
-        bsBas: round2(bsBasMonthly),
-        cam: round2(camMonthly),
-        micro: round2(micro),
-        dividende: round2(dividende),
-        netOwner: round2(netOwner),
+        bsBas: round2(ronToDisplay(bsBasMonthly)),
+        cam: round2(ronToDisplay(camMonthly)),
+        micro: round2(ronToDisplay(micro)),
+        dividende: round2(ronToDisplay(dividende)),
+        netOwner: round2(ronToDisplay(netOwner)),
       };
     });
-  }, [slice, fxRonToUsd, bsBasRon, camRon, microPct, dividendePct]);
+  }, [slice, fxRonToUsd, bsBasRon, camRon, microPct, dividendePct, displayCurrency]);
 
   // Categories view — top 8 categories + "Other" bucket.
   const { catData, catKeys, catColorMap } = useMemo(() => {
@@ -125,27 +138,27 @@ export function UnifiedMonthlyChart({
     const data = catSlice.map((m) => {
       const row: Record<string, number | string> = { label: m.label };
       for (const k of top) {
-        row[k] = round2(ronFromBani(m.categories[k] ?? 0));
+        row[k] = round2(ronToDisplay(ronFromBani(m.categories[k] ?? 0)));
       }
       if (other.length > 0) {
         let sum = 0;
         for (const k of other) sum += m.categories[k] ?? 0;
-        row.Other = round2(ronFromBani(sum));
+        row.Other = round2(ronToDisplay(ronFromBani(sum)));
       }
       return row;
     });
     return { catData: data, catKeys: keys, catColorMap: colors };
-  }, [catSlice]);
+  }, [catSlice, displayCurrency, fxRonToUsd]);
 
   // Net view — earned vs spent.
   const netData = useMemo(
     () =>
       slice.map((m) => ({
         label: m.label,
-        earned: round2(m.earnedUsd / 100),
-        spent: round2(m.spentUsd / 100),
+        earned: round2(usdToDisplay(m.earnedUsd / 100)),
+        spent: round2(usdToDisplay(m.spentUsd / 100)),
       })),
-    [slice],
+    [slice, displayCurrency, fxRonToUsd],
   );
 
   return (
@@ -159,11 +172,21 @@ export function UnifiedMonthlyChart({
       </Tabs>
 
       <div className="h-[300px] sm:h-[380px] w-full">
-        {view === "taxes" && <TaxesChart key="taxes" data={taxesData} />}
-        {view === "categories" && (
-          <CategoriesChart key="categories" data={catData} keys={catKeys} colors={catColorMap} />
+        {view === "taxes" && (
+          <TaxesChart key="taxes" data={taxesData} fmt={formatMoney} />
         )}
-        {view === "net" && <NetChart key="net" data={netData} />}
+        {view === "categories" && (
+          <CategoriesChart
+            key="categories"
+            data={catData}
+            keys={catKeys}
+            colors={catColorMap}
+            fmt={formatMoney}
+          />
+        )}
+        {view === "net" && (
+          <NetChart key="net" data={netData} fmt={formatMoney} />
+        )}
       </div>
     </div>
   );
@@ -195,6 +218,7 @@ const baseTooltip = {
 
 function TaxesChart({
   data,
+  fmt,
 }: {
   data: Array<{
     label: string;
@@ -204,6 +228,7 @@ function TaxesChart({
     dividende: number;
     netOwner: number;
   }>;
+  fmt: (v: number) => string;
 }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -223,7 +248,7 @@ function TaxesChart({
         <Tooltip
           {...baseTooltip}
           formatter={(value: number, name) => [
-            `${value.toLocaleString("ro-RO", { maximumFractionDigits: 0 })} RON`,
+            fmt(value),
             TAX_LABELS[name as keyof typeof TAX_LABELS] ?? name,
           ]}
         />
@@ -249,10 +274,12 @@ function CategoriesChart({
   data,
   keys,
   colors,
+  fmt,
 }: {
   data: Array<Record<string, number | string>>;
   keys: string[];
   colors: Record<string, string>;
+  fmt: (v: number) => string;
 }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -271,10 +298,7 @@ function CategoriesChart({
         />
         <Tooltip
           {...baseTooltip}
-          formatter={(value: number, name) => [
-            `${value.toLocaleString("ro-RO", { maximumFractionDigits: 0 })} RON`,
-            name,
-          ]}
+          formatter={(value: number, name) => [fmt(value), name]}
         />
         <Legend
           verticalAlign="bottom"
@@ -299,8 +323,10 @@ function CategoriesChart({
 
 function NetChart({
   data,
+  fmt,
 }: {
   data: Array<{ label: string; earned: number; spent: number }>;
+  fmt: (v: number) => string;
 }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -313,12 +339,16 @@ function NetChart({
         <XAxis dataKey="label" {...baseAxis} />
         <YAxis
           {...baseAxis}
-          tickFormatter={(v) => `$${v}`}
+          tickFormatter={(v) =>
+            v >= 1000
+              ? `${(v / 1000).toFixed(1)}k`
+              : String(Math.round(v))
+          }
         />
         <Tooltip
           {...baseTooltip}
           formatter={(value: number, name) => [
-            `$${value.toLocaleString()}`,
+            fmt(value),
             name === "earned" ? "Earned" : "Spent",
           ]}
         />

@@ -1,5 +1,9 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { fmtRon } from "@/lib/format";
+import {
+  fmtDisplay,
+  ronBaniToDisplay,
+  type DisplayCurrency,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { TaxProjection } from "@/lib/queries";
 
@@ -10,9 +14,15 @@ import type { TaxProjection } from "@/lib/queries";
  */
 export function TaxProjectionCard({
   projection,
+  displayCurrency,
+  fxRonToUsd,
 }: {
   projection: TaxProjection;
+  displayCurrency: DisplayCurrency;
+  fxRonToUsd: number;
 }) {
+  const fmt = (bani: number) =>
+    fmtDisplay(ronBaniToDisplay(bani, displayCurrency, fxRonToUsd), displayCurrency);
   const inRed = projection.netToOwnerRon < 0;
   return (
     <Card>
@@ -35,31 +45,31 @@ export function TaxProjectionCard({
               inRed ? "text-destructive" : "text-success",
             )}
           >
-            {fmtRon(projection.netToOwnerRon)}
+            {fmt(projection.netToOwnerRon)}
           </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
           <Row
             label="Revenue"
-            value={fmtRon(projection.earnedRonProjected)}
+            value={fmt(projection.earnedRonProjected)}
             tone="default"
           />
           <Row
             label="Operating"
-            value={`− ${fmtRon(projection.spentRonProjected)}`}
+            value={`− ${fmt(projection.spentRonProjected)}`}
             tone="muted"
           />
           <Row
             label="Micro tax + fixed"
-            value={`− ${fmtRon(
+            value={`− ${fmt(
               projection.microTaxRon + projection.fixedContribRon,
             )}`}
             tone="muted"
           />
           <Row
             label="Dividend tax"
-            value={`− ${fmtRon(projection.dividendTaxRon)}`}
+            value={`− ${fmt(projection.dividendTaxRon)}`}
             tone="muted"
           />
         </div>

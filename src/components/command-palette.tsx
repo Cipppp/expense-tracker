@@ -199,21 +199,21 @@ export function CommandPalette() {
                 }
               }}
             >
-              <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
-                <Search className="h-4 w-4 text-muted-foreground" />
+              <div className="flex items-center gap-3 border-b border-border px-4 py-3.5">
+                <Search className="h-4 w-4 text-muted-foreground shrink-0" />
                 <Command.Input
                   value={query}
                   onValueChange={setQuery}
                   placeholder='Search or log time — "8h netop today fix bug"'
-                  className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
+                  className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground/70"
                   autoFocus
                 />
-                <kbd className="text-[10px] font-mono text-muted-foreground border border-border rounded px-1.5 py-0.5">
+                <span className="font-mono text-[10px] tracking-tight text-muted-foreground/70 shrink-0">
                   esc
-                </kbd>
+                </span>
               </div>
-              <Command.List className="max-h-[420px] overflow-y-auto p-1">
-                <Command.Empty className="px-3 py-6 text-sm text-muted-foreground text-center">
+              <Command.List className="max-h-[420px] overflow-y-auto p-2">
+                <Command.Empty className="px-3 py-8 text-sm text-muted-foreground text-center">
                   No matches.
                 </Command.Empty>
 
@@ -274,7 +274,7 @@ export function CommandPalette() {
                   </Command.Group>
                 )}
 
-                <Command.Group heading="Navigate" className="px-1 py-1">
+                <Command.Group className="px-1 py-1">
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 pt-1 pb-0.5">
                     Pages
                   </div>
@@ -283,7 +283,7 @@ export function CommandPalette() {
                       key={value}
                       value={`${label} ${keywords}`}
                       onSelect={() => go(value)}
-                      className="flex items-center gap-2 px-2 py-2 rounded-md text-sm cursor-pointer data-[selected=true]:bg-secondary"
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm cursor-pointer data-[selected=true]:bg-secondary"
                     >
                       <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                       <span>{label}</span>
@@ -292,7 +292,7 @@ export function CommandPalette() {
                 </Command.Group>
 
                 {items.filter((i) => i.type === "client").length > 0 && (
-                  <Command.Group heading="Clients">
+                  <Command.Group>
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 pt-2 pb-0.5">
                       Clients · jump to new invoice
                     </div>
@@ -303,7 +303,7 @@ export function CommandPalette() {
                           key={c.id}
                           value={`${c.title} ${c.subtitle ?? ""}`}
                           onSelect={() => go(c.href)}
-                          className="flex items-center gap-2 px-2 py-2 rounded-md text-sm cursor-pointer data-[selected=true]:bg-secondary"
+                          className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm cursor-pointer data-[selected=true]:bg-secondary"
                         >
                           <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
                           <span className="flex-1 truncate">{c.title}</span>
@@ -318,7 +318,7 @@ export function CommandPalette() {
                 )}
 
                 {items.filter((i) => i.type === "expense").length > 0 && (
-                  <Command.Group heading="Recent expenses">
+                  <Command.Group>
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 pt-2 pb-0.5">
                       Recent expenses · jump to filter
                     </div>
@@ -329,7 +329,7 @@ export function CommandPalette() {
                           key={c.id}
                           value={`${c.title} ${c.subtitle ?? ""}`}
                           onSelect={() => go(c.href)}
-                          className="flex items-center gap-2 px-2 py-2 rounded-md text-sm cursor-pointer data-[selected=true]:bg-secondary"
+                          className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm cursor-pointer data-[selected=true]:bg-secondary"
                         >
                           <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
                           <span className="flex-1 truncate">{c.title}</span>
@@ -343,7 +343,7 @@ export function CommandPalette() {
                   </Command.Group>
                 )}
 
-                <Command.Group heading="Theme">
+                <Command.Group>
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 pt-2 pb-0.5">
                     Theme
                   </div>
@@ -353,7 +353,7 @@ export function CommandPalette() {
                       setTheme("light");
                       setOpen(false);
                     }}
-                    className="flex items-center gap-2 px-2 py-2 rounded-md text-sm cursor-pointer data-[selected=true]:bg-secondary"
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm cursor-pointer data-[selected=true]:bg-secondary"
                   >
                     <Sun className="h-3.5 w-3.5 text-muted-foreground" />
                     Switch to light
@@ -364,18 +364,16 @@ export function CommandPalette() {
                       setTheme("dark");
                       setOpen(false);
                     }}
-                    className="flex items-center gap-2 px-2 py-2 rounded-md text-sm cursor-pointer data-[selected=true]:bg-secondary"
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm cursor-pointer data-[selected=true]:bg-secondary"
                   >
                     <Moon className="h-3.5 w-3.5 text-muted-foreground" />
                     Switch to dark
                   </Command.Item>
                 </Command.Group>
               </Command.List>
-              <div className="border-t border-border px-3 py-1.5 text-[10px] text-muted-foreground flex justify-between">
-                <span>↑↓ to navigate, ↵ to open</span>
-                <span>
-                  <kbd className="font-mono">⌘K</kbd> to toggle
-                </span>
+              <div className="border-t border-border px-4 py-2 text-[10px] text-muted-foreground/70 flex justify-between font-mono tracking-tight">
+                <span>↑↓ navigate · ↵ open</span>
+                <span>⌘K toggle</span>
               </div>
             </Command>
           </div>
