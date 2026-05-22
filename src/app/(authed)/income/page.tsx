@@ -3,9 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  endOfMonth,
   endOfUTCDay,
   fmtDisplay,
+  fmtMonth,
   localISODate,
+  startOfMonth,
   startOfUTCDay,
   usdCentsToDisplay,
   weekDates,
@@ -33,8 +36,14 @@ export default async function IncomePage(props: {
   const weekStart = startOfUTCDay(days[0]);
   const weekEnd = endOfUTCDay(days[6]);
   const year = new Date().getFullYear();
+  // The "Month" header total tracks whichever month the current week's
+  // anchor sits in — navigating weeks rolls the figure forward naturally.
+  const anchorYear = anchor.getFullYear();
+  const anchorMonth = anchor.getMonth() + 1;
+  const monthStart = startOfMonth(anchorYear, anchorMonth);
+  const monthEnd = endOfMonth(anchorYear, anchorMonth);
 
-  const [allJobs, weekRows, ytdIncome, lumpSumRows, settings] = await Promise.all([
+  const [allJobs, weekRows, ytdIncome, monthIncome, lumpSumRows, settings] = await Promise.all([
     db.job.findMany({ orderBy: { name: "asc" } }),
     db.income.findMany({
       where: {
@@ -48,6 +57,10 @@ export default async function IncomePage(props: {
       where: { date: { gte: new Date(year, 0, 1) } },
     }),
     db.income.findMany({
+      where: { date: { gte: monthStart, lte: monthEnd } },
+      select: { amountUsd: true },
+    }),
+    db.income.findMany({
       where: { jobId: null, date: { gte: new Date(year, 0, 1) } },
       orderBy: { date: "desc" },
     }),
@@ -56,12 +69,18 @@ export default async function IncomePage(props: {
 
   const activeJobs = allJobs.filter((j) => j.active);
   const totalYtd = ytdIncome.reduce((a, b) => a + b.amountUsd, 0);
+  const totalMonth = monthIncome.reduce((a, b) => a + b.amountUsd, 0);
   const displayCurrency: DisplayCurrency =
     (settings.displayCurrency as DisplayCurrency) ?? "USD";
   const totalYtdDisplay = fmtDisplay(
     usdCentsToDisplay(totalYtd, displayCurrency, settings.fxRonToUsd),
     displayCurrency,
   );
+  const totalMonthDisplay = fmtDisplay(
+    usdCentsToDisplay(totalMonth, displayCurrency, settings.fxRonToUsd),
+    displayCurrency,
+  );
+  const monthLabel = fmtMonth(anchorYear, anchorMonth);
 
   const weekEntries: WeekEntry[] = weekRows.map((r) => ({
     id: r.id,
@@ -90,12 +109,22 @@ export default async function IncomePage(props: {
           </div>
           <h1 className="mt-1 font-display text-2xl sm:text-4xl tracking-tight">Time tracker</h1>
         </div>
-        <div className="text-right">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">
-            Total YTD
+        <div className="flex items-start gap-5 sm:gap-8">
+          <div className="text-right">
+            <div className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground">
+              {monthLabel}
+            </div>
+            <div className="font-display text-lg sm:text-xl tabular-nums text-success">
+              {totalMonthDisplay}
+            </div>
           </div>
-          <div className="font-display text-xl sm:text-2xl tabular-nums text-success">
-            {totalYtdDisplay}
+          <div className="text-right">
+            <div className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground">
+              Total YTD
+            </div>
+            <div className="font-display text-xl sm:text-2xl tabular-nums text-success">
+              {totalYtdDisplay}
+            </div>
           </div>
         </div>
       </header>

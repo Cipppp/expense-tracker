@@ -199,22 +199,94 @@ const baseAxis = {
   stroke: "hsl(var(--muted-foreground))",
 };
 
-const baseTooltip = {
-  cursor: { fill: "hsl(var(--secondary))", opacity: 0.4 },
-  contentStyle: {
-    backgroundColor: "hsl(var(--popover))",
-    border: "1px solid hsl(var(--border))",
-    borderRadius: "8px",
-    fontSize: "12px",
-    padding: "10px 12px",
-  },
-  labelStyle: {
-    color: "hsl(var(--foreground))",
-    fontFamily: "var(--font-display)",
-    marginBottom: "6px",
-    fontSize: "13px",
-  },
+const baseTooltipCursor = {
+  fill: "hsl(var(--secondary))",
+  opacity: 0.4,
 };
+
+/**
+ * Custom Recharts tooltip. Hand-rendered (not just contentStyle) so we can:
+ * - line up label / value in a clean two-column grid with tabular numbers
+ * - relabel entries via a per-tooltip lookup
+ * - optionally tack a summary row to the bottom (used for the tax total)
+ */
+type TooltipPayload = {
+  name?: string;
+  value?: number;
+  color?: string;
+  dataKey?: string;
+};
+function ChartTooltip({
+  active,
+  payload,
+  label,
+  labels,
+  excludeFromTotal,
+  totalLabel,
+  fmt,
+}: {
+  active?: boolean;
+  payload?: TooltipPayload[];
+  label?: string;
+  labels?: Record<string, string>;
+  /** dataKeys to skip when computing the bottom-line total. Used to keep
+   * "Net to owner" out of the tax total. */
+  excludeFromTotal?: string[];
+  /** Label for the total row. Falsy = no total row. */
+  totalLabel?: string;
+  fmt: (v: number) => string;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  const rows = payload.filter((p) => typeof p.value === "number");
+  const total = rows
+    .filter((p) => !excludeFromTotal?.includes(p.dataKey ?? p.name ?? ""))
+    .reduce((a, p) => a + (p.value ?? 0), 0);
+  return (
+    <div className="rounded-lg border border-border bg-popover/95 backdrop-blur-sm shadow-lg px-3.5 py-2.5 min-w-[180px]">
+      {label && (
+        <div className="font-display text-sm mb-2 text-foreground">{label}</div>
+      )}
+      <div className="space-y-1">
+        {rows.map((p, i) => {
+          const key = p.dataKey ?? p.name ?? String(i);
+          const niceName = labels?.[key] ?? p.name ?? key;
+          return (
+            <div
+              key={i}
+              className="flex items-center justify-between gap-4 text-[11px]"
+            >
+              <span className="inline-flex items-center gap-1.5 min-w-0">
+                <span
+                  className="h-1.5 w-1.5 rounded-full shrink-0"
+                  style={{ backgroundColor: p.color }}
+                />
+                <span className="truncate" style={{ color: p.color }}>
+                  {niceName}
+                </span>
+              </span>
+              <span className="tabular-nums text-foreground font-medium">
+                {fmt(p.value ?? 0)}
+              </span>
+            </div>
+          );
+        })}
+        {totalLabel && (
+          <>
+            <div className="my-1.5 h-px bg-border" />
+            <div className="flex items-center justify-between gap-4 text-[11px]">
+              <span className="uppercase tracking-wider text-muted-foreground text-[10px]">
+                {totalLabel}
+              </span>
+              <span className="tabular-nums text-foreground font-semibold">
+                {fmt(total)}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function TaxesChart({
   data,
@@ -246,11 +318,18 @@ function TaxesChart({
           }
         />
         <Tooltip
-          {...baseTooltip}
-          formatter={(value: number, name) => [
-            fmt(value),
-            TAX_LABELS[name as keyof typeof TAX_LABELS] ?? name,
-          ]}
+          cursor={baseTooltipCursor}
+          content={({ active, payload, label }) => (
+            <ChartTooltip
+              active={active}
+              payload={payload as TooltipPayload[]}
+              label={label as string}
+              labels={TAX_LABELS}
+              excludeFromTotal={["netOwner"]}
+              totalLabel="Total taxes"
+              fmt={fmt}
+            />
+          )}
         />
         <Legend
           verticalAlign="bottom"
@@ -297,8 +376,16 @@ function CategoriesChart({
           }
         />
         <Tooltip
-          {...baseTooltip}
-          formatter={(value: number, name) => [fmt(value), name]}
+          cursor={baseTooltipCursor}
+          content={({ active, payload, label }) => (
+            <ChartTooltip
+              active={active}
+              payload={payload as TooltipPayload[]}
+              label={label as string}
+              totalLabel="Total"
+              fmt={fmt}
+            />
+          )}
         />
         <Legend
           verticalAlign="bottom"
@@ -346,11 +433,16 @@ function NetChart({
           }
         />
         <Tooltip
-          {...baseTooltip}
-          formatter={(value: number, name) => [
-            fmt(value),
-            name === "earned" ? "Earned" : "Spent",
-          ]}
+          cursor={baseTooltipCursor}
+          content={({ active, payload, label }) => (
+            <ChartTooltip
+              active={active}
+              payload={payload as TooltipPayload[]}
+              label={label as string}
+              labels={{ earned: "Earned", spent: "Spent" }}
+              fmt={fmt}
+            />
+          )}
         />
         <Legend
           verticalAlign="bottom"
