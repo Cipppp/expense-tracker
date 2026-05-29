@@ -190,6 +190,9 @@ model Settings {
   // App-wide display currency. Storage is unchanged (USD cents for income,
   // RON bani for expenses) — this only affects formatting in the UI.
   displayCurrency String @default("USD") // USD | RON
+  // Bearer token for the external time-log API (/api/timelog). Lets tools
+  // like Conductor POST hours without a browser session. Null = disabled.
+  timelogToken    String?
   fxRonToUsd      Float  @default(0.2255)
   // Romanian micro-enterprise tax inputs.
   bsBasRon        Int    @default(141500) // 1415.00 RON in bani

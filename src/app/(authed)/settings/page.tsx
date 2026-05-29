@@ -5,6 +5,7 @@ import { SettingsForm } from "@/components/settings/settings-form";
 import { ClientsManager } from "@/components/settings/clients-manager";
 import { PasskeysManager } from "@/components/settings/passkeys-manager";
 import { SubscriptionsManager } from "@/components/settings/subscriptions-manager";
+import { ApiAccessManager } from "@/components/settings/api-access-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +68,17 @@ export default async function SettingsPage() {
         defaultOpen={false}
       >
         <PasskeysManager />
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        title="API access"
+        description="Generate a token so tools like Conductor can log hours into the time tracker automatically."
+        defaultOpen={false}
+      >
+        <ApiAccessManager
+          token={settings.timelogToken}
+          clientNames={clients.filter((c) => c.active).map((c) => c.name)}
+        />
       </CollapsibleCard>
 
       <CollapsibleCard

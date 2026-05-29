@@ -17,24 +17,36 @@ const Body = z.object({
  * the form). All fields optional — pass the subset you want to change. */
 const PartialBody = z.object({
   displayCurrency: z.enum(["USD", "RON"]).optional(),
+  // Time-log API token management. "generate" mints a new token; "revoke"
+  // clears it (disables the external API).
+  timelogTokenAction: z.enum(["generate", "revoke"]).optional(),
 });
 
 export async function PATCH(req: Request) {
   const json = await req.json().catch(() => null);
-  // Try the partial body first — single-key updates (e.g. currency switch)
-  // shouldn't have to re-send every tax/fx field.
+  const keys = Object.keys(json ?? {});
+  // Try the partial body first — single-key updates (e.g. currency switch,
+  // token mint) shouldn't have to re-send every tax/fx field.
   const partial = PartialBody.safeParse(json);
-  if (
-    partial.success &&
-    partial.data.displayCurrency &&
-    Object.keys(json ?? {}).length === 1
-  ) {
+  if (partial.success && keys.length === 1 && partial.data.displayCurrency) {
     await db.settings.upsert({
       where: { id: 1 },
       update: { displayCurrency: partial.data.displayCurrency },
       create: { id: 1, displayCurrency: partial.data.displayCurrency },
     });
     return NextResponse.json({ ok: true });
+  }
+  if (partial.success && keys.length === 1 && partial.data.timelogTokenAction) {
+    const token =
+      partial.data.timelogTokenAction === "generate"
+        ? `tl_${crypto.randomUUID().replace(/-/g, "")}${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`
+        : null;
+    await db.settings.upsert({
+      where: { id: 1 },
+      update: { timelogToken: token },
+      create: { id: 1, timelogToken: token },
+    });
+    return NextResponse.json({ ok: true, token });
   }
 
   const parsed = Body.safeParse(json);

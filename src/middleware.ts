@@ -9,6 +9,9 @@ const PUBLIC_PATHS = new Set<string>([
   // Passkey ceremonies don't require a session (they ARE the session)
   "/api/auth/passkey/login/options",
   "/api/auth/passkey/login/verify",
+  // External time-log API — authenticated by its own Bearer token, not the
+  // browser session, so agents (Conductor) can POST hours without a cookie.
+  "/api/timelog",
   // PWA assets — must be public so iPhone can install
   "/manifest.webmanifest",
 ]);
