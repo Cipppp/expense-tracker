@@ -140,9 +140,18 @@ export async function POST(req: Request) {
     jobName = p.jobName;
     date = v.date ? resolveDate(v.date) : resolveDate(undefined); // prefer explicit
     if (p.date && !v.date) date = p.date;
-    startMin = p.startMinutes;
-    endMin = p.endMinutes;
     if (p.description) description = p.description;
+    // A bare duration ("30m netop") accumulates into today's block; an
+    // explicit clock range ("9-17 netop") sets a precise block.
+    if (p.hasExplicitRange) {
+      startMin = p.startMinutes;
+      endMin = p.endMinutes;
+    } else if (p.durationMinutes != null) {
+      appendMinutes = p.durationMinutes;
+    } else {
+      startMin = p.startMinutes;
+      endMin = p.endMinutes;
+    }
   } else {
     // Structured. Match client by exact id or fuzzy name.
     const needle = (v.client ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");

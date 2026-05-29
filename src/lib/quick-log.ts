@@ -26,6 +26,12 @@ export type ParsedQuickLog = {
   endMinutes: number | null;
   /** Total hours (end - start) / 60 — handy for the preview line */
   hours: number | null;
+  /** True when the input had an explicit clock range like "9-17". When
+   * false but durationMinutes is set, the input was a bare duration
+   * ("30m", "2h") — callers that support accumulation should append. */
+  hasExplicitRange: boolean;
+  /** Bare-duration in minutes ("30m" → 30, "1h30m" → 90). null for ranges. */
+  durationMinutes: number | null;
   description: string;
   /** Human-readable list of issues; empty when good-to-go. */
   missing: string[];
@@ -74,10 +80,13 @@ export function parseQuickLog(
   }
 
   // 1. Try a time range first: 9-17, 09:00-17:00, 22:30 - 04:00.
+  //    Require a colon on at least one side OR plain bare hours, but NOT a
+  //    unit suffix — so "1h30m" doesn't get read as the range "1–30".
   let startMinutes: number | null = null;
   let endMinutes: number | null = null;
+  let hasExplicitRange = false;
   const rangeRe =
-    /\b(\d{1,2})(?::(\d{2}))?\s*[-–—to]+\s*(\d{1,2})(?::(\d{2}))?\b/i;
+    /\b(\d{1,2})(?::(\d{2}))?\s*[-–—]\s*(\d{1,2})(?::(\d{2}))?\b(?![hm])/i;
   const rangeMatch = remaining.match(rangeRe);
   if (rangeMatch) {
     const sh = parseInt(rangeMatch[1], 10);
@@ -88,22 +97,40 @@ export function parseQuickLog(
       startMinutes = sh * 60 + sm;
       endMinutes = eh * 60 + em;
       if (endMinutes <= startMinutes) endMinutes += 24 * 60;
+      hasExplicitRange = true;
       strip(rangeRe);
     }
   }
 
-  // 2. Else hours-only: "8h", "1.5h", "2.25h".
+  // 2. Else a bare duration: "8h", "1.5h", "30m", "90m", "1h30m", "2 hours",
+  //    "45 min". durationMinutes is the canonical output; for the Cmd+K
+  //    preview we also synthesize a 09:00-anchored block.
   let hours: number | null = null;
+  let durationMinutes: number | null = null;
   if (startMinutes === null) {
-    const hRe = /\b(\d+(?:[.,]\d+)?)h\b/i;
-    const hMatch = remaining.match(hRe);
-    if (hMatch) {
-      hours = parseFloat(hMatch[1].replace(",", "."));
-      // Default the day window to a 09:00 start; the UI shows the preview
-      // and the user can drag/resize later in the calendar.
+    let mins = 0;
+    let matched = false;
+    // "1h30m" / "2h" / "1.5h"
+    const hm = remaining.match(/\b(\d+(?:[.,]\d+)?)\s*h(?:ours?)?(?:\s*(\d{1,2})\s*m(?:in(?:utes?)?)?)?\b/i);
+    if (hm) {
+      mins += Math.round(parseFloat(hm[1].replace(",", ".")) * 60);
+      if (hm[2]) mins += parseInt(hm[2], 10);
+      matched = true;
+      strip(/\b\d+(?:[.,]\d+)?\s*h(?:ours?)?(?:\s*\d{1,2}\s*m(?:in(?:utes?)?)?)?\b/i);
+    } else {
+      // minutes-only: "30m", "45 min", "90 minutes"
+      const mm = remaining.match(/\b(\d{1,3})\s*m(?:in(?:utes?)?)?\b/i);
+      if (mm) {
+        mins += parseInt(mm[1], 10);
+        matched = true;
+        strip(/\b\d{1,3}\s*m(?:in(?:utes?)?)?\b/i);
+      }
+    }
+    if (matched && mins > 0) {
+      durationMinutes = mins;
+      hours = mins / 60;
       startMinutes = 9 * 60;
-      endMinutes = startMinutes + Math.round(hours * 60);
-      strip(hRe);
+      endMinutes = startMinutes + mins;
     }
   } else {
     hours = (endMinutes! - startMinutes!) / 60;
@@ -220,6 +247,8 @@ export function parseQuickLog(
     startMinutes,
     endMinutes,
     hours,
+    hasExplicitRange,
+    durationMinutes,
     description,
     missing,
   };
