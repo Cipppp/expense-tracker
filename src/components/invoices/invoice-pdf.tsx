@@ -6,6 +6,7 @@ import {
   View,
   StyleSheet,
 } from "@react-pdf/renderer";
+import { vatKindForInvoice } from "@/lib/vat";
 
 const styles = StyleSheet.create({
   page: {
@@ -111,22 +112,24 @@ export type InvoicePdfProps = {
 export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
   const rate = invoice.bnrRate ?? 1;
   const isForeign = invoice.invoiceCurrency !== invoice.legalCurrency;
-  const reverseCharge =
-    invoice.vatRate === 0 && (invoice.clientCountry ?? "") !== "RO";
+  const kind = vatKindForInvoice(invoice.clientCountry, invoice.vatRate);
 
-  // All displayed amounts are in the legal currency (RON).
+  // All displayed amounts are in the legal currency (RON). Round each line to
+  // bani (2dp) and sum the rounded values, so the printed column 6 sum always
+  // matches the "Total" VAT cell (round-then-sum, not sum-then-round).
+  const round2 = (n: number) => Math.round(n * 100) / 100;
   const legalLines = invoice.lines.map((l) => {
-    const net = l.amount * rate;
+    const net = round2(l.amount * rate);
     return {
       ...l,
-      legalUnitPrice: l.unitPrice * rate,
+      legalUnitPrice: round2(l.unitPrice * rate),
       legalNet: net,
-      legalVat: net * invoice.vatRate,
+      legalVat: round2(net * invoice.vatRate),
     };
   });
-  const totalNet = legalLines.reduce((a, l) => a + l.legalNet, 0);
-  const totalVat = totalNet * invoice.vatRate;
-  const totalGross = totalNet + totalVat;
+  const totalNet = round2(legalLines.reduce((a, l) => a + l.legalNet, 0));
+  const totalVat = round2(legalLines.reduce((a, l) => a + l.legalVat, 0));
+  const totalGross = round2(totalNet + totalVat);
   // Foreign-currency equivalent of the gross (matches SmartBill's "Echivalent").
   const foreignEquivalent = isForeign && rate ? totalGross / rate : null;
 
@@ -151,7 +154,12 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
               </Text>
               <Text style={styles.meta}>Data (zi/luna/an): {invoice.issuedAt}</Text>
               <Text style={styles.meta}>
-                Cota TVA: {reverseCharge ? "taxare inversa" : `${Math.round(invoice.vatRate * 100)}%`}
+                Cota TVA:{" "}
+                {kind === "eu_reverse"
+                  ? "taxare inversa"
+                  : kind === "export"
+                    ? "neimpozabil"
+                    : `${Math.round(invoice.vatRate * 100)}%`}
               </Text>
             </View>
           </View>
@@ -225,12 +233,20 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
           </View>
         ) : null}
 
-        {reverseCharge ? (
+        {kind === "eu_reverse" ? (
           <View style={styles.note}>
             <Text>
               Operatiune neimpozabila in Romania - taxare inversa (reverse charge).
               TVA se achita de beneficiar conform art. 196 din Directiva 2006/112/CE
               (servicii intracomunitare B2B).
+            </Text>
+          </View>
+        ) : kind === "export" ? (
+          <View style={styles.note}>
+            <Text>
+              Operatiune neimpozabila in Romania - export de servicii catre un
+              beneficiar din afara UE (locul prestarii la beneficiar, art. 278
+              Cod fiscal). TVA conform legislatiei din tara beneficiarului.
             </Text>
           </View>
         ) : null}

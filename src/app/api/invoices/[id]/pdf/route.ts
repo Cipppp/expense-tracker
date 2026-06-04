@@ -19,6 +19,20 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  // A foreign-currency invoice without a BNR rate can't be rendered in RON —
+  // refuse rather than silently print amounts at an implicit rate of 1.
+  if (
+    invoice.invoiceCurrency !== invoice.legalCurrency &&
+    !(invoice.bnrRate && invoice.bnrRate > 0)
+  ) {
+    return NextResponse.json(
+      {
+        error: `Invoice ${invoice.series} ${invoice.number} is in ${invoice.invoiceCurrency} but has no BNR rate. Set the BNR rate before exporting the PDF.`,
+      },
+      { status: 422 },
+    );
+  }
+
   const settings = await db.settings.upsert({
     where: { id: 1 },
     update: {},
