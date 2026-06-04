@@ -111,27 +111,44 @@ export type InvoicePdfProps = {
 
 export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
   const rate = invoice.bnrRate ?? 1;
-  const isForeign = invoice.invoiceCurrency !== invoice.legalCurrency;
   const kind = vatKindForInvoice(invoice.clientCountry, invoice.vatRate);
 
-  // All displayed amounts are in the legal currency (RON). Round each line to
-  // bani (2dp) and sum the rounded values, so the printed column 6 sum always
-  // matches the "Total" VAT cell (round-then-sum, not sum-then-round).
+  // Presentation currency: Romanian clients are always invoiced in RON (legal
+  // requirement); everyone else is invoiced in the contract currency. So an
+  // EU client paying in EUR sees EUR amounts (with a RON equivalent), while a
+  // RO client whose contract is in USD/EUR sees RON amounts (with the foreign
+  // equivalent) — exactly like the SmartBill invoices.
+  const present = invoice.clientCountry === "RO" ? "RON" : invoice.invoiceCurrency;
+  const presLabel = present === "RON" ? "Lei" : present;
+  // Factor from the line currency (invoiceCurrency) into the presentation
+  // currency: 1 if they match, the BNR rate when converting a foreign contract
+  // into RON.
+  const factor = present === invoice.invoiceCurrency ? 1 : rate;
+
+  // Round each line to 2dp and sum the rounded values, so the printed VAT
+  // column always reconciles with the "Total" cell (round-then-sum).
   const round2 = (n: number) => Math.round(n * 100) / 100;
-  const legalLines = invoice.lines.map((l) => {
-    const net = round2(l.amount * rate);
+  const presLines = invoice.lines.map((l) => {
+    const net = round2(l.amount * factor);
     return {
       ...l,
-      legalUnitPrice: round2(l.unitPrice * rate),
-      legalNet: net,
-      legalVat: round2(net * invoice.vatRate),
+      presUnitPrice: round2(l.unitPrice * factor),
+      presNet: net,
+      presVat: round2(net * invoice.vatRate),
     };
   });
-  const totalNet = round2(legalLines.reduce((a, l) => a + l.legalNet, 0));
-  const totalVat = round2(legalLines.reduce((a, l) => a + l.legalVat, 0));
+  const totalNet = round2(presLines.reduce((a, l) => a + l.presNet, 0));
+  const totalVat = round2(presLines.reduce((a, l) => a + l.presVat, 0));
   const totalGross = round2(totalNet + totalVat);
-  // Foreign-currency equivalent of the gross (matches SmartBill's "Echivalent").
-  const foreignEquivalent = isForeign && rate ? totalGross / rate : null;
+
+  // Equivalent line — shown whenever any non-RON currency is involved. The
+  // non-RON currency is always the contract currency; we print the "other"
+  // currency's total + the BNR rate, matching SmartBill's wording.
+  const showEquivalent = !(present === "RON" && invoice.invoiceCurrency === "RON");
+  const foreignCur = present === "RON" ? invoice.invoiceCurrency : present;
+  const equivAmount =
+    present === "RON" ? totalGross / (rate || 1) : totalGross * rate; // RON-present → foreign; foreign-present → RON
+  const equivCur = present === "RON" ? foreignCur : "RON";
 
   return (
     <Document>
@@ -191,13 +208,13 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
             <Text style={[styles.th, styles.colUm]}>U.M.</Text>
             <Text style={[styles.th, styles.colQty]}>Cant.</Text>
             <Text style={[styles.th, styles.colPrice]}>
-              Pret unitar{"\n"}(fara TVA){"\n"}-{invoice.legalCurrency}-
+              Pret unitar{"\n"}(fara TVA){"\n"}-{presLabel}-
             </Text>
             <Text style={[styles.th, styles.colAmount]}>
-              Valoarea{"\n"}-{invoice.legalCurrency}-
+              Valoarea{"\n"}-{presLabel}-
             </Text>
             <Text style={[styles.thLast, styles.colVat]}>
-              Valoarea TVA{"\n"}-{invoice.legalCurrency}-
+              Valoarea TVA{"\n"}-{presLabel}-
             </Text>
           </View>
           <View style={[styles.tr, { backgroundColor: "#f7f7f7" }]}>
@@ -209,26 +226,25 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
             <Text style={[styles.td, styles.colAmount]}>5(3x4)</Text>
             <Text style={[styles.tdLast, styles.colVat]}>6</Text>
           </View>
-          {legalLines.map((line, i) => (
+          {presLines.map((line, i) => (
             <View key={i} style={styles.tr}>
               <Text style={[styles.td, styles.colNr]}>{i + 1}</Text>
               <Text style={[styles.td, styles.colDesc]}>{line.description}</Text>
               <Text style={[styles.td, styles.colUm]}>{line.unit}</Text>
               <Text style={[styles.td, styles.colQty]}>{fmtNum(line.quantity)}</Text>
-              <Text style={[styles.td, styles.colPrice]}>{fmtAmount(line.legalUnitPrice)}</Text>
-              <Text style={[styles.td, styles.colAmount]}>{fmtAmount(line.legalNet)}</Text>
-              <Text style={[styles.tdLast, styles.colVat]}>{fmtAmount(line.legalVat)}</Text>
+              <Text style={[styles.td, styles.colPrice]}>{fmtAmount(line.presUnitPrice)}</Text>
+              <Text style={[styles.td, styles.colAmount]}>{fmtAmount(line.presNet)}</Text>
+              <Text style={[styles.tdLast, styles.colVat]}>{fmtAmount(line.presVat)}</Text>
             </View>
           ))}
           <View style={styles.spacerRow} />
         </View>
 
-        {foreignEquivalent != null ? (
+        {showEquivalent ? (
           <View style={styles.note}>
             <Text>
-              Echivalent: {fmtAmount(foreignEquivalent)} {invoice.invoiceCurrency} la
-              cursul BNR de {rate.toFixed(4)} {invoice.legalCurrency}/
-              {invoice.invoiceCurrency} din {invoice.issuedAt}.
+              Echivalent {fmtAmount(equivAmount)} {equivCur} la cursul BNR din{" "}
+              {dotDate(invoice.issuedAt)}, 1 {foreignCur} = {fmtRate(rate)} RON.
             </Text>
           </View>
         ) : null}
@@ -288,7 +304,7 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
                   Total plata
                 </Text>
                 <Text style={{ flex: 2, padding: 4, fontSize: 9, fontFamily: "Helvetica-Bold", textAlign: "right" }}>
-                  {fmtAmount(totalGross)} {invoice.legalCurrency}
+                  {fmtAmount(totalGross)} {present}
                 </Text>
               </View>
             </View>
@@ -318,6 +334,19 @@ function fmtAmount(n: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+// BNR rate with 4 decimals, Romanian comma separator (e.g. "5,2359").
+function fmtRate(n: number): string {
+  return n.toLocaleString("ro-RO", {
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4,
+  });
+}
+
+// dd.mm.yyyy from a dd/mm/yyyy string (SmartBill uses dots in the note).
+function dotDate(ddmmyyyy: string): string {
+  return ddmmyyyy.replace(/\//g, ".");
 }
 
 function countryName(code: string): string {

@@ -39,10 +39,6 @@ export default async function InvoicePage(props: {
   });
 
   const total = inv.lines.reduce((a, l) => a + l.amount, 0);
-  const legalTotal =
-    inv.invoiceCurrency === inv.legalCurrency
-      ? total
-      : total * (inv.bnrRate ?? 1);
 
   const isOverdue =
     inv.status === "issued" &&
@@ -215,34 +211,34 @@ export default async function InvoicePage(props: {
       <Card>
         <CardContent className="pt-6 space-y-2">
           {(() => {
-            const ron = (n: number) =>
+            const fmt = (n: number) =>
               n.toLocaleString("ro-RO", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               });
             const vatKind = vatKindForInvoice(inv.clientCountry, inv.vatRate);
             const reverse = vatKind === "eu_reverse" || vatKind === "export";
-            const netLegal = legalTotal;
-            const vatLegal = netLegal * inv.vatRate;
-            const grossLegal = netLegal + vatLegal;
+            // Presentation currency mirrors the PDF: RO clients in RON,
+            // everyone else in their contract currency.
+            const present = inv.clientCountry === "RO" ? "RON" : inv.invoiceCurrency;
+            const factor = present === inv.invoiceCurrency ? 1 : (inv.bnrRate ?? 1);
+            const net = total * factor;
+            const vat = net * inv.vatRate;
+            const gross = net + vat;
+            // The "other" currency equivalent of the gross.
+            const showEq = !(present === "RON" && inv.invoiceCurrency === "RON");
+            const eqCur = present === "RON" ? inv.invoiceCurrency : "RON";
+            const eqAmt = present === "RON" ? gross / (inv.bnrRate ?? 1) : gross * (inv.bnrRate ?? 1);
             return (
               <>
                 <div className="flex items-baseline justify-between">
                   <span className="text-sm text-muted-foreground">
-                    Subtotal ({inv.invoiceCurrency})
+                    Subtotal ({present})
                   </span>
                   <span className="font-display text-xl tabular-nums">
-                    {ron(total)}
+                    {fmt(net)}
                   </span>
                 </div>
-                {inv.invoiceCurrency !== inv.legalCurrency && inv.bnrRate ? (
-                  <div className="flex items-baseline justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      Net {inv.legalCurrency} (BNR {inv.bnrRate.toFixed(4)})
-                    </span>
-                    <span className="tabular-nums">{ron(netLegal)}</span>
-                  </div>
-                ) : null}
                 <div className="flex items-baseline justify-between text-sm">
                   <span className="text-muted-foreground">
                     VAT{" "}
@@ -251,18 +247,24 @@ export default async function InvoicePage(props: {
                       : `(${Math.round(inv.vatRate * 100)}%)`}
                   </span>
                   <span className="tabular-nums">
-                    {reverse ? "—" : `${ron(vatLegal)} ${inv.legalCurrency}`}
+                    {reverse ? "—" : `${fmt(vat)} ${present}`}
                   </span>
                 </div>
                 <Separator />
                 <div className="flex items-baseline justify-between">
                   <span className="text-sm font-medium">
-                    Total to pay ({inv.legalCurrency})
+                    Total to pay ({present})
                   </span>
                   <span className="font-display text-xl tabular-nums">
-                    {ron(grossLegal)}
+                    {fmt(gross)}
                   </span>
                 </div>
+                {showEq && inv.bnrRate ? (
+                  <div className="flex items-baseline justify-between text-xs text-muted-foreground">
+                    <span>≈ {eqCur} (BNR {inv.bnrRate.toFixed(4)})</span>
+                    <span className="tabular-nums">{fmt(eqAmt)}</span>
+                  </div>
+                ) : null}
                 {vatKind === "eu_reverse" ? (
                   <p className="text-[11px] text-muted-foreground pt-1">
                     Intra-community B2B — VAT reverse-charged to the recipient
