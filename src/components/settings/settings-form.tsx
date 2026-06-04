@@ -14,6 +14,9 @@ type Initial = {
   microPct: number;
   dividendePct: number;
   redThresholdRon: number;
+  senderEmail: string;
+  senderName: string;
+  invoiceStartNumber: number;
 };
 
 export function SettingsForm({ initial }: { initial: Initial }) {
@@ -31,6 +34,9 @@ export function SettingsForm({ initial }: { initial: Initial }) {
       microPct: Number(fd.get("microPct")) / 100,
       dividendePct: Number(fd.get("dividendePct")) / 100,
       redThresholdRon: Number(fd.get("redThresholdRon")),
+      senderEmail: String(fd.get("senderEmail") ?? ""),
+      senderName: String(fd.get("senderName") ?? ""),
+      invoiceStartNumber: Number(fd.get("invoiceStartNumber")),
     };
     const res = await fetch("/api/settings", {
       method: "PATCH",
@@ -103,6 +109,34 @@ export function SettingsForm({ initial }: { initial: Initial }) {
           name="dividendePct"
           defaultValue={initial.dividendePct * 100}
           required
+        />
+      </Field>
+
+      <Field label="Next invoice number">
+        <Input
+          type="number"
+          step="1"
+          min="1"
+          name="invoiceStartNumber"
+          defaultValue={initial.invoiceStartNumber}
+          required
+        />
+      </Field>
+      <div className="hidden md:block" />
+
+      <Field label="Sender name (email From)">
+        <Input
+          name="senderName"
+          defaultValue={initial.senderName}
+          placeholder="PROJECT CIP S.R.L."
+        />
+      </Field>
+      <Field label="Sender email (must be a verified domain)">
+        <Input
+          type="email"
+          name="senderEmail"
+          defaultValue={initial.senderEmail}
+          placeholder="facturi@domeniul-tau.ro"
         />
       </Field>
 

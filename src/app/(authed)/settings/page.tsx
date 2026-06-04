@@ -50,6 +50,7 @@ export default async function SettingsPage() {
               companyAddress: c.companyAddress ?? "",
               companyCountry: c.companyCountry ?? "",
               defaultCurrency: c.defaultCurrency,
+              email: c.email ?? "",
             }))}
         />
       </CollapsibleCard>
@@ -94,6 +95,9 @@ export default async function SettingsPage() {
             microPct: settings.microPct,
             dividendePct: settings.dividendePct,
             redThresholdRon: ronFromBani(settings.redThresholdRon),
+            senderEmail: settings.senderEmail,
+            senderName: settings.senderName,
+            invoiceStartNumber: settings.invoiceStartNumber,
           }}
         />
       </CollapsibleCard>

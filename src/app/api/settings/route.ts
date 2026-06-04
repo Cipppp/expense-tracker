@@ -10,6 +10,9 @@ const Body = z.object({
   microPct: z.coerce.number().min(0).max(1),
   dividendePct: z.coerce.number().min(0).max(1),
   redThresholdRon: z.coerce.number().nonnegative(),  // MAJOR units, in RON
+  senderEmail: z.string().email().or(z.literal("")).optional(),
+  senderName: z.string().optional(),
+  invoiceStartNumber: z.coerce.number().int().min(1).optional(),
 });
 
 /** Lightweight body for one-off display preferences (used by the
@@ -63,6 +66,9 @@ export async function PATCH(req: Request) {
       microPct: v.microPct,
       dividendePct: v.dividendePct,
       redThresholdRon: baniFromRon(v.redThresholdRon),
+      ...(v.senderEmail !== undefined ? { senderEmail: v.senderEmail } : {}),
+      ...(v.senderName !== undefined ? { senderName: v.senderName } : {}),
+      ...(v.invoiceStartNumber !== undefined ? { invoiceStartNumber: v.invoiceStartNumber } : {}),
     },
     create: {
       id: 1,
@@ -72,6 +78,9 @@ export async function PATCH(req: Request) {
       microPct: v.microPct,
       dividendePct: v.dividendePct,
       redThresholdRon: baniFromRon(v.redThresholdRon),
+      senderEmail: v.senderEmail ?? "",
+      senderName: v.senderName ?? "PROJECT CIP S.R.L.",
+      invoiceStartNumber: v.invoiceStartNumber ?? 1,
     },
   });
   return NextResponse.json({ ok: true });

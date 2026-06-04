@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { fmtDate } from "@/lib/format";
 import { InvoiceActions } from "@/components/invoices/invoice-actions";
+import { InvoiceSend } from "@/components/invoices/invoice-send";
 import { vatKindForInvoice } from "@/lib/vat";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +29,7 @@ export default async function InvoicePage(props: {
   const { id } = await props.params;
   const inv = await db.invoice.findUnique({
     where: { id },
-    include: { lines: { orderBy: { position: "asc" } } },
+    include: { lines: { orderBy: { position: "asc" } }, job: true },
   });
   if (!inv) notFound();
 
@@ -97,6 +98,18 @@ export default async function InvoicePage(props: {
               Activity report
             </a>
           </Button>
+          <Button asChild variant="outline">
+            <a href={`/api/invoices/${inv.id}/efactura`}>
+              <FileText className="h-3.5 w-3.5" />
+              e-Factura XML
+            </a>
+          </Button>
+          <InvoiceSend
+            invoiceId={inv.id}
+            clientEmail={inv.job?.email ?? null}
+            defaultSubject={`Invoice ${inv.series} ${inv.number} — ${settings.issuerName}`}
+            defaultMessage={`Hi,\n\nPlease find attached invoice ${inv.series} ${inv.number} together with the activity report for the period.\n\nBest regards,\n${settings.issuerSigner}\n${settings.issuerName}`}
+          />
           <InvoiceActions
             id={inv.id}
             status={inv.status}
