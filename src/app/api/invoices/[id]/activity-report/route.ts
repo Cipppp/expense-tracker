@@ -36,9 +36,11 @@ export async function GET(
   );
 
   // 2. Fallback: the client's hourly entries in the invoice's issue month.
+  //    Dates are stored at noon UTC, so derive the month with UTC getters to
+  //    match the UTC bounds (no off-by-one near month edges in any timezone).
   if (rows.length === 0 && invoice.jobId) {
-    const y = invoice.issuedAt.getFullYear();
-    const m = invoice.issuedAt.getMonth();
+    const y = invoice.issuedAt.getUTCFullYear();
+    const m = invoice.issuedAt.getUTCMonth();
     const monthStart = new Date(Date.UTC(y, m, 1, 0, 0, 0));
     const monthEnd = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999));
     rows = await db.income.findMany({
@@ -77,8 +79,13 @@ export async function GET(
     periodLabel = invoice.issuedAt.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   }
 
-  const rate = invoice.job?.rateUsd ?? 0;
-  const currency = invoice.job?.defaultCurrency ?? invoice.invoiceCurrency;
+  // Use the rate snapshotted on the billed entries (hourlyRate at the time of
+  // logging) and the invoice's own currency — NOT the client's current job
+  // values, which can drift after the invoice is issued. Fall back to the
+  // live job rate only when there are no entries with a stored rate.
+  const snapshotRate = rows.find((r) => r.hourlyRate != null)?.hourlyRate;
+  const rate = snapshotRate ?? invoice.job?.rateUsd ?? 0;
+  const currency = invoice.invoiceCurrency || invoice.job?.defaultCurrency || "USD";
 
   const buffer = await buildActivityReport({
     supplier: settings.issuerName,

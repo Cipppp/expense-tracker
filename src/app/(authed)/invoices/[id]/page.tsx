@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { fmtDate } from "@/lib/format";
 import { InvoiceActions } from "@/components/invoices/invoice-actions";
+import { vatKindForInvoice } from "@/lib/vat";
 
 export const dynamic = "force-dynamic";
 
@@ -219,7 +220,8 @@ export default async function InvoicePage(props: {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               });
-            const reverse = inv.vatRate === 0 && inv.clientCountry !== "RO";
+            const vatKind = vatKindForInvoice(inv.clientCountry, inv.vatRate);
+            const reverse = vatKind === "eu_reverse" || vatKind === "export";
             const netLegal = legalTotal;
             const vatLegal = netLegal * inv.vatRate;
             const grossLegal = netLegal + vatLegal;
@@ -261,10 +263,15 @@ export default async function InvoicePage(props: {
                     {ron(grossLegal)}
                   </span>
                 </div>
-                {reverse ? (
+                {vatKind === "eu_reverse" ? (
                   <p className="text-[11px] text-muted-foreground pt-1">
                     Intra-community B2B — VAT reverse-charged to the recipient
                     (art. 196 Directive 2006/112/EC).
+                  </p>
+                ) : vatKind === "export" ? (
+                  <p className="text-[11px] text-muted-foreground pt-1">
+                    Export of services outside the EU — not taxable in Romania
+                    (place of supply at the recipient, art. 278 Cod fiscal).
                   </p>
                 ) : null}
               </>

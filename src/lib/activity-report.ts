@@ -28,7 +28,8 @@ function minutesToClock(min: number | null): string {
   if (min == null) return "—";
   const h = Math.floor(min / 60) % 24;
   const m = min % 60;
-  const tag = min >= 1440 ? " (+1d)" : "";
+  const days = Math.floor(min / 1440);
+  const tag = days >= 1 ? ` (+${days}d)` : "";
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}${tag}`;
 }
 

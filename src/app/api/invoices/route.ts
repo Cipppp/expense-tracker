@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { dateAtNoonUTC } from "@/lib/format";
 import { getNextInvoiceNumber, sumLines } from "@/lib/invoice";
+import { deriveVat } from "@/lib/vat";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,16 @@ const Body = z.object({
   // with the new invoiceId so the dashboard knows they're billed and the
   // calendar can show a "✓ invoiced" badge.
   incomeIds: z.array(z.string()).optional(),
+}).superRefine((v, ctx) => {
+  // A non-RON invoice MUST carry a positive BNR rate, otherwise the legal
+  // (RON) amounts can't be computed and the PDF would silently misstate them.
+  if (v.invoiceCurrency !== "RON" && !(v.bnrRate && v.bnrRate > 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["bnrRate"],
+      message: `bnrRate is required and must be > 0 for ${v.invoiceCurrency} invoices`,
+    });
+  }
 });
 
 export async function GET() {
@@ -59,14 +70,11 @@ export async function POST(req: Request) {
   const series = settings.invoiceSeries;
   const { number, seriesNumber } = await getNextInvoiceNumber(series);
 
-  // VAT: explicit value wins; otherwise Romanian clients get the standard
-  // rate and everyone else gets 0 (intra-community B2B reverse charge).
+  // VAT: explicit value wins; otherwise derive from the client country.
+  // RO / unknown → standard rate (domestic); EU → 0 reverse charge; non-EU
+  // → 0 export of services. See lib/vat for the legal distinction.
   const vatRate =
-    v.vatRate != null
-      ? v.vatRate
-      : v.clientCountry === "RO"
-        ? settings.vatRate
-        : 0;
+    v.vatRate != null ? v.vatRate : deriveVat(v.clientCountry, settings.vatRate).vatRate;
 
   const linesWithAmount = v.lines.map((l, i) => ({
     ...l,
