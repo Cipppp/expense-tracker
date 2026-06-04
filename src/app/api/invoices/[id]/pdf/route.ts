@@ -25,15 +25,8 @@ export async function GET(
     create: { id: 1 },
   });
 
-  const invoiceTotal = invoice.lines.reduce((a, l) => a + l.amount, 0);
-  const legalTotal =
-    invoice.invoiceCurrency === invoice.legalCurrency
-      ? invoiceTotal
-      : invoiceTotal * (invoice.bnrRate ?? 1);
-
-  const dd = String(invoice.issuedAt.getDate()).padStart(2, "0");
-  const mm = String(invoice.issuedAt.getMonth() + 1).padStart(2, "0");
-  const yy = String(invoice.issuedAt.getFullYear());
+  const fmtDate = (d: Date) =>
+    `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 
   const buffer = await renderToBuffer(
     InvoicePdf({
@@ -50,7 +43,8 @@ export async function GET(
       invoice: {
         series: invoice.series,
         number: invoice.number,
-        issuedAt: `${dd}/${mm}/${yy}`,
+        issuedAt: fmtDate(invoice.issuedAt),
+        dueAt: invoice.dueAt ? fmtDate(invoice.dueAt) : null,
         clientName: invoice.clientName,
         clientCompany: invoice.clientCompany,
         clientCui: invoice.clientCui,
@@ -60,8 +54,7 @@ export async function GET(
         invoiceCurrency: invoice.invoiceCurrency,
         legalCurrency: invoice.legalCurrency,
         bnrRate: invoice.bnrRate,
-        legalTotal,
-        invoiceTotal,
+        vatRate: invoice.vatRate,
         footerNote: invoice.footerNote,
         lines: invoice.lines.map((l) => ({
           description: l.description,

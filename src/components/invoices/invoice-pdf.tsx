@@ -19,28 +19,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 14,
   },
-  block: {
-    width: "32%",
+  block: { width: "33%" },
+  blockTitle: { fontSize: 8, fontFamily: "Helvetica-Bold", marginBottom: 4 },
+  blockLine: { fontSize: 8, marginBottom: 1.5 },
+  title: { fontSize: 22, fontFamily: "Helvetica-Bold", textAlign: "center", marginBottom: 4 },
+  metaBox: {
+    borderWidth: 1,
+    borderColor: "#000",
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    alignItems: "center",
   },
-  blockTitle: {
-    fontSize: 8,
-    fontFamily: "Helvetica-Bold",
-    marginBottom: 4,
-  },
-  blockLine: {
-    fontSize: 8,
-    marginBottom: 1.5,
-  },
-  title: {
-    fontSize: 22,
-    fontFamily: "Helvetica-Bold",
-    textAlign: "center",
-    marginBottom: 4,
-  },
-  meta: {
-    fontSize: 8,
-    textAlign: "center",
-  },
+  meta: { fontSize: 8, textAlign: "center", marginBottom: 1 },
   table: {
     marginTop: 8,
     borderTopWidth: 1,
@@ -48,48 +38,27 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderColor: "#000",
   },
-  tr: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderColor: "#000",
-  },
+  tr: { flexDirection: "row", borderBottomWidth: 1, borderColor: "#000" },
   th: {
     padding: 4,
-    fontSize: 8,
+    fontSize: 7.5,
     fontFamily: "Helvetica-Bold",
     borderRightWidth: 1,
     borderColor: "#000",
     textAlign: "center",
   },
-  thLast: {
-    padding: 4,
-    fontSize: 8,
-    fontFamily: "Helvetica-Bold",
-    textAlign: "center",
-  },
-  td: {
-    padding: 4,
-    fontSize: 8,
-    borderRightWidth: 1,
-    borderColor: "#000",
-  },
-  tdLast: {
-    padding: 4,
-    fontSize: 8,
-  },
-  colNr: { width: "8%", textAlign: "center" },
-  colDesc: { width: "44%" },
-  colUm: { width: "8%", textAlign: "center" },
-  colQty: { width: "10%", textAlign: "right" },
-  colPrice: { width: "15%", textAlign: "right" },
-  colAmount: { width: "15%", textAlign: "right" },
-  spacerRow: {
-    height: 280,
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderColor: "#000",
-  },
-  exchange: {
+  thLast: { padding: 4, fontSize: 7.5, fontFamily: "Helvetica-Bold", textAlign: "center" },
+  td: { padding: 4, fontSize: 8, borderRightWidth: 1, borderColor: "#000" },
+  tdLast: { padding: 4, fontSize: 8 },
+  colNr: { width: "6%", textAlign: "center" },
+  colDesc: { width: "40%" },
+  colUm: { width: "7%", textAlign: "center" },
+  colQty: { width: "8%", textAlign: "right" },
+  colPrice: { width: "13%", textAlign: "right" },
+  colAmount: { width: "13%", textAlign: "right" },
+  colVat: { width: "13%", textAlign: "right" },
+  spacerRow: { height: 230, flexDirection: "row", borderBottomWidth: 1, borderColor: "#000" },
+  note: {
     marginTop: 6,
     paddingHorizontal: 6,
     paddingVertical: 4,
@@ -97,49 +66,9 @@ const styles = StyleSheet.create({
     borderColor: "#000",
     fontSize: 8,
   },
-  footerBox: {
-    marginTop: 6,
-    borderWidth: 1,
-    borderColor: "#000",
-  },
-  footerRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderColor: "#000",
-  },
-  footerCellGrow: {
-    flex: 1,
-    padding: 4,
-    borderRightWidth: 1,
-    borderColor: "#000",
-    fontSize: 8,
-  },
-  footerCellRight: {
-    width: "30%",
-    padding: 4,
-    fontSize: 8,
-  },
-  footerTotalLabel: {
-    flex: 1,
-    padding: 4,
-    borderRightWidth: 1,
-    borderColor: "#000",
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-  },
-  footerTotalValue: {
-    width: "30%",
-    padding: 4,
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-    textAlign: "right",
-  },
-  smallFoot: {
-    marginTop: 12,
-    fontSize: 7,
-    textAlign: "center",
-    color: "#666",
-  },
+  footerBox: { marginTop: 6, borderWidth: 1, borderColor: "#000" },
+  footerRow: { flexDirection: "row" },
+  smallFoot: { marginTop: 12, fontSize: 7, textAlign: "center", color: "#666" },
 });
 
 export type InvoicePdfProps = {
@@ -156,38 +85,57 @@ export type InvoicePdfProps = {
   invoice: {
     series: string;
     number: string;
-    issuedAt: string;             // dd/mm/yyyy
+    issuedAt: string; // dd/mm/yyyy
+    dueAt?: string | null; // dd/mm/yyyy
     clientName: string;
     clientCompany: string;
     clientCui?: string | null;
     clientReg?: string | null;
     clientAddress?: string | null;
     clientCountry?: string | null;
-    invoiceCurrency: string;       // "RON" | "USD" | "EUR"
-    legalCurrency: string;
+    invoiceCurrency: string; // "RON" | "USD" | "EUR"
+    legalCurrency: string; // always "RON"
     bnrRate?: number | null;
-    legalTotal: number;            // in legalCurrency (always RON for an RO SRL)
-    invoiceTotal: number;          // in invoiceCurrency
+    vatRate: number; // 0.21 or 0
     footerNote?: string | null;
     lines: Array<{
       description: string;
       unit: string;
       quantity: number;
-      unitPrice: number;
-      amount: number;
+      unitPrice: number; // in invoiceCurrency
+      amount: number; // in invoiceCurrency
     }>;
   };
 };
 
 export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
-  const showExchange = invoice.invoiceCurrency !== invoice.legalCurrency;
+  const rate = invoice.bnrRate ?? 1;
+  const isForeign = invoice.invoiceCurrency !== invoice.legalCurrency;
+  const reverseCharge =
+    invoice.vatRate === 0 && (invoice.clientCountry ?? "") !== "RO";
+
+  // All displayed amounts are in the legal currency (RON).
+  const legalLines = invoice.lines.map((l) => {
+    const net = l.amount * rate;
+    return {
+      ...l,
+      legalUnitPrice: l.unitPrice * rate,
+      legalNet: net,
+      legalVat: net * invoice.vatRate,
+    };
+  });
+  const totalNet = legalLines.reduce((a, l) => a + l.legalNet, 0);
+  const totalVat = totalNet * invoice.vatRate;
+  const totalGross = totalNet + totalVat;
+  // Foreign-currency equivalent of the gross (matches SmartBill's "Echivalent").
+  const foreignEquivalent = isForeign && rate ? totalGross / rate : null;
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.headerRow}>
           <View style={styles.block}>
-            <Text style={styles.blockTitle}>Furnizor:</Text>
-            <Text style={styles.blockLine}>{issuer.name}</Text>
+            <Text style={styles.blockTitle}>Furnizor: {issuer.name}</Text>
             <Text style={styles.blockLine}>Reg. com.: {issuer.reg}</Text>
             <Text style={styles.blockLine}>CIF: {issuer.cif}</Text>
             <Text style={styles.blockLine}>Adresa: {issuer.address}</Text>
@@ -197,10 +145,15 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
           </View>
           <View style={[styles.block, { alignItems: "center" }]}>
             <Text style={styles.title}>FACTURA</Text>
-            <Text style={styles.meta}>
-              Seria {invoice.series} nr. {invoice.number}
-            </Text>
-            <Text style={styles.meta}>Data (zi/luna/an): {invoice.issuedAt}</Text>
+            <View style={styles.metaBox}>
+              <Text style={styles.meta}>
+                Seria {invoice.series} nr. {invoice.number}
+              </Text>
+              <Text style={styles.meta}>Data (zi/luna/an): {invoice.issuedAt}</Text>
+              <Text style={styles.meta}>
+                Cota TVA: {reverseCharge ? "taxare inversa" : `${Math.round(invoice.vatRate * 100)}%`}
+              </Text>
+            </View>
           </View>
           <View style={styles.block}>
             <Text style={styles.blockTitle}>Client: {invoice.clientCompany}</Text>
@@ -230,10 +183,13 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
             <Text style={[styles.th, styles.colUm]}>U.M.</Text>
             <Text style={[styles.th, styles.colQty]}>Cant.</Text>
             <Text style={[styles.th, styles.colPrice]}>
-              Pret unitar{"\n"}-{invoice.legalCurrency}-
+              Pret unitar{"\n"}(fara TVA){"\n"}-{invoice.legalCurrency}-
             </Text>
-            <Text style={[styles.thLast, styles.colAmount]}>
+            <Text style={[styles.th, styles.colAmount]}>
               Valoarea{"\n"}-{invoice.legalCurrency}-
+            </Text>
+            <Text style={[styles.thLast, styles.colVat]}>
+              Valoarea TVA{"\n"}-{invoice.legalCurrency}-
             </Text>
           </View>
           <View style={[styles.tr, { backgroundColor: "#f7f7f7" }]}>
@@ -242,78 +198,90 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
             <Text style={[styles.td, styles.colUm]}>2</Text>
             <Text style={[styles.td, styles.colQty]}>3</Text>
             <Text style={[styles.td, styles.colPrice]}>4</Text>
-            <Text style={[styles.tdLast, styles.colAmount]}>5(3x4)</Text>
+            <Text style={[styles.td, styles.colAmount]}>5(3x4)</Text>
+            <Text style={[styles.tdLast, styles.colVat]}>6</Text>
           </View>
-          {invoice.lines.map((line, i) => (
+          {legalLines.map((line, i) => (
             <View key={i} style={styles.tr}>
               <Text style={[styles.td, styles.colNr]}>{i + 1}</Text>
               <Text style={[styles.td, styles.colDesc]}>{line.description}</Text>
               <Text style={[styles.td, styles.colUm]}>{line.unit}</Text>
-              <Text style={[styles.td, styles.colQty]}>
-                {fmtNum(line.quantity)}
-              </Text>
-              <Text style={[styles.td, styles.colPrice]}>
-                {fmtAmount(line.unitPrice * (invoice.bnrRate ?? 1))}
-              </Text>
-              <Text style={[styles.tdLast, styles.colAmount]}>
-                {fmtAmount(line.amount * (invoice.bnrRate ?? 1))}
-              </Text>
+              <Text style={[styles.td, styles.colQty]}>{fmtNum(line.quantity)}</Text>
+              <Text style={[styles.td, styles.colPrice]}>{fmtAmount(line.legalUnitPrice)}</Text>
+              <Text style={[styles.td, styles.colAmount]}>{fmtAmount(line.legalNet)}</Text>
+              <Text style={[styles.tdLast, styles.colVat]}>{fmtAmount(line.legalVat)}</Text>
             </View>
           ))}
           <View style={styles.spacerRow} />
         </View>
 
-        {showExchange && invoice.bnrRate ? (
-          <View style={styles.exchange}>
+        {foreignEquivalent != null ? (
+          <View style={styles.note}>
             <Text>
-              Exchange rate {invoice.invoiceCurrency}/{invoice.legalCurrency} as
-              per BNR on invoice date: {invoice.bnrRate.toFixed(4)} ={" "}
-              {fmtAmount(invoice.invoiceTotal)} {invoice.invoiceCurrency}
+              Echivalent: {fmtAmount(foreignEquivalent)} {invoice.invoiceCurrency} la
+              cursul BNR de {rate.toFixed(4)} {invoice.legalCurrency}/
+              {invoice.invoiceCurrency} din {invoice.issuedAt}.
             </Text>
+          </View>
+        ) : null}
+
+        {reverseCharge ? (
+          <View style={styles.note}>
+            <Text>
+              Operatiune neimpozabila in Romania - taxare inversa (reverse charge).
+              TVA se achita de beneficiar conform art. 196 din Directiva 2006/112/CE
+              (servicii intracomunitare B2B).
+            </Text>
+          </View>
+        ) : null}
+
+        {invoice.footerNote ? (
+          <View style={styles.note}>
+            <Text>{invoice.footerNote}</Text>
           </View>
         ) : null}
 
         <View style={styles.footerBox}>
           <View style={styles.footerRow}>
-            <Text style={styles.footerCellGrow}>
+            <Text style={{ flex: 1, padding: 4, borderRightWidth: 1, borderColor: "#000", fontSize: 8 }}>
               Intocmit de: {issuer.signer}{"\n"}
-              CNP:  -{"\n"}
+              CNP: -{"\n"}
               Numele delegatului: -{"\n"}
-              B/I/C/I: -{"\n"}
+              B.I/C.I: -{"\n"}
               Mijloc transport: -{"\n"}
               Expedierea s-a efectuat in prezenta noastra la data de ........ora......
               {"\n"}
-              Semnaturile:
+              Semnatura de primire:
             </Text>
-            <View style={{ width: "30%" }}>
-              <View
-                style={{
-                  flex: 1,
-                  borderBottomWidth: 1,
-                  borderColor: "#000",
-                  padding: 4,
-                }}
-              >
-                <Text style={{ fontSize: 8 }}>Total</Text>
-              </View>
-              <View style={{ flex: 1, padding: 4 }}>
-                <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold" }}>
-                  {fmtAmount(invoice.legalTotal)}
+            <View style={{ width: "40%" }}>
+              {/* Total (net | VAT) */}
+              <View style={{ flexDirection: "row", borderBottomWidth: 1, borderColor: "#000" }}>
+                <Text style={{ flex: 1, padding: 4, fontSize: 8, fontFamily: "Helvetica-Bold", borderRightWidth: 1, borderColor: "#000" }}>
+                  Total
+                </Text>
+                <Text style={{ flex: 1, padding: 4, fontSize: 8, textAlign: "right", borderRightWidth: 1, borderColor: "#000" }}>
+                  {fmtAmount(totalNet)}
+                </Text>
+                <Text style={{ flex: 1, padding: 4, fontSize: 8, textAlign: "right" }}>
+                  {fmtAmount(totalVat)}
                 </Text>
               </View>
-              <View
-                style={{
-                  flex: 1,
-                  borderTopWidth: 1,
-                  borderColor: "#000",
-                  padding: 4,
-                }}
-              >
-                <Text style={{ fontSize: 8 }}>Semnatura de primire:</Text>
+              {/* Total plata (gross) */}
+              <View style={{ flexDirection: "row" }}>
+                <Text style={{ flex: 1, padding: 4, fontSize: 9, fontFamily: "Helvetica-Bold", borderRightWidth: 1, borderColor: "#000" }}>
+                  Total plata
+                </Text>
+                <Text style={{ flex: 2, padding: 4, fontSize: 9, fontFamily: "Helvetica-Bold", textAlign: "right" }}>
+                  {fmtAmount(totalGross)} {invoice.legalCurrency}
+                </Text>
               </View>
             </View>
           </View>
         </View>
+
+        {invoice.dueAt ? (
+          <Text style={{ marginTop: 6, fontSize: 8 }}>Termen plata: {invoice.dueAt}</Text>
+        ) : null}
 
         <Text style={styles.smallFoot}>
           Factura este valabila fara semnatura si stampila, conform art. 319 alin.
@@ -339,10 +307,14 @@ function fmtAmount(n: number): string {
 function countryName(code: string): string {
   const names: Record<string, string> = {
     RO: "Romania",
-    DK: "Denemarca",
+    DK: "Danemarca",
+    PT: "Portugalia",
     US: "Statele Unite",
     GB: "Marea Britanie",
     DE: "Germania",
+    ES: "Spania",
+    FR: "Franta",
+    NL: "Olanda",
   };
   return names[code] ?? code;
 }
