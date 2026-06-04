@@ -126,6 +126,10 @@ model Invoice {
   invoiceCurrency String  @default("RON")     // RON | USD | EUR
   legalCurrency   String  @default("RON")
   bnrRate         Float?                      // RON per invoiceCurrency unit (e.g. 4.4085)
+  // VAT rate applied to the net. 0.21 for Romanian B2B clients; 0 for
+  // intra-community EU B2B (reverse charge — "taxare inversă"). Snapshotted
+  // per invoice so historical rate changes don't rewrite old invoices.
+  vatRate         Float   @default(0)
 
   footerNote   String?
   status       String   @default("draft")     // draft | issued | paid | void
@@ -199,6 +203,7 @@ model Settings {
   camRon          Int    @default(8400)   //   84.00 RON in bani
   microPct        Float  @default(0.01)   // 1% impozit micro
   dividendePct    Float  @default(0.16)   // 16% impozit dividende
+  vatRate         Float  @default(0.21)   // 21% TVA standard rate (RO clients)
   redThresholdRon Int    @default(5000)   // 50 RON/day in bani → row turns red
   // Lower-bound month (defaults to Apr 2026 — start date in the Excel).
   startYear       Int    @default(2026)

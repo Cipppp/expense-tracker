@@ -25,6 +25,9 @@ const Body = z.object({
   dueAt: z.string().optional().nullable(),    // yyyy-mm-dd
   invoiceCurrency: z.enum(["RON", "USD", "EUR"]).default("RON"),
   bnrRate: z.coerce.number().positive().optional().nullable(),
+  // VAT rate (0.21 or 0). If omitted, derived from the client country:
+  // RO → settings.vatRate, anything else → 0 (intra-community reverse charge).
+  vatRate: z.coerce.number().min(0).max(1).optional(),
   footerNote: z.string().optional().nullable(),
   lines: z.array(LineInput).min(1),
   // IDs of Income rows whose hours feed this invoice — they'll get tagged
@@ -56,6 +59,15 @@ export async function POST(req: Request) {
   const series = settings.invoiceSeries;
   const { number, seriesNumber } = await getNextInvoiceNumber(series);
 
+  // VAT: explicit value wins; otherwise Romanian clients get the standard
+  // rate and everyone else gets 0 (intra-community B2B reverse charge).
+  const vatRate =
+    v.vatRate != null
+      ? v.vatRate
+      : v.clientCountry === "RO"
+        ? settings.vatRate
+        : 0;
+
   const linesWithAmount = v.lines.map((l, i) => ({
     ...l,
     position: i + 1,
@@ -79,6 +91,7 @@ export async function POST(req: Request) {
       invoiceCurrency: v.invoiceCurrency,
       legalCurrency: "RON",
       bnrRate: v.bnrRate ?? null,
+      vatRate,
       footerNote: v.footerNote ?? null,
       status: "draft",
       lines: { create: linesWithAmount },

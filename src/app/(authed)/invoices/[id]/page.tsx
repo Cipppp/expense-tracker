@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Download, FileText } from "@/lib/icons";
+import { ArrowLeft, Download, FileText, FileSpreadsheet } from "@/lib/icons";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -92,6 +92,12 @@ export default async function InvoicePage(props: {
             >
               <Download className="h-3.5 w-3.5" />
               PDF
+            </a>
+          </Button>
+          <Button asChild variant="outline">
+            <a href={`/api/invoices/${inv.id}/activity-report`}>
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Activity report
             </a>
           </Button>
           <InvoiceActions
@@ -207,30 +213,63 @@ export default async function InvoicePage(props: {
 
       <Card>
         <CardContent className="pt-6 space-y-2">
-          <div className="flex items-baseline justify-between">
-            <span className="text-sm text-muted-foreground">
-              Subtotal ({inv.invoiceCurrency})
-            </span>
-            <span className="font-display text-xl tabular-nums">
-              {total.toLocaleString("ro-RO", {
+          {(() => {
+            const ron = (n: number) =>
+              n.toLocaleString("ro-RO", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
-              })}
-            </span>
-          </div>
-          {inv.invoiceCurrency !== inv.legalCurrency && inv.bnrRate ? (
-            <div className="flex items-baseline justify-between text-sm">
-              <span className="text-muted-foreground">
-                Equivalent {inv.legalCurrency} (BNR {inv.bnrRate.toFixed(4)})
-              </span>
-              <span className="tabular-nums">
-                {legalTotal.toLocaleString("ro-RO", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </span>
-            </div>
-          ) : null}
+              });
+            const reverse = inv.vatRate === 0 && inv.clientCountry !== "RO";
+            const netLegal = legalTotal;
+            const vatLegal = netLegal * inv.vatRate;
+            const grossLegal = netLegal + vatLegal;
+            return (
+              <>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    Subtotal ({inv.invoiceCurrency})
+                  </span>
+                  <span className="font-display text-xl tabular-nums">
+                    {ron(total)}
+                  </span>
+                </div>
+                {inv.invoiceCurrency !== inv.legalCurrency && inv.bnrRate ? (
+                  <div className="flex items-baseline justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      Net {inv.legalCurrency} (BNR {inv.bnrRate.toFixed(4)})
+                    </span>
+                    <span className="tabular-nums">{ron(netLegal)}</span>
+                  </div>
+                ) : null}
+                <div className="flex items-baseline justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    VAT{" "}
+                    {reverse
+                      ? "(reverse charge)"
+                      : `(${Math.round(inv.vatRate * 100)}%)`}
+                  </span>
+                  <span className="tabular-nums">
+                    {reverse ? "—" : `${ron(vatLegal)} ${inv.legalCurrency}`}
+                  </span>
+                </div>
+                <Separator />
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm font-medium">
+                    Total to pay ({inv.legalCurrency})
+                  </span>
+                  <span className="font-display text-xl tabular-nums">
+                    {ron(grossLegal)}
+                  </span>
+                </div>
+                {reverse ? (
+                  <p className="text-[11px] text-muted-foreground pt-1">
+                    Intra-community B2B — VAT reverse-charged to the recipient
+                    (art. 196 Directive 2006/112/EC).
+                  </p>
+                ) : null}
+              </>
+            );
+          })()}
         </CardContent>
       </Card>
     </div>
