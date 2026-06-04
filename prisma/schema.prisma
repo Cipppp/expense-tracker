@@ -219,6 +219,10 @@ model Settings {
   issuerCapital  String @default("200 Lei")
   issuerSigner   String @default("Ciprian Pirvu")
   invoiceSeries  String @default("CP")            // prefix; next number derived from DB
+  // Floor for the next invoice number. Lets the series continue from an
+  // external tool (e.g. SmartBill issued up to CP0018 → set this to 19 so the
+  // app's next invoice is CP0019, not CP0001).
+  invoiceStartNumber Int @default(1)
 
   updatedAt       DateTime @updatedAt @default(now())
 }
