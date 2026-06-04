@@ -148,15 +148,19 @@ export function buildEfacturaXml(input: EfacturaInput): string {
   // Tax category per treatment.
   const cat =
     kind === "domestic"
-      ? { id: "S", percent: inv.vatRate * 100, reasonCode: "", reason: "" }
+      ? { id: "S", percent: inv.vatRate * 100 as number | null, reasonCode: "", reason: "" }
       : kind === "eu_reverse"
-        ? { id: "AE", percent: 0, reasonCode: "VATEX-EU-AE", reason: "Reverse charge" }
-        : { id: "O", percent: 0, reasonCode: "VATEX-EU-O", reason: "Not subject to VAT - services supplied outside the EU" };
+        ? { id: "AE", percent: 0 as number | null, reasonCode: "VATEX-EU-AE", reason: "Reverse charge" }
+        // Category O ("Not subject to VAT", services outside the EU): the VAT
+        // rate is PROHIBITED by EN16931 BR-O-05 — emit no cbc:Percent.
+        : { id: "O", percent: null as number | null, reasonCode: "VATEX-EU-O", reason: "Not subject to VAT - services supplied outside the EU" };
+
+  const percentLine = (indent: string) =>
+    cat.percent != null ? `\n${indent}<cbc:Percent>${cat.percent.toFixed(2)}</cbc:Percent>` : "";
 
   const taxCategoryXml = (indent: string) =>
     `${indent}<cac:TaxCategory>
-${indent}  <cbc:ID>${cat.id}</cbc:ID>
-${indent}  <cbc:Percent>${cat.percent.toFixed(2)}</cbc:Percent>${
+${indent}  <cbc:ID>${cat.id}</cbc:ID>${percentLine(`${indent}  `)}${
       cat.reasonCode
         ? `\n${indent}  <cbc:TaxExemptionReasonCode>${cat.reasonCode}</cbc:TaxExemptionReasonCode>\n${indent}  <cbc:TaxExemptionReason>${esc(cat.reason)}</cbc:TaxExemptionReason>`
         : ""
@@ -189,8 +193,7 @@ ${taxCategoryXml("      ")}
     <cac:Item>
       <cbc:Name>${esc(l.description.slice(0, 200))}</cbc:Name>
       <cac:ClassifiedTaxCategory>
-        <cbc:ID>${cat.id}</cbc:ID>
-        <cbc:Percent>${cat.percent.toFixed(2)}</cbc:Percent>
+        <cbc:ID>${cat.id}</cbc:ID>${cat.percent != null ? `\n        <cbc:Percent>${cat.percent.toFixed(2)}</cbc:Percent>` : ""}
         <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
       </cac:ClassifiedTaxCategory>
     </cac:Item>
