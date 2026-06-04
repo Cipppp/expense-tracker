@@ -14,6 +14,7 @@ const Create = z.object({
   companyReg: z.string().optional().nullable(),
   companyAddress: z.string().optional().nullable(),
   companyCountry: z.string().optional().nullable(),
+  email: z.string().email().optional().nullable().or(z.literal("")),
 });
 
 export async function GET() {
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
       companyReg: v.companyReg ?? null,
       companyAddress: v.companyAddress ?? null,
       companyCountry: v.companyCountry ?? null,
+      email: v.email || null,
     },
   });
   return NextResponse.json({ ok: true, job });

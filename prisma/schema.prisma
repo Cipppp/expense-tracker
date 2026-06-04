@@ -91,6 +91,9 @@ model Job {
   companyAddress  String?
   companyCountry  String?         // ISO country (RO, DK, US, ...)
   defaultCurrency String   @default("USD") // USD | EUR | RON — currency the work is billed in
+  // Where to email invoices for this client. When set, the invoice page can
+  // send the PDF + activity report straight to the client.
+  email           String?
 
   entries   Income[]
   invoices  Invoice[]
@@ -218,6 +221,10 @@ model Settings {
   issuerBank     String @default("ING BANK NV")
   issuerCapital  String @default("200 Lei")
   issuerSigner   String @default("Ciprian Pirvu")
+  // Sender identity for outgoing invoice emails (must be a domain verified
+  // with the email provider — see RESEND_API_KEY).
+  senderEmail    String @default("")
+  senderName     String @default("PROJECT CIP S.R.L.")
   invoiceSeries  String @default("CP")            // prefix; next number derived from DB
   // Floor for the next invoice number. Lets the series continue from an
   // external tool (e.g. SmartBill issued up to CP0018 → set this to 19 so the

@@ -13,6 +13,7 @@ const Update = z.object({
   companyReg: z.string().optional().nullable(),
   companyAddress: z.string().optional().nullable(),
   companyCountry: z.string().optional().nullable(),
+  email: z.string().email().optional().nullable().or(z.literal("")),
 });
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -22,7 +23,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
-  const job = await db.job.update({ where: { id }, data: parsed.data });
+  const data = { ...parsed.data };
+  if (data.email === "") data.email = null; // normalize blank → cleared
+  const job = await db.job.update({ where: { id }, data });
   return NextResponse.json({ ok: true, job });
 }
 

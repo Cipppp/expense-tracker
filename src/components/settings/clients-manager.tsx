@@ -42,6 +42,7 @@ export type ClientRow = {
   companyAddress: string;
   companyCountry: string;
   defaultCurrency: string;
+  email: string;
 };
 
 const PRESET_COLORS = [
@@ -129,6 +130,7 @@ function ClientRowEditor({
   const [companyReg, setCompanyReg] = useState(client.companyReg);
   const [companyAddress, setCompanyAddress] = useState(client.companyAddress);
   const [companyCountry, setCompanyCountry] = useState(client.companyCountry);
+  const [email, setEmail] = useState(client.email ?? "");
   const [defaultCurrency, setDefaultCurrency] = useState(
     client.defaultCurrency || "USD",
   );
@@ -148,6 +150,7 @@ function ClientRowEditor({
         companyAddress: companyAddress || null,
         companyCountry: companyCountry || null,
         defaultCurrency,
+        email: email.trim() || null,
       }),
     });
     setPending(false);
@@ -288,6 +291,17 @@ function ClientRowEditor({
                 placeholder="Address line"
               />
             </div>
+            <div className="col-span-12 space-y-1">
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Email (for sending invoices)
+              </Label>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="billing@client.com"
+              />
+            </div>
           </div>
         )}
 
@@ -318,6 +332,7 @@ function ClientRowEditor({
                 setCompanyReg(client.companyReg);
                 setCompanyAddress(client.companyAddress);
                 setCompanyCountry(client.companyCountry);
+                setEmail(client.email ?? "");
                 setDefaultCurrency(client.defaultCurrency || "USD");
               }}
               disabled={disabled}
@@ -360,8 +375,20 @@ function ClientRowEditor({
               </span>
             )}
           </div>
-          <div className="text-xs text-muted-foreground tabular-nums">
-            {fmtRate(client.rateUsd, client.defaultCurrency || "USD")} · invoices in {client.defaultCurrency || "USD"}
+          <div className="text-xs text-muted-foreground tabular-nums flex items-center gap-1.5">
+            <span>
+              {fmtRate(client.rateUsd, client.defaultCurrency || "USD")} · invoices in {client.defaultCurrency || "USD"}
+            </span>
+            {client.email ? (
+              <span
+                className="inline-flex items-center gap-0.5 text-success"
+                title={`Emails to ${client.email}`}
+              >
+                <Check className="h-3 w-3" /> email
+              </span>
+            ) : (
+              <span className="text-muted-foreground/50">· no email</span>
+            )}
           </div>
         </div>
       </div>
