@@ -31,3 +31,33 @@ export async function getNextInvoiceNumber(series: string) {
 export function sumLines(lines: Array<{ amount: number }>): number {
   return lines.reduce((a, b) => a + b.amount, 0);
 }
+
+/**
+ * Currency the client actually pays in: Romanian clients are always billed in
+ * RON (legal requirement); everyone else in the contract currency. Mirrors the
+ * `present`/`docCur` logic in the PDF and e-Factura builders.
+ */
+export function presentationCurrency(
+  clientCountry: string | null | undefined,
+  invoiceCurrency: string,
+): string {
+  return clientCountry === "RO" ? "RON" : invoiceCurrency;
+}
+
+/**
+ * Pick the issuer IBAN that matches the currency the client pays in: the EUR
+ * account for EUR invoices (when one is configured), otherwise the default RON
+ * account. Keeps a netop EUR invoice from quoting the RON IBAN (which would
+ * force an FX conversion on arrival).
+ */
+export function pickIssuerIban(
+  settings: { issuerIban: string; issuerIbanEur: string },
+  clientCountry: string | null | undefined,
+  invoiceCurrency: string,
+): string {
+  const present = presentationCurrency(clientCountry, invoiceCurrency);
+  if (present === "EUR" && settings.issuerIbanEur.trim()) {
+    return settings.issuerIbanEur.trim();
+  }
+  return settings.issuerIban;
+}

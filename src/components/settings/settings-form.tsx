@@ -17,6 +17,9 @@ type Initial = {
   senderEmail: string;
   senderName: string;
   invoiceStartNumber: number;
+  issuerIban: string;
+  issuerIbanEur: string;
+  issuerSwift: string;
 };
 
 export function SettingsForm({ initial }: { initial: Initial }) {
@@ -37,6 +40,9 @@ export function SettingsForm({ initial }: { initial: Initial }) {
       senderEmail: String(fd.get("senderEmail") ?? ""),
       senderName: String(fd.get("senderName") ?? ""),
       invoiceStartNumber: Number(fd.get("invoiceStartNumber")),
+      issuerIban: String(fd.get("issuerIban") ?? "").trim(),
+      issuerIbanEur: String(fd.get("issuerIbanEur") ?? "").trim(),
+      issuerSwift: String(fd.get("issuerSwift") ?? "").trim(),
     };
     const res = await fetch("/api/settings", {
       method: "PATCH",
@@ -139,6 +145,34 @@ export function SettingsForm({ initial }: { initial: Initial }) {
           placeholder="facturi@domeniul-tau.ro"
         />
       </Field>
+
+      <Field label="IBAN RON (default account)">
+        <Input
+          name="issuerIban"
+          defaultValue={initial.issuerIban}
+          className="font-mono"
+          placeholder="RO00 INGB ..."
+          required
+        />
+      </Field>
+      <Field label="IBAN EUR (used on EUR invoices)">
+        <Input
+          name="issuerIbanEur"
+          defaultValue={initial.issuerIbanEur}
+          className="font-mono"
+          placeholder="RO00 INGB ... (leave empty if none)"
+        />
+      </Field>
+
+      <Field label="SWIFT / BIC">
+        <Input
+          name="issuerSwift"
+          defaultValue={initial.issuerSwift}
+          className="font-mono"
+          placeholder="INGBROBU"
+        />
+      </Field>
+      <div className="hidden md:block" />
 
       <div className="md:col-span-2 flex justify-end pt-2">
         <Button type="submit" variant="accent" disabled={pending}>

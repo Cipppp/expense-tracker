@@ -79,6 +79,7 @@ export type InvoicePdfProps = {
     reg: string;
     address: string;
     iban: string;
+    swift?: string;
     bank: string;
     capital: string;
     signer: string;
@@ -160,6 +161,9 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
             <Text style={styles.blockLine}>CIF: {issuer.cif}</Text>
             <Text style={styles.blockLine}>Adresa: {issuer.address}</Text>
             <Text style={styles.blockLine}>IBAN: {issuer.iban}</Text>
+            {issuer.swift ? (
+              <Text style={styles.blockLine}>SWIFT/BIC: {issuer.swift}</Text>
+            ) : null}
             <Text style={styles.blockLine}>Banca: {issuer.bank}</Text>
             <Text style={styles.blockLine}>Capital social: {issuer.capital}</Text>
           </View>

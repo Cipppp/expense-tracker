@@ -98,6 +98,9 @@ export default async function SettingsPage() {
             senderEmail: settings.senderEmail,
             senderName: settings.senderName,
             invoiceStartNumber: settings.invoiceStartNumber,
+            issuerIban: settings.issuerIban,
+            issuerIbanEur: settings.issuerIbanEur,
+            issuerSwift: settings.issuerSwift,
           }}
         />
       </CollapsibleCard>

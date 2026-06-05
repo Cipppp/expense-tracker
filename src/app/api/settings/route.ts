@@ -13,6 +13,9 @@ const Body = z.object({
   senderEmail: z.string().email().or(z.literal("")).optional(),
   senderName: z.string().optional(),
   invoiceStartNumber: z.coerce.number().int().min(1).optional(),
+  issuerIban: z.string().trim().min(1).optional(),
+  issuerIbanEur: z.string().trim().optional(),  // may be empty (no EUR account)
+  issuerSwift: z.string().trim().optional(),
 });
 
 /** Lightweight body for one-off display preferences (used by the
@@ -69,6 +72,9 @@ export async function PATCH(req: Request) {
       ...(v.senderEmail !== undefined ? { senderEmail: v.senderEmail } : {}),
       ...(v.senderName !== undefined ? { senderName: v.senderName } : {}),
       ...(v.invoiceStartNumber !== undefined ? { invoiceStartNumber: v.invoiceStartNumber } : {}),
+      ...(v.issuerIban !== undefined ? { issuerIban: v.issuerIban } : {}),
+      ...(v.issuerIbanEur !== undefined ? { issuerIbanEur: v.issuerIbanEur } : {}),
+      ...(v.issuerSwift !== undefined ? { issuerSwift: v.issuerSwift } : {}),
     },
     create: {
       id: 1,
@@ -81,6 +87,9 @@ export async function PATCH(req: Request) {
       senderEmail: v.senderEmail ?? "",
       senderName: v.senderName ?? "PROJECT CIP S.R.L.",
       invoiceStartNumber: v.invoiceStartNumber ?? 1,
+      ...(v.issuerIban !== undefined ? { issuerIban: v.issuerIban } : {}),
+      ...(v.issuerIbanEur !== undefined ? { issuerIbanEur: v.issuerIbanEur } : {}),
+      ...(v.issuerSwift !== undefined ? { issuerSwift: v.issuerSwift } : {}),
     },
   });
   return NextResponse.json({ ok: true });
