@@ -241,13 +241,20 @@ export type ClientInvoicingSummary = {
   name: string;
   color: string;
   currency: string;
-  hoursWorked: number;
+  hoursWorked: number;           // YTD
+  hoursThisMonth: number;        // current calendar month
+  hoursLastMonth: number;        // previous calendar month
   hoursInvoiced: number;
   hoursOutstanding: number;
   amountInvoiced: number;        // in client's currency (major units, not cents)
   invoiceCount: number;
   lastInvoiceAt: Date | null;
 };
+
+/** Label like "Jun" for the current/previous month columns. */
+export function monthShort(d: Date): string {
+  return d.toLocaleDateString("en-US", { month: "short" });
+}
 
 /**
  * Per-client aggregates for the invoicing dashboard. "Hours worked" comes
@@ -257,19 +264,30 @@ export type ClientInvoicingSummary = {
  */
 export async function getClientInvoicingSummaries(
   year: number,
+  ref: Date = new Date(),
 ): Promise<ClientInvoicingSummary[]> {
   const yearStart = new Date(year, 0, 1);
   const yearEnd = new Date(year, 11, 31, 23, 59, 59);
+
+  // Current + previous calendar month windows (relative to `ref`). The
+  // previous month may sit in December of the prior year, so widen the
+  // income fetch lower bound to cover it.
+  const curStart = new Date(ref.getFullYear(), ref.getMonth(), 1);
+  const curEnd = new Date(ref.getFullYear(), ref.getMonth() + 1, 0, 23, 59, 59, 999);
+  const prevStart = new Date(ref.getFullYear(), ref.getMonth() - 1, 1);
+  const prevEnd = new Date(ref.getFullYear(), ref.getMonth(), 0, 23, 59, 59, 999);
+  const fetchFrom = prevStart < yearStart ? prevStart : yearStart;
+  const inWindow = (d: Date, lo: Date, hi: Date) => d >= lo && d <= hi;
 
   const [jobs, incomeRows, invoices] = await Promise.all([
     db.job.findMany({ orderBy: { name: "asc" } }),
     db.income.findMany({
       where: {
         jobId: { not: null },
-        date: { gte: yearStart, lte: yearEnd },
+        date: { gte: fetchFrom, lte: yearEnd },
         hours: { not: null },
       },
-      select: { jobId: true, hours: true, invoiceId: true },
+      select: { jobId: true, hours: true, invoiceId: true, date: true },
     }),
     db.invoice.findMany({
       where: {
@@ -288,6 +306,8 @@ export async function getClientInvoicingSummaries(
     color: j.color,
     currency: j.defaultCurrency ?? "USD",
     hoursWorked: 0,
+    hoursThisMonth: 0,
+    hoursLastMonth: 0,
     hoursInvoiced: 0,
     hoursOutstanding: 0,
     amountInvoiced: 0,
@@ -301,8 +321,12 @@ export async function getClientInvoicingSummaries(
     const c = byId.get(r.jobId!);
     if (!c) continue;
     const h = r.hours ?? 0;
-    c.hoursWorked += h;
-    if (r.invoiceId) c.hoursInvoiced += h;
+    // YTD only counts rows inside the report year (the fetch is widened past
+    // it to capture last December for the previous-month column).
+    if (inWindow(r.date, yearStart, yearEnd)) c.hoursWorked += h;
+    if (r.invoiceId && inWindow(r.date, yearStart, yearEnd)) c.hoursInvoiced += h;
+    if (inWindow(r.date, curStart, curEnd)) c.hoursThisMonth += h;
+    if (inWindow(r.date, prevStart, prevEnd)) c.hoursLastMonth += h;
   }
 
   for (const inv of invoices) {

@@ -11,32 +11,39 @@ import type { JobOpt } from "@/components/income/time-entry-dialog";
 
 type SortKey =
   | "name"
+  | "hoursThisMonth"
+  | "hoursLastMonth"
   | "hoursWorked"
   | "hoursInvoiced"
   | "hoursOutstanding"
   | "amountInvoiced"
   | "lastInvoiceAt";
 
-const COLS: Array<{ key: SortKey; label: string; align: "left" | "right" }> = [
-  { key: "name", label: "Client", align: "left" },
-  { key: "hoursWorked", label: "Worked YTD", align: "right" },
-  { key: "hoursInvoiced", label: "Invoiced", align: "right" },
-  { key: "hoursOutstanding", label: "Outstanding", align: "right" },
-  { key: "amountInvoiced", label: "Total invoiced", align: "right" },
-  { key: "lastInvoiceAt", label: "Last invoice", align: "right" },
-];
-
 export function ClientSummaryTable({
   clients,
   entriesByJob,
   jobs,
+  thisMonthLabel,
+  lastMonthLabel,
 }: {
   clients: ClientInvoicingSummary[];
   /** All this-year time entries, pre-bucketed by jobId. Used to power the
    * expandable per-client calendar preview. */
   entriesByJob: Record<string, WeekEntry[]>;
   jobs: JobOpt[];
+  thisMonthLabel: string;
+  lastMonthLabel: string;
 }) {
+  const COLS: Array<{ key: SortKey; label: string; align: "left" | "right" }> = [
+    { key: "name", label: "Client", align: "left" },
+    { key: "hoursLastMonth", label: lastMonthLabel, align: "right" },
+    { key: "hoursThisMonth", label: thisMonthLabel, align: "right" },
+    { key: "hoursWorked", label: "Worked YTD", align: "right" },
+    { key: "hoursInvoiced", label: "Invoiced", align: "right" },
+    { key: "hoursOutstanding", label: "Outstanding", align: "right" },
+    { key: "amountInvoiced", label: "Total invoiced", align: "right" },
+    { key: "lastInvoiceAt", label: "Last invoice", align: "right" },
+  ];
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>(
     { key: "hoursOutstanding", dir: "desc" },
   );
@@ -195,6 +202,12 @@ function ClientRow({
             </span>
           </span>
         </td>
+        <td className="py-2.5 px-4 text-right tabular-nums text-muted-foreground">
+          {c.hoursLastMonth > 0 ? fmtDuration(c.hoursLastMonth) : "—"}
+        </td>
+        <td className="py-2.5 px-4 text-right tabular-nums font-medium">
+          {c.hoursThisMonth > 0 ? fmtDuration(c.hoursThisMonth) : "—"}
+        </td>
         <td className="py-2.5 px-4 text-right tabular-nums">
           {fmtDuration(c.hoursWorked)}
         </td>
@@ -220,7 +233,7 @@ function ClientRow({
       </tr>
       {isOpen && (
         <tr className="bg-secondary/15">
-          <td colSpan={6} className="px-4 py-4">
+          <td colSpan={8} className="px-4 py-4">
             <div className="space-y-4">
               <WeekGrid
                 anchorIso={anchorIso}
