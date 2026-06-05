@@ -217,7 +217,9 @@ model Settings {
   issuerCif      String @default("51711091")
   issuerReg      String @default("J2025030670009")
   issuerAddress  String @default("Bld Dacia, Nr.133, Et.d, Sector 2, Jud. Bucuresti")
-  issuerIban     String @default("RO95INGB0000999918378858")
+  issuerIban     String @default("RO95INGB0000999918378858")  // RON account
+  issuerIbanEur  String @default("")                          // EUR account — used on EUR invoices
+  issuerSwift    String @default("INGBROBU")                  // BIC/SWIFT (same for all ING RO accounts)
   issuerBank     String @default("ING BANK NV")
   issuerCapital  String @default("200 Lei")
   issuerSigner   String @default("Ciprian Pirvu")

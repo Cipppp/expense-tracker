@@ -22,6 +22,7 @@ type EfacturaInput = {
     reg: string; // J2025030670009
     address: string;
     iban: string;
+    swift?: string; // BIC — emitted as FinancialInstitutionBranch (BT-86)
     postalZone?: string;
   };
   invoice: {
@@ -239,7 +240,13 @@ ${customer}
   <cac:PaymentMeans>
     <cbc:PaymentMeansCode>42</cbc:PaymentMeansCode>
     <cac:PayeeFinancialAccount>
-      <cbc:ID>${esc(issuer.iban)}</cbc:ID>
+      <cbc:ID>${esc(issuer.iban)}</cbc:ID>${
+        issuer.swift?.trim()
+          ? `\n      <cac:FinancialInstitutionBranch>
+        <cbc:ID>${esc(issuer.swift.trim())}</cbc:ID>
+      </cac:FinancialInstitutionBranch>`
+          : ""
+      }
     </cac:PayeeFinancialAccount>
   </cac:PaymentMeans>
 ${taxTotalDoc}${taxTotalRon}

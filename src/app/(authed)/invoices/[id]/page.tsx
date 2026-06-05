@@ -10,6 +10,7 @@ import { fmtDate } from "@/lib/format";
 import { InvoiceActions } from "@/components/invoices/invoice-actions";
 import { InvoiceSend } from "@/components/invoices/invoice-send";
 import { vatKindForInvoice } from "@/lib/vat";
+import { pickIssuerIban } from "@/lib/invoice";
 
 export const dynamic = "force-dynamic";
 
@@ -144,8 +145,17 @@ export default async function InvoicePage(props: {
               <br />
               {settings.issuerAddress}
               <br />
-              IBAN: <span className="font-mono">{settings.issuerIban}</span>
+              IBAN:{" "}
+              <span className="font-mono">
+                {pickIssuerIban(settings, inv.clientCountry, inv.invoiceCurrency)}
+              </span>
               <br />
+              {settings.issuerSwift && (
+                <>
+                  SWIFT/BIC: {settings.issuerSwift}
+                  <br />
+                </>
+              )}
               Banca: {settings.issuerBank}
             </div>
           </div>

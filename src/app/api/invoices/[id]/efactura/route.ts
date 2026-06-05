@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { buildEfacturaXml } from "@/lib/efactura";
+import { pickIssuerIban } from "@/lib/invoice";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,7 +44,8 @@ export async function GET(
       cif: settings.issuerCif,
       reg: settings.issuerReg,
       address: settings.issuerAddress,
-      iban: settings.issuerIban,
+      iban: pickIssuerIban(settings, invoice.clientCountry, invoice.invoiceCurrency),
+      swift: settings.issuerSwift,
     },
     invoice: {
       series: invoice.series,

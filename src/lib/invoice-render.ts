@@ -2,6 +2,7 @@ import "server-only";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { db } from "@/lib/db";
 import { InvoicePdf } from "@/components/invoices/invoice-pdf";
+import { pickIssuerIban } from "@/lib/invoice";
 import { buildActivityReport, type ActivityEntry } from "@/lib/activity-report";
 
 const fmtDate = (d: Date) =>
@@ -46,7 +47,8 @@ export async function renderInvoicePdf(
         cif: settings.issuerCif,
         reg: settings.issuerReg,
         address: settings.issuerAddress,
-        iban: settings.issuerIban,
+        iban: pickIssuerIban(settings, invoice.clientCountry, invoice.invoiceCurrency),
+        swift: settings.issuerSwift,
         bank: settings.issuerBank,
         capital: settings.issuerCapital,
         signer: settings.issuerSigner,
