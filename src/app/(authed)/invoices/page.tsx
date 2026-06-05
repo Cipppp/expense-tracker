@@ -234,6 +234,12 @@ export default async function InvoicesPage() {
                 clients={clientSummaries}
                 entriesByJob={entriesByJobObj}
                 jobs={jobOpts}
+                thisMonthLabel={new Date().toLocaleDateString("en-US", { month: "short" })}
+                lastMonthLabel={new Date(
+                  new Date().getFullYear(),
+                  new Date().getMonth() - 1,
+                  1,
+                ).toLocaleDateString("en-US", { month: "short" })}
               />
             </CardContent>
           </Card>
