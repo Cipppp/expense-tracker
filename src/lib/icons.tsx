@@ -52,6 +52,11 @@ import { WarningCircle } from "@phosphor-icons/react/dist/ssr/WarningCircle";
 import { CircleNotch } from "@phosphor-icons/react/dist/ssr/CircleNotch";
 import { Clock as PClock } from "@phosphor-icons/react/dist/ssr/Clock";
 import { X as PX } from "@phosphor-icons/react/dist/ssr/X";
+import { Broom as PBroom } from "@phosphor-icons/react/dist/ssr/Broom";
+import { ShoppingCartSimple } from "@phosphor-icons/react/dist/ssr/ShoppingCartSimple";
+import { Sparkle as PSparkle } from "@phosphor-icons/react/dist/ssr/Sparkle";
+import { CheckCircle as PCheckCircle } from "@phosphor-icons/react/dist/ssr/CheckCircle";
+import { ArrowsLeftRight as PArrowsLeftRight } from "@phosphor-icons/react/dist/ssr/ArrowsLeftRight";
 
 // Re-exports — keep Lucide names so existing callsites work. Phosphor's
 // default `regular` weight is close to Lucide's stroke; no wrapper needed.
@@ -103,3 +108,8 @@ export const Wallet = PWallet;
 export const AlertCircle = WarningCircle;
 export { WarningCircle };
 export const X = PX;
+export const Broom = PBroom;
+export const ShoppingCart = ShoppingCartSimple;
+export const Sparkle = PSparkle;
+export const CheckCircle = PCheckCircle;
+export const ArrowsLeftRight = PArrowsLeftRight;

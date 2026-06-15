@@ -233,7 +233,21 @@ model Settings {
   // app's next invoice is CP0019, not CP0001).
   invoiceStartNumber Int @default(1)
 
+  // Household chores rotation: which person is on "Rândul 1" vs "Rândul 2".
+  // Base assignment alternates by ISO-week parity; this flag flips the phase
+  // so a one-tap "Swap" lines it up with reality for good.
+  choresFlip      Boolean @default(false)
+
   updatedAt       DateTime @updatedAt @default(now())
+}
+
+// One row per ISO week ("2026-W23") tracking which chores got ticked off.
+// `done` holds keys shaped "set-dayIndex-choreIndex" (e.g. "2-1-0"). Shared,
+// so both partners see the same checkmarks.
+model ChoreWeek {
+  isoWeek   String   @id
+  done      String[] @default([])
+  updatedAt DateTime @updatedAt @default(now())
 }
 
 // Tracks Revolut CSVs that have already been processed (filename + line hash).
