@@ -20,6 +20,10 @@ export default async function GratitudePage() {
   const yestKey = dayKey(y);
 
   // Group newest-first by Bucharest calendar day, with friendly labels.
+  // Number chronologically: oldest = #1, newest = #total, and each entry keeps
+  // its number forever as new ones are added on top.
+  const total = items.length;
+  let seq = total;
   const groups: Group[] = [];
   for (const it of items) {
     const key = dayKey(it.createdAt);
@@ -47,8 +51,9 @@ export default async function GratitudePage() {
       text: it.text,
       author: (it.author as "cip" | "axy" | null) ?? null,
       time: timeLabel(it.createdAt),
+      seq: seq--,
     });
   }
 
-  return <GratitudeList groups={groups} total={items.length} />;
+  return <GratitudeList groups={groups} total={total} />;
 }

@@ -13,6 +13,7 @@ export type Item = {
   text: string;
   author: PersonKey | null;
   time: string;
+  seq: number;
 };
 export type Group = { key: string; label: string; items: Item[] };
 
@@ -61,7 +62,7 @@ export function GratitudeList({
       hour: "2-digit",
       minute: "2-digit",
     });
-    const optimistic: Item = { id: tempId, text: value, author, time };
+    const optimistic: Item = { id: tempId, text: value, author, time, seq: total + 1 };
 
     // Prepend into today's group ("Azi"), creating it if needed.
     setGroups((gs) => {
@@ -233,42 +234,49 @@ export function GratitudeList({
                   {g.items.length}
                 </span>
               </div>
-              <ul className="space-y-2.5">
+              <ul className="space-y-2">
                 {g.items.map((it) => {
                   const p = it.author ? PEOPLE[it.author] : null;
+                  const accent = p ? p.color : "hsl(var(--accent))";
+                  const soft = p ? p.soft : "hsl(var(--accent) / 0.10)";
                   return (
                     <li
                       key={it.id}
-                      className="group relative rounded-xl border border-border bg-card p-4 pl-5 animate-fade-in"
-                      style={{
-                        borderLeftWidth: 3,
-                        borderLeftColor: p ? p.color : "hsl(var(--accent))",
-                      }}
+                      className="group relative flex items-start gap-3 rounded-xl border border-border bg-card px-3 py-2.5 animate-fade-in transition-all duration-200 ease-expo hover:border-foreground/20 hover:shadow-sm"
                     >
-                      <p className="font-display text-lg leading-snug tracking-tight pr-6">
-                        {it.text}
-                      </p>
-                      <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
-                        {p && (
-                          <span
-                            className="inline-flex items-center gap-1 font-medium"
-                            style={{ color: p.color }}
-                          >
+                      {/* number badge */}
+                      <span
+                        className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-semibold tabular-nums ring-1 ring-inset"
+                        style={{ backgroundColor: soft, color: accent, boxShadow: `inset 0 0 0 1px ${accent}22` }}
+                      >
+                        {it.seq}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-display text-[15px] leading-snug tracking-tight pr-6">
+                          {it.text}
+                        </p>
+                        <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-muted-foreground">
+                          {p && (
                             <span
-                              className="h-1.5 w-1.5 rounded-full"
-                              style={{ backgroundColor: p.color }}
-                            />
-                            {p.name}
-                          </span>
-                        )}
-                        {p && <span aria-hidden>·</span>}
-                        <span className="tabular-nums">{it.time}</span>
+                              className="inline-flex items-center gap-1 font-medium"
+                              style={{ color: p.color }}
+                            >
+                              <span
+                                className="h-1.5 w-1.5 rounded-full"
+                                style={{ backgroundColor: p.color }}
+                              />
+                              {p.name}
+                            </span>
+                          )}
+                          {p && <span aria-hidden>·</span>}
+                          <span className="tabular-nums">{it.time}</span>
+                        </div>
                       </div>
                       <button
                         type="button"
                         onClick={() => remove(it.id)}
                         aria-label="Șterge"
-                        className="absolute right-2 top-2 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground/0 group-hover:text-muted-foreground hover:bg-secondary hover:!text-destructive transition-colors"
+                        className="absolute right-1.5 top-1.5 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground/0 group-hover:text-muted-foreground/70 hover:bg-secondary hover:!text-destructive transition-colors"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
