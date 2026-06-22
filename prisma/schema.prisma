@@ -262,6 +262,17 @@ model GratitudeItem {
   @@index([createdAt])
 }
 
+// Web Push subscriptions (one per device/browser). `person` ("cip" | "axy")
+// lets us skip notifying the author of their own addition.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  person    String?
+  createdAt DateTime @default(now())
+}
+
 // Tracks Revolut CSVs that have already been processed (filename + line hash).
 model ImportBatch {
   id          String   @id @default(cuid())
