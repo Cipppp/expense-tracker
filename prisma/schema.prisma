@@ -250,6 +250,18 @@ model ChoreWeek {
   updatedAt DateTime @updatedAt @default(now())
 }
 
+// "Lista pentru care merită să trăim" — an append-only gratitude list both
+// partners add to, one little thing at a time. `author` is "cip" | "axy" (or
+// null if unattributed).
+model GratitudeItem {
+  id        String   @id @default(cuid())
+  text      String
+  author    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 // Tracks Revolut CSVs that have already been processed (filename + line hash).
 model ImportBatch {
   id          String   @id @default(cuid())

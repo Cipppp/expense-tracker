@@ -57,6 +57,7 @@ import { ShoppingCartSimple } from "@phosphor-icons/react/dist/ssr/ShoppingCartS
 import { Sparkle as PSparkle } from "@phosphor-icons/react/dist/ssr/Sparkle";
 import { CheckCircle as PCheckCircle } from "@phosphor-icons/react/dist/ssr/CheckCircle";
 import { ArrowsLeftRight as PArrowsLeftRight } from "@phosphor-icons/react/dist/ssr/ArrowsLeftRight";
+import { Heart as PHeart } from "@phosphor-icons/react/dist/ssr/Heart";
 
 // Re-exports — keep Lucide names so existing callsites work. Phosphor's
 // default `regular` weight is close to Lucide's stroke; no wrapper needed.
@@ -113,3 +114,4 @@ export const ShoppingCart = ShoppingCartSimple;
 export const Sparkle = PSparkle;
 export const CheckCircle = PCheckCircle;
 export const ArrowsLeftRight = PArrowsLeftRight;
+export const Heart = PHeart;
