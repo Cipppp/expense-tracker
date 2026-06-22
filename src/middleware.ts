@@ -14,6 +14,8 @@ const PUBLIC_PATHS = new Set<string>([
   "/api/timelog",
   // PWA assets — must be public so iPhone can install
   "/manifest.webmanifest",
+  // Push service worker — must be fetchable at the origin root
+  "/sw.js",
 ]);
 
 export async function middleware(req: NextRequest) {

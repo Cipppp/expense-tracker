@@ -58,6 +58,8 @@ import { Sparkle as PSparkle } from "@phosphor-icons/react/dist/ssr/Sparkle";
 import { CheckCircle as PCheckCircle } from "@phosphor-icons/react/dist/ssr/CheckCircle";
 import { ArrowsLeftRight as PArrowsLeftRight } from "@phosphor-icons/react/dist/ssr/ArrowsLeftRight";
 import { Heart as PHeart } from "@phosphor-icons/react/dist/ssr/Heart";
+import { Bell as PBell } from "@phosphor-icons/react/dist/ssr/Bell";
+import { BellSlash as PBellSlash } from "@phosphor-icons/react/dist/ssr/BellSlash";
 
 // Re-exports — keep Lucide names so existing callsites work. Phosphor's
 // default `regular` weight is close to Lucide's stroke; no wrapper needed.
@@ -115,3 +117,5 @@ export const Sparkle = PSparkle;
 export const CheckCircle = PCheckCircle;
 export const ArrowsLeftRight = PArrowsLeftRight;
 export const Heart = PHeart;
+export const Bell = PBell;
+export const BellSlash = PBellSlash;

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Heart, Plus, Trash2 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { PEOPLE, type PersonKey } from "@/lib/chores";
+import { EnableNotifications } from "@/components/push/enable-notifications";
 
 export type Item = {
   id: string;
@@ -156,6 +157,9 @@ export function GratitudeList({
             ? "Adaugă primul motiv de mai jos."
             : `${total} ${total === 1 ? "motiv" : "de motive"} până acum · câte unul în fiecare zi.`}
         </p>
+        <div className="mt-3">
+          <EnableNotifications />
+        </div>
       </header>
 
       {/* Add box */}
