@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Search,
   Broom,
+  Heart,
 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -35,6 +36,7 @@ const nav = [
   { href: "/income", label: "Income", icon: TrendingUp },
   { href: "/invoices", label: "Invoices", icon: FileText },
   { href: "/chores", label: "Chores", icon: Broom },
+  { href: "/gratitude", label: "Gratitude", icon: Heart },
   { href: "/import", label: "Import", icon: Upload },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const;
