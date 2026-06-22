@@ -148,7 +148,7 @@ export function GratitudeList({
           Recunoștință
         </div>
         <h1 className="mt-1 font-display text-2xl sm:text-4xl tracking-tight">
-          Pentru ce merită să trăim
+          Pentru ce merită să fim fericiți împreună
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {total === 0
