@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 // un test" button so you can confirm notifications actually arrive.
 export async function POST() {
   await sendPushToAll({
-    title: "❤️ Test",
-    body: "Notificările merg! Aici vor apărea motivele noi.",
+    title: "Notificare de test",
+    body: "Funcționează — aici vor apărea motivele noi.",
     url: "/gratitude",
     tag: "test",
   });
