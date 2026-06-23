@@ -81,7 +81,7 @@ export function EnableNotifications() {
       });
       if (!res.ok) throw new Error();
       setState("granted");
-      toast.success("Notificările sunt active ❤️");
+      toast.success("Notificările sunt active");
     } catch {
       setState("default");
       toast.error("N-am putut activa notificările.");

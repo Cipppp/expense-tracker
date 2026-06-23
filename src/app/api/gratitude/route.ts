@@ -28,11 +28,11 @@ export async function POST(req: Request) {
       ? "Cip"
       : parsed.data.author === "axy"
         ? "Axy"
-        : "Cineva";
+        : null;
   await sendPushToAll(
     {
-      title: "❤️ Un nou motiv",
-      body: `${who}: ${parsed.data.text}`,
+      title: who ? `${who} a adăugat un motiv` : "Un motiv nou pe listă",
+      body: parsed.data.text,
       url: "/gratitude",
       tag: `gratitude-${item.id}`,
     },

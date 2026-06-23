@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, Plus, Trash2 } from "@/lib/icons";
+import { Sparkle, Plus, Trash2, Pencil } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { PEOPLE, type PersonKey } from "@/lib/chores";
 import { EnableNotifications } from "@/components/push/enable-notifications";
@@ -32,6 +32,8 @@ export function GratitudeList({
   const [text, setText] = useState("");
   const [author, setAuthor] = useState<PersonKey | null>(null);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   // Remember who's adding, per device.
@@ -135,10 +137,67 @@ export function GratitudeList({
     }
   }
 
+  function startEdit(it: Item) {
+    setEditingId(it.id);
+    setDraft(it.text);
+  }
+  function cancelEdit() {
+    setEditingId(null);
+    setDraft("");
+  }
+  async function saveEdit(id: string) {
+    const value = draft.trim();
+    if (!value) return;
+    // capture the current text so we can revert on failure
+    let prev = "";
+    for (const g of groups) {
+      const found = g.items.find((it) => it.id === id);
+      if (found) prev = found.text;
+    }
+    if (value === prev) {
+      cancelEdit();
+      return;
+    }
+    setGroups((gs) =>
+      gs.map((g) => ({
+        ...g,
+        items: g.items.map((it) => (it.id === id ? { ...it, text: value } : it)),
+      })),
+    );
+    cancelEdit();
+    try {
+      const res = await fetch(`/api/gratitude/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: value }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setGroups((gs) =>
+        gs.map((g) => ({
+          ...g,
+          items: g.items.map((it) =>
+            it.id === id ? { ...it, text: prev } : it,
+          ),
+        })),
+      );
+      toast.error("N-am putut salva modificarea");
+    }
+  }
+
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       add();
+    }
+  }
+  function onEditKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>, id: string) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      saveEdit(id);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      cancelEdit();
     }
   }
 
@@ -146,7 +205,7 @@ export function GratitudeList({
     <div className="space-y-8 max-w-2xl">
       <header>
         <div className="flex items-center gap-2 text-xs uppercase tracking-[0.15em] text-muted-foreground">
-          <Heart weight="fill" className="h-3.5 w-3.5 text-accent" />
+          <Sparkle weight="fill" className="h-3.5 w-3.5 text-accent" />
           Recunoștință
         </div>
         <h1 className="mt-1 font-display text-2xl sm:text-4xl tracking-tight">
@@ -220,7 +279,7 @@ export function GratitudeList({
       {/* Entries */}
       {groups.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border px-6 py-16 text-center">
-          <Heart className="mx-auto h-8 w-8 text-muted-foreground/40" />
+          <Sparkle className="mx-auto h-8 w-8 text-muted-foreground/40" />
           <p className="mt-3 text-sm text-muted-foreground">
             Încă nimic pe listă. Primul lucru frumos începe aici.
           </p>
@@ -256,34 +315,80 @@ export function GratitudeList({
                         {it.seq}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="font-display text-[15px] leading-snug tracking-tight pr-6">
-                          {it.text}
-                        </p>
-                        <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-muted-foreground">
-                          {p && (
-                            <span
-                              className="inline-flex items-center gap-1 font-medium"
-                              style={{ color: p.color }}
-                            >
-                              <span
-                                className="h-1.5 w-1.5 rounded-full"
-                                style={{ backgroundColor: p.color }}
-                              />
-                              {p.name}
-                            </span>
-                          )}
-                          {p && <span aria-hidden>·</span>}
-                          <span className="tabular-nums">{it.time}</span>
-                        </div>
+                        {editingId === it.id ? (
+                          <div className="space-y-2">
+                            <textarea
+                              value={draft}
+                              onChange={(e) => setDraft(e.target.value)}
+                              onKeyDown={(e) => onEditKeyDown(e, it.id)}
+                              rows={2}
+                              maxLength={500}
+                              autoFocus
+                              className="w-full resize-none rounded-md border border-input bg-background px-2 py-1.5 font-display text-[15px] leading-snug outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            />
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="accent"
+                                className="h-7 px-2.5 text-xs"
+                                onClick={() => saveEdit(it.id)}
+                                disabled={draft.trim().length === 0}
+                              >
+                                Salvează
+                              </Button>
+                              <button
+                                type="button"
+                                onClick={cancelEdit}
+                                className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                              >
+                                Anulează
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="font-display text-[15px] leading-snug tracking-tight pr-12">
+                              {it.text}
+                            </p>
+                            <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-muted-foreground">
+                              {p && (
+                                <span
+                                  className="inline-flex items-center gap-1 font-medium"
+                                  style={{ color: p.color }}
+                                >
+                                  <span
+                                    className="h-1.5 w-1.5 rounded-full"
+                                    style={{ backgroundColor: p.color }}
+                                  />
+                                  {p.name}
+                                </span>
+                              )}
+                              {p && <span aria-hidden>·</span>}
+                              <span className="tabular-nums">{it.time}</span>
+                            </div>
+                          </>
+                        )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => remove(it.id)}
-                        aria-label="Șterge"
-                        className="absolute right-1.5 top-1.5 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground/0 group-hover:text-muted-foreground/70 hover:bg-secondary hover:!text-destructive transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      {editingId !== it.id && (
+                        <div className="absolute right-1.5 top-1.5 flex gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => startEdit(it)}
+                            aria-label="Editează"
+                            className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground/0 group-hover:text-muted-foreground/70 hover:bg-secondary hover:!text-foreground transition-colors"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => remove(it.id)}
+                            aria-label="Șterge"
+                            className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground/0 group-hover:text-muted-foreground/70 hover:bg-secondary hover:!text-destructive transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </li>
                   );
                 })}
