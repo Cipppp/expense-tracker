@@ -59,6 +59,8 @@ import { CheckCircle as PCheckCircle } from "@phosphor-icons/react/dist/ssr/Chec
 import { ArrowsLeftRight as PArrowsLeftRight } from "@phosphor-icons/react/dist/ssr/ArrowsLeftRight";
 import { Heart as PHeart } from "@phosphor-icons/react/dist/ssr/Heart";
 import { Camera as PCamera } from "@phosphor-icons/react/dist/ssr/Camera";
+import { PushPin as PPushPin } from "@phosphor-icons/react/dist/ssr/PushPin";
+import { Smiley as PSmiley } from "@phosphor-icons/react/dist/ssr/Smiley";
 import { Bell as PBell } from "@phosphor-icons/react/dist/ssr/Bell";
 import { BellSlash as PBellSlash } from "@phosphor-icons/react/dist/ssr/BellSlash";
 
@@ -119,5 +121,7 @@ export const CheckCircle = PCheckCircle;
 export const ArrowsLeftRight = PArrowsLeftRight;
 export const Heart = PHeart;
 export const Camera = PCamera;
+export const PushPin = PPushPin;
+export const Smiley = PSmiley;
 export const Bell = PBell;
 export const BellSlash = PBellSlash;

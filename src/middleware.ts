@@ -16,6 +16,8 @@ const PUBLIC_PATHS = new Set<string>([
   "/manifest.webmanifest",
   // Push service worker — must be fetchable at the origin root
   "/sw.js",
+  // Vercel Cron endpoint — authenticated by CRON_SECRET, not the session
+  "/api/cron/gratitude-reminder",
 ]);
 
 export async function middleware(req: NextRequest) {
