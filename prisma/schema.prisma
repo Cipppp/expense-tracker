@@ -258,9 +258,26 @@ model GratitudeItem {
   text      String
   author    String?
   photoKey  String?  // S3 object key in the private photos bucket (optional)
+  pinned    Boolean  @default(false)
+  tags      String[] @default([])
   createdAt DateTime @default(now())
 
+  reactions GratitudeReaction[]
+
   @@index([createdAt])
+}
+
+// WhatsApp-style reactions: one per person per entry (any emoji), replaceable.
+model GratitudeReaction {
+  id        String        @id @default(cuid())
+  itemId    String
+  person    String        // "cip" | "axy"
+  emoji     String
+  createdAt DateTime      @default(now())
+  item      GratitudeItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, person])
+  @@index([itemId])
 }
 
 // Web Push subscriptions (one per device/browser). `person` ("cip" | "axy")

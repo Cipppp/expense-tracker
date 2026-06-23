@@ -4,7 +4,11 @@ import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-const Patch = z.object({ text: z.string().trim().min(1).max(500) });
+const Patch = z.object({
+  text: z.string().trim().min(1).max(500).optional(),
+  pinned: z.boolean().optional(),
+  tags: z.array(z.string().trim().min(1).max(30)).max(8).optional(),
+});
 
 export async function PATCH(
   req: Request,
@@ -14,10 +18,20 @@ export async function PATCH(
   const json = await req.json().catch(() => null);
   const parsed = Patch.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid text" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
+  const { text, pinned, tags } = parsed.data;
   const item = await db.gratitudeItem
-    .update({ where: { id }, data: { text: parsed.data.text } })
+    .update({
+      where: { id },
+      data: {
+        ...(text !== undefined ? { text } : {}),
+        ...(pinned !== undefined ? { pinned } : {}),
+        ...(tags !== undefined
+          ? { tags: Array.from(new Set(tags.map((t) => t.trim()).filter(Boolean))) }
+          : {}),
+      },
+    })
     .catch(() => null);
   if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ ok: true, item });
