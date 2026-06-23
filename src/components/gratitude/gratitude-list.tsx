@@ -19,30 +19,13 @@ import {
 import { cn } from "@/lib/utils";
 import { PEOPLE, type PersonKey } from "@/lib/chores";
 import { EnableNotifications } from "@/components/push/enable-notifications";
-
-export type Reaction = { person: PersonKey; emoji: string };
-export type Item = {
-  id: string;
-  text: string;
-  author: PersonKey | null;
-  time: string;
-  seq: number;
-  hasPhoto: boolean;
-  photoUrl: string | null;
-  pinned: boolean;
-  tags: string[];
-  reactions: Reaction[];
-  _photoKey?: string | null;
-};
-export type Group = { key: string; label: string; items: Item[] };
-export type Memory = { text: string; author: PersonKey | null; when: string };
-export type Recap = {
-  month: string;
-  count: number;
-  cip: number;
-  axy: number;
-  photos: number;
-};
+import type {
+  GratitudeFeed,
+  Group,
+  Item,
+  Memory,
+  Reaction,
+} from "@/lib/gratitude";
 
 const AUTHOR_KEY = "gratitude:author";
 
@@ -63,18 +46,15 @@ function tagColor(t: string): string {
 export function GratitudeList({
   groups: initialGroups,
   total: initialTotal,
-  streak,
-  memory,
-  recap,
-}: {
-  groups: Group[];
-  total: number;
-  streak: number;
-  memory: Memory | null;
-  recap: Recap;
-}) {
+  streak: initialStreak,
+  memory: initialMemory,
+  recap: initialRecap,
+}: GratitudeFeed) {
   const [groups, setGroups] = useState<Group[]>(initialGroups);
   const [total, setTotal] = useState(initialTotal);
+  const [streak, setStreak] = useState(initialStreak);
+  const [memory, setMemory] = useState<Memory | null>(initialMemory);
+  const [recap, setRecap] = useState(initialRecap);
   const [text, setText] = useState("");
   const [author, setAuthor] = useState<PersonKey | null>(null);
   const [saving, setSaving] = useState(false);
@@ -109,6 +89,39 @@ export function GratitudeList({
       /* ignore */
     }
   }
+
+  // Near-real-time: poll the feed every ~8s while the tab is visible and the
+  // user isn't mid-edit/save/upload (so we never clobber in-flight work).
+  // React reconciles by id, so unchanged cards don't flicker.
+  useEffect(() => {
+    let stopped = false;
+    async function poll() {
+      if (document.hidden || editingId || saving || uploadingId) return;
+      try {
+        const res = await fetch("/api/gratitude/feed", { cache: "no-store" });
+        if (!res.ok || stopped) return;
+        const feed: GratitudeFeed = await res.json();
+        if (stopped) return;
+        setGroups(feed.groups);
+        setTotal(feed.total);
+        setStreak(feed.streak);
+        setMemory(feed.memory);
+        setRecap(feed.recap);
+      } catch {
+        /* ignore transient errors */
+      }
+    }
+    const id = setInterval(poll, 8000);
+    const onVisible = () => {
+      if (!document.hidden) poll();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      stopped = true;
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [editingId, saving, uploadingId]);
 
   function patchItem(id: string, patch: Partial<Item>) {
     setGroups((gs) =>
