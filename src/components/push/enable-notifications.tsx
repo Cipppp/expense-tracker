@@ -88,11 +88,6 @@ export function EnableNotifications() {
     }
   }
 
-  async function test() {
-    await fetch("/api/push/test", { method: "POST" }).catch(() => {});
-    toast.message("Am trimis un test — ar trebui să-ți apară imediat.");
-  }
-
   if (state === "loading") return null;
 
   if (state === "unsupported") {
@@ -117,19 +112,10 @@ export function EnableNotifications() {
 
   if (state === "granted") {
     return (
-      <div className="flex items-center gap-2 text-[11px]">
-        <span className="inline-flex items-center gap-1 text-success">
-          <Check className="h-3.5 w-3.5" />
-          Notificări active
-        </span>
-        <button
-          type="button"
-          onClick={test}
-          className="text-muted-foreground underline-offset-2 hover:underline"
-        >
-          trimite un test
-        </button>
-      </div>
+      <span className="inline-flex items-center gap-1 text-[11px] text-success">
+        <Check className="h-3.5 w-3.5" />
+        Notificări active
+      </span>
     );
   }
 
