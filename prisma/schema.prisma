@@ -257,6 +257,7 @@ model GratitudeItem {
   id        String   @id @default(cuid())
   text      String
   author    String?
+  photoKey  String?  // S3 object key in the private photos bucket (optional)
   createdAt DateTime @default(now())
 
   @@index([createdAt])

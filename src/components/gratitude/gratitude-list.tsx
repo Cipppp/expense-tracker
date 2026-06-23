@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sparkle, Plus, Trash2, Pencil } from "@/lib/icons";
+import { Sparkle, Plus, Trash2, Pencil, Camera, X, Loader2 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { PEOPLE, type PersonKey } from "@/lib/chores";
 import { EnableNotifications } from "@/components/push/enable-notifications";
@@ -15,6 +15,9 @@ export type Item = {
   author: PersonKey | null;
   time: string;
   seq: number;
+  hasPhoto: boolean;
+  photoUrl: string | null;
+  _photoKey?: string | null; // server-internal, stripped before send
 };
 export type Group = { key: string; label: string; items: Item[] };
 
@@ -34,7 +37,11 @@ export function GratitudeList({
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{ id: string; url: string } | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const pendingPhotoId = useRef<string | null>(null);
 
   // Remember who's adding, per device.
   useEffect(() => {
@@ -65,7 +72,15 @@ export function GratitudeList({
       hour: "2-digit",
       minute: "2-digit",
     });
-    const optimistic: Item = { id: tempId, text: value, author, time, seq: total + 1 };
+    const optimistic: Item = {
+      id: tempId,
+      text: value,
+      author,
+      time,
+      seq: total + 1,
+      hasPhoto: false,
+      photoUrl: null,
+    };
 
     // Prepend into today's group ("Azi"), creating it if needed.
     setGroups((gs) => {
@@ -182,6 +197,96 @@ export function GratitudeList({
         })),
       );
       toast.error("N-am putut salva modificarea");
+    }
+  }
+
+  // --- photos -------------------------------------------------------------
+  function patchItem(id: string, patch: Partial<Item>) {
+    setGroups((gs) =>
+      gs.map((g) => ({
+        ...g,
+        items: g.items.map((it) => (it.id === id ? { ...it, ...patch } : it)),
+      })),
+    );
+  }
+
+  // Downscale + re-encode in the browser: keeps the upload small (under the
+  // serverless body limit) and strips EXIF/GPS metadata.
+  async function downscale(file: File, maxDim = 1600, quality = 0.82): Promise<Blob> {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise<HTMLImageElement>((res, rej) => {
+        const i = new Image();
+        i.onload = () => res(i);
+        i.onerror = rej;
+        i.src = url;
+      });
+      let w = img.naturalWidth || img.width;
+      let h = img.naturalHeight || img.height;
+      if (w > maxDim || h > maxDim) {
+        const s = Math.min(maxDim / w, maxDim / h);
+        w = Math.round(w * s);
+        h = Math.round(h * s);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("no ctx");
+      ctx.drawImage(img, 0, 0, w, h);
+      const blob = await new Promise<Blob | null>((res) =>
+        canvas.toBlob(res, "image/jpeg", quality),
+      );
+      if (!blob) throw new Error("encode failed");
+      return blob;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  function pickPhoto(id: string) {
+    pendingPhotoId.current = id;
+    fileRef.current?.click();
+  }
+
+  async function onPhotoChosen(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const id = pendingPhotoId.current;
+    e.target.value = ""; // allow re-picking the same file
+    if (!file || !id) return;
+    setUploadingId(id);
+    try {
+      const blob = await downscale(file);
+      const fd = new FormData();
+      fd.append("photo", new File([blob], "photo.jpg", { type: "image/jpeg" }));
+      const res = await fetch(`/api/gratitude/${id}/photo`, {
+        method: "POST",
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error);
+      }
+      const { photoUrl } = await res.json();
+      patchItem(id, { hasPhoto: true, photoUrl });
+      toast.success("Poză adăugată");
+    } catch (err) {
+      toast.error(err instanceof Error && err.message ? err.message : "N-am putut încărca poza");
+    } finally {
+      setUploadingId(null);
+    }
+  }
+
+  async function removePhoto(id: string) {
+    patchItem(id, { hasPhoto: false, photoUrl: null });
+    setLightbox(null);
+    try {
+      const res = await fetch(`/api/gratitude/${id}/photo`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      toast.success("Poză ștearsă");
+    } catch {
+      toast.error("N-am putut șterge poza");
+      location.reload();
     }
   }
 
@@ -366,11 +471,41 @@ export function GratitudeList({
                               {p && <span aria-hidden>·</span>}
                               <span className="tabular-nums">{it.time}</span>
                             </div>
+                            {it.hasPhoto && it.photoUrl && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setLightbox({ id: it.id, url: it.photoUrl! })
+                                }
+                                className="mt-2 block overflow-hidden rounded-lg border border-border transition-opacity hover:opacity-90"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={it.photoUrl}
+                                  alt=""
+                                  loading="lazy"
+                                  className="max-h-56 w-full object-cover"
+                                />
+                              </button>
+                            )}
                           </>
                         )}
                       </div>
                       {editingId !== it.id && (
                         <div className="absolute right-1.5 top-1.5 flex gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => pickPhoto(it.id)}
+                            disabled={uploadingId === it.id}
+                            aria-label={it.hasPhoto ? "Schimbă poza" : "Adaugă poză"}
+                            className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground/0 group-hover:text-muted-foreground/70 hover:bg-secondary hover:!text-foreground transition-colors disabled:opacity-100"
+                          >
+                            {uploadingId === it.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />
+                            ) : (
+                              <Camera className="h-3.5 w-3.5" />
+                            )}
+                          </button>
                           <button
                             type="button"
                             onClick={() => startEdit(it)}
@@ -395,6 +530,50 @@ export function GratitudeList({
               </ul>
             </section>
           ))}
+        </div>
+      )}
+
+      {/* hidden picker for photo uploads */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={onPhotoChosen}
+      />
+
+      {/* full-image lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/85 p-4 animate-fade-in"
+          onClick={() => setLightbox(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightbox.url}
+            alt=""
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[80vh] max-w-full rounded-lg object-contain"
+          />
+          <div
+            className="flex items-center gap-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => removePhoto(lightbox.id)}
+              className="inline-flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-1.5 text-sm text-white transition-colors hover:bg-destructive"
+            >
+              <Trash2 className="h-4 w-4" /> Șterge poza
+            </button>
+            <button
+              type="button"
+              onClick={() => setLightbox(null)}
+              className="inline-flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-1.5 text-sm text-white transition-colors hover:bg-white/20"
+            >
+              <X className="h-4 w-4" /> Închide
+            </button>
+          </div>
         </div>
       )}
     </div>
