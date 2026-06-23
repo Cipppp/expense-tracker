@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { presignGet, photosConfigured } from "@/lib/s3";
 import { GratitudeList, type Group } from "@/components/gratitude/gratitude-list";
 
 export const dynamic = "force-dynamic";
@@ -52,8 +53,23 @@ export default async function GratitudePage() {
       author: (it.author as "cip" | "axy" | null) ?? null,
       time: timeLabel(it.createdAt),
       seq: seq--,
+      hasPhoto: Boolean(it.photoKey),
+      photoUrl: null,
+      _photoKey: it.photoKey ?? null,
     });
   }
+
+  // Sign all photo URLs in parallel (short-lived, private bucket).
+  if (photosConfigured) {
+    const withPhoto = groups.flatMap((g) => g.items).filter((i) => i._photoKey);
+    await Promise.all(
+      withPhoto.map(async (i) => {
+        i.photoUrl = await presignGet(i._photoKey as string).catch(() => null);
+      }),
+    );
+  }
+  // Drop the internal key before sending to the client.
+  for (const g of groups) for (const i of g.items) delete i._photoKey;
 
   return <GratitudeList groups={groups} total={total} />;
 }

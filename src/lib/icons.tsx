@@ -58,6 +58,7 @@ import { Sparkle as PSparkle } from "@phosphor-icons/react/dist/ssr/Sparkle";
 import { CheckCircle as PCheckCircle } from "@phosphor-icons/react/dist/ssr/CheckCircle";
 import { ArrowsLeftRight as PArrowsLeftRight } from "@phosphor-icons/react/dist/ssr/ArrowsLeftRight";
 import { Heart as PHeart } from "@phosphor-icons/react/dist/ssr/Heart";
+import { Camera as PCamera } from "@phosphor-icons/react/dist/ssr/Camera";
 import { Bell as PBell } from "@phosphor-icons/react/dist/ssr/Bell";
 import { BellSlash as PBellSlash } from "@phosphor-icons/react/dist/ssr/BellSlash";
 
@@ -117,5 +118,6 @@ export const Sparkle = PSparkle;
 export const CheckCircle = PCheckCircle;
 export const ArrowsLeftRight = PArrowsLeftRight;
 export const Heart = PHeart;
+export const Camera = PCamera;
 export const Bell = PBell;
 export const BellSlash = PBellSlash;
