@@ -441,7 +441,6 @@ export function SupplementsBoard({
             const partial = applicable.filter(
               (s) => cFor(s.key) > 0 && cFor(s.key) < s.target,
             );
-            const missed = applicable.filter((s) => s.daily && cFor(s.key) === 0);
             const dailyApplicable = dailyItemsFor(pk);
             const doneDaily = dailyApplicable.filter((s) => cFor(s.key) >= s.target).length;
             const pct = Math.round(adherence(pk, day) * 100);
@@ -472,36 +471,29 @@ export function SupplementsBoard({
                 className="rounded-lg border p-3"
                 style={{ borderColor: `${p.color}44`, background: p.soft }}
               >
-                <div className="flex items-center gap-2">
-                  <span
-                    className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-semibold text-white"
-                    style={{ backgroundColor: p.color }}
-                  >
-                    {p.name.slice(0, 2)}
-                  </span>
+                <div className="flex items-center gap-3">
+                  <Donut pct={pct} color={p.color} />
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium leading-none">{p.name}</div>
-                    <div className="mt-0.5 text-[10.5px] text-muted-foreground">
-                      {doneDaily}/{dailyApplicable.length} zilnice
-                      {lastTs > 0 &&
-                        ` · ultima bifă ${new Date(lastTs).toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" })}`}
+                    <div className="text-sm font-semibold leading-none">{p.name}</div>
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      <span className="font-medium tabular-nums text-foreground">
+                        {doneDaily}
+                      </span>
+                      /{dailyApplicable.length} din planul zilnic
                     </div>
+                    {lastTs > 0 && (
+                      <div className="mt-0.5 text-[10px] text-muted-foreground/70 tabular-nums">
+                        ultima bifă{" "}
+                        {new Date(lastTs).toLocaleTimeString("ro-RO", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                    )}
                   </div>
-                  <span
-                    className="text-lg font-semibold tabular-nums"
-                    style={{ color: p.color }}
-                  >
-                    {pct}%
-                  </span>
                 </div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-foreground/10">
-                  <div
-                    className="h-full rounded-full transition-[width] duration-500 ease-expo"
-                    style={{ width: `${pct}%`, backgroundColor: p.color }}
-                  />
-                </div>
-                {(complete.length > 0 || partial.length > 0) && (
-                  <div className="mt-2.5 flex flex-wrap gap-1">
+                {complete.length > 0 || partial.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-1">
                     {complete.map((s) => (
                       <span
                         key={s.key}
@@ -523,23 +515,10 @@ export function SupplementsBoard({
                       </span>
                     ))}
                   </div>
-                )}
-                {missed.length > 0 && (
-                  <div className="mt-2">
-                    <div className="text-[9.5px] font-medium uppercase tracking-wider text-muted-foreground/70">
-                      {day === today ? "De luat încă" : "Sărite"}
-                    </div>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {missed.map((s) => (
-                        <span
-                          key={s.key}
-                          className="rounded-full border border-border/70 px-2 py-0.5 text-[10.5px] text-muted-foreground"
-                        >
-                          {s.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                ) : (
+                  <p className="mt-3 text-[11px] text-muted-foreground/70">
+                    {day === today ? "Încă nimic bifat azi." : "Nimic bifat în ziua asta."}
+                  </p>
                 )}
                 {totalsBits.length > 0 && (
                   <div className="mt-2.5 border-t border-foreground/10 pt-2 text-[10.5px] text-muted-foreground">
@@ -557,7 +536,7 @@ export function SupplementsBoard({
         <h3 className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground">
           Totaluri azi · {PEOPLE[person].name}
         </h3>
-        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px] sm:grid-cols-3">
+        <div className="mt-3 grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-3">
           <Total label="Vitamina D" value={totals.vitaminD_IU} unit="UI" max={4000} />
           <Total label="Zinc" value={totals.zinc_mg} unit="mg" max={40} />
           <Total label="Magneziu" value={totals.magnesium_mg} unit="mg" max={350} />
@@ -735,6 +714,8 @@ export function SupplementsBoard({
   );
 }
 
+/** One nutrient row in the daily totals: value vs the safe daily limit,
+ * with a thin bar that shifts amber near the limit and red over it. */
 function Total({
   label,
   value,
@@ -746,20 +727,68 @@ function Total({
   unit: string;
   max: number;
 }) {
-  if (value <= 0)
-    return (
-      <div className="text-muted-foreground/50">
-        {label}: <span className="tabular-nums">0</span>
-      </div>
-    );
+  const pct = Math.min((value / max) * 100, 100);
   const over = value > max;
+  const near = !over && value > max * 0.75;
+  const zero = value <= 0;
   return (
-    <div className={cn(over && "text-destructive font-medium")}>
-      {label}:{" "}
-      <span className="tabular-nums font-medium">
-        {Math.round(value)} {unit}
+    <div className={cn(zero && "opacity-40")}>
+      <div className="flex items-baseline justify-between gap-2 text-[11px]">
+        <span className="text-muted-foreground">{label}</span>
+        <span className={cn("tabular-nums font-medium", over && "text-destructive")}>
+          {Math.round(value)}
+          <span className="font-normal text-muted-foreground/60"> / {max} {unit}</span>
+        </span>
+      </div>
+      <div className="mt-1 h-1 overflow-hidden rounded-full bg-secondary">
+        <div
+          className={cn(
+            "h-full rounded-full transition-[width] duration-500 ease-expo",
+            over ? "bg-destructive" : near ? "bg-amber-500" : "bg-success",
+          )}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Small SVG donut with the percentage centered, used in the day recap. */
+function Donut({ pct, color, size = 60 }: { pct: number; color: string; size?: number }) {
+  const stroke = 6;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const filled = (Math.min(pct, 100) / 100) * c;
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="currentColor"
+          strokeOpacity={0.12}
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={`${filled} ${c}`}
+          className="transition-[stroke-dasharray] duration-500 ease-expo"
+        />
+      </svg>
+      <span
+        className="absolute inset-0 grid place-items-center text-[13px] font-semibold tabular-nums"
+        style={{ color }}
+      >
+        {pct}%
       </span>
-      <span className="text-muted-foreground/60 text-[11px]"> / {max}</span>
     </div>
   );
 }
