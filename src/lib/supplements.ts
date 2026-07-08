@@ -16,6 +16,8 @@ export type Supplement = {
   brand: string;
   /** One-line contents summary shown on the card. */
   short: string;
+  /** The 2–3 most important things it helps with (info sheet). */
+  benefits: string[];
   /** What one "unit" is, e.g. "capsulă", "comprimat", "fiolă", "porție". */
   unit: string;
   /** Units per day per the label. */
@@ -58,6 +60,11 @@ export const SUPPLEMENTS: Supplement[] = [
     name: "Glutation lipozomal",
     brand: "Youth Essentials",
     short: "Glutation lipozomal 200 mg/caps",
+    benefits: [
+      "Antioxidantul „master” al corpului — protejează celulele de stresul oxidativ și de îmbătrânire.",
+      "Susține ficatul și procesele naturale de detoxifiere.",
+      "Susține imunitatea; la uz îndelungat poate îmbunătăți aspectul tenului.",
+    ],
     unit: "capsulă",
     target: 2,
     timing: "morning",
@@ -78,6 +85,11 @@ export const SUPPLEMENTS: Supplement[] = [
     name: "Probiotic Synergize Your Gut",
     brand: "Good Routine (Secom)",
     short: "7 mld. UFC · 10 tulpini + inulină",
+    benefits: [
+      "Echilibrează flora intestinală — digestie mai ușoară, mai puțină balonare.",
+      "Susține imunitatea (o mare parte din sistemul imunitar e în intestin).",
+      "Util după antibiotice sau perioade cu alimentație dezordonată; inulina hrănește bacteriile bune.",
+    ],
     unit: "capsulă",
     target: 1,
     timing: "morning",
@@ -99,6 +111,11 @@ export const SUPPLEMENTS: Supplement[] = [
     name: "Centrum Women",
     brand: "Centrum (A–Zinc)",
     short: "A–Zinc: D 400 UI, Fe 10, Zn 5, Mg 100, Ca 320",
+    benefits: [
+      "Plasă de siguranță zilnică: acoperă bazele de vitamine și minerale la doze moderate, formulate pentru femei.",
+      "Energie și reducerea oboselii (vitaminele B + fier).",
+      "Piele, păr, unghii și oase (biotină, zinc, calciu, vitamina D).",
+    ],
     unit: "comprimat",
     target: 1,
     timing: "morning",
@@ -124,6 +141,11 @@ export const SUPPLEMENTS: Supplement[] = [
     name: "Kollagen 11.000 Plus",
     brand: "Doppelherz system",
     short: "Colagen 11 g + condroitină + C, D3, Cu, Se",
+    benefits: [
+      "Articulații și cartilaje mai mobile (colagen 11 g + condroitină).",
+      "Piele mai elastică, păr și unghii mai puternice.",
+      "Vitamina C din fiolă ajută corpul să-și producă propriul colagen.",
+    ],
     unit: "fiolă",
     target: 1,
     timing: "morning",
@@ -148,6 +170,11 @@ export const SUPPLEMENTS: Supplement[] = [
     name: "Vitamina D3 + K2",
     brand: "Boost4Life Premium",
     short: "D3 2000 UI + K2 MK-7 75 µg + MCT",
+    benefits: [
+      "Imunitate și dispoziție — esențială mai ales din toamnă până în primăvară.",
+      "Oase și dinți puternici: D3 absoarbe calciul, iar K2 îl direcționează în oase (nu în artere).",
+      "Susține funcția musculară și nivelul normal de testosteron.",
+    ],
     unit: "capsulă",
     target: 1,
     timing: "morning",
@@ -172,6 +199,11 @@ export const SUPPLEMENTS: Supplement[] = [
     name: "Fier bisglicinat",
     brand: "Boost4Life Premium Iron",
     short: "Fier elemental 14 mg (bisglicinat)",
+    benefits: [
+      "Combate oboseala, amețeala și paloarea din deficitul de fier (frecvent la menstruație).",
+      "Esențial pentru hemoglobină — transportul oxigenului în corp.",
+      "Forma bisglicinat e blândă cu stomacul și se absoarbe bine.",
+    ],
     unit: "capsulă",
     target: 1,
     timing: "noon",
@@ -198,6 +230,11 @@ export const SUPPLEMENTS: Supplement[] = [
     name: "Omega-3 Premium 1500",
     brand: "Doppelherz system",
     short: "EPA 780 + DHA 495 mg + D3 800 UI / 2 caps",
+    benefits: [
+      "Inimă sănătoasă — EPA contribuie la trigliceride și tensiune normale.",
+      "Creier, memorie și concentrare (DHA).",
+      "Efect antiinflamator natural — recuperare, articulații, vedere.",
+    ],
     unit: "capsulă",
     target: 2,
     timing: "noon",
@@ -220,6 +257,11 @@ export const SUPPLEMENTS: Supplement[] = [
     name: "Zinc 25",
     brand: "Zenyth",
     short: "Zinc elemental 25 mg (sulfat)",
+    benefits: [
+      "Imunitate — poate scurta durata răcelilor.",
+      "Piele curată (acnee), păr și unghii sănătoase; vindecarea rănilor.",
+      "Susține nivelul normal de testosteron și fertilitatea.",
+    ],
     unit: "capsulă",
     target: 1,
     timing: "noon",
@@ -247,6 +289,11 @@ export const SUPPLEMENTS: Supplement[] = [
     name: "Magneziu L-Treonat (Magtein)",
     brand: "Boost4Life",
     short: "Mg L-treonat · 144 mg Mg / 3 caps",
+    benefits: [
+      "Somn mai profund și relaxare — forma L-treonat ajunge eficient la creier.",
+      "Memorie, focus și claritate mentală.",
+      "Reduce oboseala și crampele musculare.",
+    ],
     unit: "capsulă",
     target: 3,
     timing: "evening",
@@ -271,6 +318,11 @@ export const SUPPLEMENTS: Supplement[] = [
     name: "Ashwagandha",
     brand: "GymBeam",
     short: "Extract 500 mg · withanolide 25 mg",
+    benefits: [
+      "Adaptogen: scade cortizolul — mai puțin stres și anxietate.",
+      "Somn mai odihnitor în timp.",
+      "Susține testosteronul, forța și recuperarea la sport.",
+    ],
     unit: "capsulă",
     target: 1,
     timing: "evening",
@@ -298,6 +350,11 @@ export const SUPPLEMENTS: Supplement[] = [
     name: "5-HTP",
     brand: "Nature's Way · Secom",
     short: "5-HTP 50 mg/tab + B6 + C · uzual 2 tab",
+    benefits: [
+      "Adormi mai ușor — precursor de serotonină, care se transformă în melatonină.",
+      "Dispoziție mai bună, mai puțină anxietate.",
+      "Poate tempera pofta de mâncare emoțională.",
+    ],
     unit: "tabletă",
     target: 2,
     timing: "evening",
@@ -326,6 +383,11 @@ export const SUPPLEMENTS: Supplement[] = [
     name: "Gold Standard Pre-Workout",
     brand: "Optimum Nutrition",
     short: "Creatină 3,4 g + beta-alanină + cafeină 175 mg",
+    benefits: [
+      "Energie și focus la antrenament (cafeină + tirozină).",
+      "Rezistență și pump (beta-alanină + citrulină).",
+      "Forță pe termen lung din creatina inclusă.",
+    ],
     unit: "porție",
     target: 1,
     timing: "preworkout",
@@ -352,6 +414,11 @@ export const SUPPLEMENTS: Supplement[] = [
     name: "Impact Creatine",
     brand: "Myprotein (Berry Burst)",
     short: "Creatină monohidrat 3 g",
+    benefits: [
+      "Forță și putere — cel mai bine studiat supliment sportiv care există.",
+      "Recuperare mai rapidă și creștere de masă musculară.",
+      "Bonus: mici beneficii cognitive (memorie de lucru), mai ales la nesomn.",
+    ],
     unit: "porție",
     target: 1,
     timing: "preworkout",
