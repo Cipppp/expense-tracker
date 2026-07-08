@@ -156,13 +156,15 @@ export function SupplementsBoard({
   const countOf = (d: string, p: PersonKey, key: string) => logs.get(lk(d, p, key))?.count ?? 0;
 
   async function tap(s: Supplement) {
-    // Personal items are hard-assigned: the other person can't tick them.
-    if (s.suggestedFor && s.suggestedFor !== person) {
-      toast.error(`${s.name} e în planul lui ${PEOPLE[s.suggestedFor].name}.`);
+    const cur = countOf(day, person, s.key);
+    const otherOwned = s.suggestedFor && s.suggestedFor !== person;
+    // Personal items are hard-assigned: the other person can't START a tick.
+    // A leftover tick (from before the split) is clearable with one tap.
+    if (otherOwned && cur === 0) {
+      toast.error(`${s.name} e în planul lui ${PEOPLE[s.suggestedFor!].name}.`);
       return;
     }
-    const cur = countOf(day, person, s.key);
-    const next = cur >= s.target ? 0 : cur + 1;
+    const next = otherOwned ? 0 : cur >= s.target ? 0 : cur + 1;
     const prev = { count: cur, updatedAt: new Date().toISOString() };
     setLogs((m) => {
       const n = new Map(m);
@@ -376,11 +378,11 @@ export function SupplementsBoard({
                       <button
                         type="button"
                         onClick={() => tap(s)}
-                        disabled={other}
+                        disabled={other && c === 0}
                         aria-label={`Bifează ${s.name}`}
                         className={cn(
                           "grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 transition-all duration-200 ease-expo active:scale-90",
-                          other && "cursor-not-allowed active:scale-100",
+                          other && c === 0 && "cursor-not-allowed active:scale-100",
                           done
                             ? "border-success bg-success text-white"
                             : "border-border text-transparent hover:border-foreground/40",
@@ -397,8 +399,11 @@ export function SupplementsBoard({
                       <button
                         type="button"
                         onClick={() => tap(s)}
-                        disabled={other}
-                        className={cn("min-w-0 flex-1 text-left", other && "cursor-not-allowed")}
+                        disabled={other && c === 0}
+                        className={cn(
+                          "min-w-0 flex-1 text-left",
+                          other && c === 0 && "cursor-not-allowed",
+                        )}
                       >
                         <div className={cn("text-[13px] font-medium leading-tight truncate", done && "line-through decoration-success/60 text-muted-foreground")}>
                           {s.name}
@@ -657,8 +662,27 @@ export function SupplementsBoard({
                 )}
               </div>
 
+              {/* benefits */}
+              {info.benefits.length > 0 && (
+                <div className="mt-3 rounded-lg border border-accent/25 bg-accent/5 px-3 py-2.5">
+                  <div className="text-[9.5px] font-semibold uppercase tracking-wider text-accent">
+                    La ce te ajută
+                  </div>
+                  <ul className="mt-1.5 space-y-1 text-[12px] leading-snug">
+                    {info.benefits.map((x, i) => (
+                      <li key={i} className="flex gap-1.5">
+                        <span className="text-accent/80" aria-hidden>
+                          ✦
+                        </span>
+                        <span>{x}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {/* composition */}
-              <div className="mt-3 rounded-lg bg-secondary/60 px-3 py-2.5">
+              <div className="mt-2.5 rounded-lg bg-secondary/60 px-3 py-2.5">
                 <div className="text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Ce conține
                 </div>
