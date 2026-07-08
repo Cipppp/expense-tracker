@@ -17,6 +17,7 @@ import {
   Search,
   Broom,
   Sparkle,
+  Pill,
 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -37,6 +38,7 @@ const nav = [
   { href: "/invoices", label: "Invoices", icon: FileText },
   { href: "/chores", label: "Chores", icon: Broom },
   { href: "/gratitude", label: "Gratitude", icon: Sparkle },
+  { href: "/supplements", label: "Supplements", icon: Pill },
   { href: "/import", label: "Import", icon: Upload },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const;
