@@ -425,6 +425,133 @@ export function SupplementsBoard({
         );
       })}
 
+      {/* End-of-day recap: who took what */}
+      <section className="rounded-xl border border-border bg-card px-4 py-3.5">
+        <h3 className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground">
+          Rezumatul zilei · <span className="capitalize">{dayLabel(day, today)}</span>
+        </h3>
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {(["cip", "axy"] as PersonKey[]).map((pk) => {
+            const p = PEOPLE[pk];
+            const applicable = SUPPLEMENTS.filter(
+              (s) => !s.suggestedFor || s.suggestedFor === pk,
+            );
+            const cFor = (key: string) => countOf(day, pk, key);
+            const complete = applicable.filter((s) => cFor(s.key) >= s.target);
+            const partial = applicable.filter(
+              (s) => cFor(s.key) > 0 && cFor(s.key) < s.target,
+            );
+            const missed = applicable.filter((s) => s.daily && cFor(s.key) === 0);
+            const dailyApplicable = dailyItemsFor(pk);
+            const doneDaily = dailyApplicable.filter((s) => cFor(s.key) >= s.target).length;
+            const pct = Math.round(adherence(pk, day) * 100);
+            // per-person daily totals
+            const cRec: Record<string, number> = {};
+            for (const s of SUPPLEMENTS) cRec[s.key] = cFor(s.key);
+            const pt = dailyTotals(cRec);
+            const totalsBits = [
+              pt.vitaminD_IU > 0 && `D ${Math.round(pt.vitaminD_IU)} UI`,
+              pt.zinc_mg > 0 && `Zn ${Math.round(pt.zinc_mg)} mg`,
+              pt.magnesium_mg > 0 && `Mg ${Math.round(pt.magnesium_mg)} mg`,
+              pt.iron_mg > 0 && `Fe ${Math.round(pt.iron_mg)} mg`,
+              pt.caffeine_mg > 0 && `Cafeină ${Math.round(pt.caffeine_mg)} mg`,
+              pt.fiveHtp_mg > 0 && `5-HTP ${Math.round(pt.fiveHtp_mg)} mg`,
+            ].filter(Boolean) as string[];
+            // last tick time
+            let lastTs = 0;
+            for (const s of applicable) {
+              const row = logs.get(lk(day, pk, s.key));
+              if (row && row.count > 0) {
+                const ts = new Date(row.updatedAt).getTime();
+                if (ts > lastTs) lastTs = ts;
+              }
+            }
+            return (
+              <div
+                key={pk}
+                className="rounded-lg border p-3"
+                style={{ borderColor: `${p.color}44`, background: p.soft }}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-semibold text-white"
+                    style={{ backgroundColor: p.color }}
+                  >
+                    {p.name.slice(0, 2)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium leading-none">{p.name}</div>
+                    <div className="mt-0.5 text-[10.5px] text-muted-foreground">
+                      {doneDaily}/{dailyApplicable.length} zilnice
+                      {lastTs > 0 &&
+                        ` · ultima bifă ${new Date(lastTs).toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" })}`}
+                    </div>
+                  </div>
+                  <span
+                    className="text-lg font-semibold tabular-nums"
+                    style={{ color: p.color }}
+                  >
+                    {pct}%
+                  </span>
+                </div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-foreground/10">
+                  <div
+                    className="h-full rounded-full transition-[width] duration-500 ease-expo"
+                    style={{ width: `${pct}%`, backgroundColor: p.color }}
+                  />
+                </div>
+                {(complete.length > 0 || partial.length > 0) && (
+                  <div className="mt-2.5 flex flex-wrap gap-1">
+                    {complete.map((s) => (
+                      <span
+                        key={s.key}
+                        className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10.5px] font-medium text-success"
+                      >
+                        <Check className="h-3 w-3" weight="bold" />
+                        {s.name}
+                        {s.target > 1 && (
+                          <span className="opacity-70">×{s.target}</span>
+                        )}
+                      </span>
+                    ))}
+                    {partial.map((s) => (
+                      <span
+                        key={s.key}
+                        className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10.5px] font-medium text-amber-600 dark:text-amber-400"
+                      >
+                        {s.name} {cFor(s.key)}/{s.target}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {missed.length > 0 && (
+                  <div className="mt-2">
+                    <div className="text-[9.5px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                      {day === today ? "De luat încă" : "Sărite"}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {missed.map((s) => (
+                        <span
+                          key={s.key}
+                          className="rounded-full border border-border/70 px-2 py-0.5 text-[10.5px] text-muted-foreground"
+                        >
+                          {s.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {totalsBits.length > 0 && (
+                  <div className="mt-2.5 border-t border-foreground/10 pt-2 text-[10.5px] text-muted-foreground">
+                    {totalsBits.join(" · ")}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Daily totals */}
       <section className="rounded-xl border border-border bg-card px-4 py-3">
         <h3 className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground">
