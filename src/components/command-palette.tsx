@@ -19,6 +19,7 @@ import {
   Clock,
   Broom,
   Sparkle,
+  Pill,
 } from "@/lib/icons";
 import { useTheme } from "next-themes";
 import { fmtDuration, fmtRate } from "@/lib/format";
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
   { value: "/invoices/new", label: "New invoice", icon: Plus, keywords: "create factura" },
   { value: "/chores", label: "Chores", icon: Broom, keywords: "treburi randul casa curatenie axy" },
   { value: "/gratitude", label: "Gratitude", icon: Sparkle, keywords: "recunostinta lista merita sa traim multumesc" },
+  { value: "/supplements", label: "Supplements", icon: Pill, keywords: "suplimente vitamine pastile creatina magneziu" },
   { value: "/import", label: "Import CSV", icon: Upload, keywords: "revolut upload" },
   { value: "/settings", label: "Settings", icon: SettingsIcon, keywords: "tax fx clients passkey subscriptions" },
 ];

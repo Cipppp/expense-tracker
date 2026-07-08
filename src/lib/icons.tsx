@@ -60,6 +60,8 @@ import { ArrowsLeftRight as PArrowsLeftRight } from "@phosphor-icons/react/dist/
 import { Heart as PHeart } from "@phosphor-icons/react/dist/ssr/Heart";
 import { Camera as PCamera } from "@phosphor-icons/react/dist/ssr/Camera";
 import { PushPin as PPushPin } from "@phosphor-icons/react/dist/ssr/PushPin";
+import { Pill as PPill } from "@phosphor-icons/react/dist/ssr/Pill";
+import { Info as PInfo } from "@phosphor-icons/react/dist/ssr/Info";
 import { Smiley as PSmiley } from "@phosphor-icons/react/dist/ssr/Smiley";
 import { Bell as PBell } from "@phosphor-icons/react/dist/ssr/Bell";
 import { BellSlash as PBellSlash } from "@phosphor-icons/react/dist/ssr/BellSlash";
@@ -122,6 +124,8 @@ export const ArrowsLeftRight = PArrowsLeftRight;
 export const Heart = PHeart;
 export const Camera = PCamera;
 export const PushPin = PPushPin;
+export const Pill = PPill;
+export const Info = PInfo;
 export const Smiley = PSmiley;
 export const Bell = PBell;
 export const BellSlash = PBellSlash;

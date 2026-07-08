@@ -280,6 +280,21 @@ model GratitudeReaction {
   @@index([itemId])
 }
 
+// One row per (day, person, supplement) with how many units were taken that
+// day. `day` is a Bucharest-local "yyyy-mm-dd"; `key` references the static
+// catalog in src/lib/supplements.ts.
+model SupplementLog {
+  id        String   @id @default(cuid())
+  day       String
+  person    String // "cip" | "axy"
+  key       String
+  count     Int      @default(0)
+  updatedAt DateTime @updatedAt @default(now())
+
+  @@unique([day, person, key])
+  @@index([day])
+}
+
 // Web Push subscriptions (one per device/browser). `person` ("cip" | "axy")
 // lets us skip notifying the author of their own addition.
 model PushSubscription {

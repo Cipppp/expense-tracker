@@ -69,12 +69,24 @@ function LoginForm() {
       router.push(next);
       router.refresh();
     } catch (e) {
+      const name = e instanceof Error ? e.name : "";
       const msg =
         e instanceof Error
           ? e.message
           : "Passkey unavailable — try the password.";
-      if (msg.includes("NotAllowed") || msg.includes("cancel")) {
-        // User dismissed the prompt; don't surface as a hard error.
+      // Dismissals & timeouts: WebAuthn raises NotAllowedError with a spec-y
+      // message ("The operation either timed out or was not allowed…").
+      // Passkeys are also per-domain — one saved on the old vercel.app URL
+      // doesn't exist for house.cefani.com. Show a friendly hint, not the spec.
+      if (
+        name === "NotAllowedError" ||
+        msg.includes("NotAllowed") ||
+        msg.includes("cancel") ||
+        msg.includes("timed out or was not allowed")
+      ) {
+        setError(
+          "Passkey sign-in was cancelled or no passkey exists on this device for this site. Sign in with the password, then add a passkey from Settings.",
+        );
         setPasskeyPending(false);
         return;
       }
