@@ -156,6 +156,11 @@ export function SupplementsBoard({
   const countOf = (d: string, p: PersonKey, key: string) => logs.get(lk(d, p, key))?.count ?? 0;
 
   async function tap(s: Supplement) {
+    // Personal items are hard-assigned: the other person can't tick them.
+    if (s.suggestedFor && s.suggestedFor !== person) {
+      toast.error(`${s.name} e în planul lui ${PEOPLE[s.suggestedFor].name}.`);
+      return;
+    }
     const cur = countOf(day, person, s.key);
     const next = cur >= s.target ? 0 : cur + 1;
     const prev = { count: cur, updatedAt: new Date().toISOString() };
@@ -365,15 +370,17 @@ export function SupplementsBoard({
                       className={cn(
                         "flex items-center gap-2.5 rounded-lg border bg-card px-2.5 py-1.5 transition-all duration-200 ease-expo",
                         done ? "border-success/50 bg-success/5" : "border-border",
-                        other && "opacity-55",
+                        other && "opacity-40",
                       )}
                     >
                       <button
                         type="button"
                         onClick={() => tap(s)}
+                        disabled={other}
                         aria-label={`Bifează ${s.name}`}
                         className={cn(
                           "grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 transition-all duration-200 ease-expo active:scale-90",
+                          other && "cursor-not-allowed active:scale-100",
                           done
                             ? "border-success bg-success text-white"
                             : "border-border text-transparent hover:border-foreground/40",
@@ -387,7 +394,12 @@ export function SupplementsBoard({
                           <Check className="h-3.5 w-3.5" />
                         )}
                       </button>
-                      <button type="button" onClick={() => tap(s)} className="min-w-0 flex-1 text-left">
+                      <button
+                        type="button"
+                        onClick={() => tap(s)}
+                        disabled={other}
+                        className={cn("min-w-0 flex-1 text-left", other && "cursor-not-allowed")}
+                      >
                         <div className={cn("text-[13px] font-medium leading-tight truncate", done && "line-through decoration-success/60 text-muted-foreground")}>
                           {s.name}
                           {s.suggestedFor && (

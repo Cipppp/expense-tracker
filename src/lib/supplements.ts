@@ -329,53 +329,31 @@ export const SUPPLEMENTS: Supplement[] = [
       "Fă pauze periodice (ex. 6–8 săptămâni on, 2 off).",
     ],
     daily: true,
+    suggestedFor: "cip",
   },
   {
+    // One physical bottle: Nature's Way front label, Secom (RO distributor)
+    // back label — photographed both ways, merged into a single entry.
     key: "5htp-naturesway",
-    name: "5-HTP (Nature's Way)",
-    brand: "Nature's Way",
-    short: "5-HTP 50 mg + B6 + C / tab",
-    unit: "tabletă",
-    target: 1,
-    timing: "evening",
-    timingNote:
-      "Cu 30–60 min înainte de culcare — precursor de serotonină/melatonină. Max 2 tablete/zi pe termen lung.",
-    foodNote: "Cu mesele (recomandarea producătorului); învelișul enteric reduce greața.",
-    composition:
-      "Per tabletă: 5-HTP 50 mg (Griffonia) + B6 4 mg + C 120 mg, gastrorezistentă.",
-    interactions: [
-      "E ACELAȘI produs cu „5-HTP Secom\" (Secom e distribuitorul RO) — NU le lua împreună, niciodată.",
-      "INTERZIS cu antidepresive (SSRI/IMAO/triciclice), triptani, sunătoare — sindrom serotoninergic.",
-      "Nu simultan cu ashwagandha/melatonină — sedare aditivă; distanțează-le.",
-    ],
-    cautions: [
-      "Max 2 tablete/zi pe termen lung — la doze mari B6 depășește limita EFSA (12 mg/zi).",
-      "Nu în sarcină/alăptare; poate da somnolență — nu conduce după.",
-    ],
-    daily: false,
-    contributes: { fiveHtp_mg: 50 },
-  },
-  {
-    key: "5htp-secom",
-    name: "5-HTP (Secom)",
-    brand: "Secom",
-    short: "5-HTP 100 mg + B6 + C / 2 tab",
+    name: "5-HTP",
+    brand: "Nature's Way · Secom",
+    short: "5-HTP 50 mg/tab + B6 + C · uzual 2 tab",
     unit: "tabletă",
     target: 2,
     timing: "evening",
     timingNote:
-      "Cu 30–60 min înainte de culcare. Doza uzuală = 2 tablete (100 mg 5-HTP).",
-    foodNote: "La masă (recomandarea producătorului); forma gastrorezistentă reduce greața.",
+      "Cu 30–60 min înainte de culcare — precursor de serotonină/melatonină. Doza uzuală = 2 tablete (100 mg).",
+    foodNote: "Cu mesele (recomandarea producătorului); învelișul gastrorezistent reduce greața.",
     composition:
-      "Per 2 tablete: 5-HTP 100 mg (Griffonia) + vit. C 120 mg + B6 8,3 mg, gastrorezistente.",
+      "Per tabletă: 5-HTP 50 mg (Griffonia simplicifolia) + B6 ~4 mg + C 60 mg, gastrorezistentă. Flacon 30 tablete.",
     interactions: [
-      "E ACELAȘI produs cu „5-HTP Nature's Way\" — NU le lua împreună, niciodată.",
       "INTERZIS cu antidepresive (SSRI/IMAO/triciclice), triptani, sunătoare — sindrom serotoninergic.",
+      "Nu simultan cu ashwagandha/melatonină — sedare aditivă; distanțează-le.",
       "Evită cofeina în a doua parte a zilei — anulează efectul pe somn.",
     ],
     cautions: [
-      "Max 2 tablete/zi pe termen lung (B6 cumulat ajunge la limita EFSA).",
-      "Nu în sarcină/alăptare; poate da somnolență.",
+      "Max 2 tablete/zi pe termen lung — la doze mari B6 depășește limita EFSA (12 mg/zi).",
+      "Nu în sarcină/alăptare; poate da somnolență — nu conduce după.",
     ],
     daily: false,
     contributes: { fiveHtp_mg: 100 },
@@ -464,12 +442,6 @@ export function smartWarnings(counts: Record<string, number>): SmartWarning[] {
   const took = (k: string) => (counts[k] ?? 0) > 0;
   const t = dailyTotals(counts);
 
-  if (took("5htp-naturesway") && took("5htp-secom")) {
-    w.push({
-      level: "danger",
-      text: "Ai bifat AMBELE 5-HTP-uri azi — sunt același produs (Secom = Nature's Way distribuit în RO). Ia doar unul; împreună dublezi doza serotoninergică.",
-    });
-  }
   const d3Mains = ["d3-gymbeam", "d3k2-boost4life", "molekin-imuno"].filter(took).length;
   if (d3Mains >= 2) {
     w.push({
@@ -507,7 +479,7 @@ export function smartWarnings(counts: Record<string, number>): SmartWarning[] {
       text: `Fier din două surse azi (Centrum 10 + Boost4Life 14 = ${Math.round(t.iron_mg)} mg) — ok doar cu deficit confirmat prin analize (feritină).`,
     });
   }
-  if (took("ashwagandha-gymbeam") && (took("5htp-naturesway") || took("5htp-secom"))) {
+  if (took("ashwagandha-gymbeam") && took("5htp-naturesway")) {
     w.push({
       level: "info",
       text: "Ashwagandha + 5-HTP în aceeași seară: distanțează-le (ashwagandha după cină, 5-HTP la culcare) — sedare aditivă.",
