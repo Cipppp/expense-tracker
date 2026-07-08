@@ -242,7 +242,7 @@ export function SupplementsBoard({
   const sections: TimingKey[] = ["morning", "noon", "evening", "preworkout"];
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-5 max-w-2xl">
       <header>
         <div className="flex items-center gap-2 text-xs uppercase tracking-[0.15em] text-muted-foreground">
           💊 Suplimente
@@ -345,7 +345,7 @@ export function SupplementsBoard({
         const items = SUPPLEMENTS.filter((s) => s.timing === tk);
         if (items.length === 0) return null;
         return (
-          <section key={tk} className="space-y-2">
+          <section key={tk} className="space-y-1.5">
             <div className="flex items-center gap-2">
               <span className="text-sm">{t.emoji}</span>
               <h2 className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground">
@@ -354,7 +354,7 @@ export function SupplementsBoard({
               <span className="text-[11px] text-muted-foreground/70">{t.hint}</span>
               <span className="h-px flex-1 bg-border" />
             </div>
-            <ul className="space-y-1.5">
+            <ul className="space-y-1">
               {items.map((s) => {
                 const c = counts[s.key] ?? 0;
                 const done = c >= s.target;
@@ -363,7 +363,7 @@ export function SupplementsBoard({
                   <li key={s.key}>
                     <div
                       className={cn(
-                        "flex items-center gap-3 rounded-xl border bg-card px-3 py-2.5 transition-all duration-200 ease-expo",
+                        "flex items-center gap-2.5 rounded-lg border bg-card px-2.5 py-1.5 transition-all duration-200 ease-expo",
                         done ? "border-success/50 bg-success/5" : "border-border",
                         other && "opacity-55",
                       )}
@@ -373,26 +373,26 @@ export function SupplementsBoard({
                         onClick={() => tap(s)}
                         aria-label={`Bifează ${s.name}`}
                         className={cn(
-                          "grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 transition-all duration-200 ease-expo active:scale-90",
+                          "grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 transition-all duration-200 ease-expo active:scale-90",
                           done
                             ? "border-success bg-success text-white"
                             : "border-border text-transparent hover:border-foreground/40",
                         )}
                       >
                         {done ? (
-                          <Check className="h-4 w-4" weight="bold" />
+                          <Check className="h-3.5 w-3.5" weight="bold" />
                         ) : s.target > 1 && c > 0 ? (
-                          <span className="text-xs font-semibold tabular-nums text-foreground">{c}</span>
+                          <span className="text-[11px] font-semibold tabular-nums text-foreground">{c}</span>
                         ) : (
-                          <Check className="h-4 w-4" />
+                          <Check className="h-3.5 w-3.5" />
                         )}
                       </button>
                       <button type="button" onClick={() => tap(s)} className="min-w-0 flex-1 text-left">
-                        <div className={cn("text-sm font-medium leading-tight", done && "line-through decoration-success/60 text-muted-foreground")}>
+                        <div className={cn("text-[13px] font-medium leading-tight truncate", done && "line-through decoration-success/60 text-muted-foreground")}>
                           {s.name}
                           {s.suggestedFor && (
                             <span
-                              className="ml-1.5 rounded-full px-1.5 py-px text-[9.5px] font-medium align-middle"
+                              className="ml-1.5 rounded-full px-1.5 py-px text-[9px] font-medium align-middle"
                               style={{
                                 backgroundColor: PEOPLE[s.suggestedFor].soft,
                                 color: PEOPLE[s.suggestedFor].color,
@@ -402,15 +402,17 @@ export function SupplementsBoard({
                             </span>
                           )}
                         </div>
-                        <div className="mt-0.5 text-[11px] text-muted-foreground truncate">
-                          {s.target > 1 ? `${c}/${s.target} ${s.unit === "capsulă" ? "capsule" : s.unit === "tabletă" ? "tablete" : s.unit}` : `1 ${s.unit}`} · {s.brand}
+                        <div className="text-[10.5px] text-muted-foreground truncate">
+                          {s.target > 1 ? `${c}/${s.target} ${s.unit === "capsulă" ? "capsule" : s.unit === "tabletă" ? "tablete" : s.unit}` : `1 ${s.unit}`}
+                          {" · "}
+                          <span className="text-muted-foreground/80">{s.short}</span>
                         </div>
                       </button>
                       <button
                         type="button"
                         onClick={() => setInfoKey(s.key)}
                         aria-label={`Detalii ${s.name}`}
-                        className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
                       >
                         <Info className="h-4 w-4" />
                       </button>
