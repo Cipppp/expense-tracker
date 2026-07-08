@@ -70,6 +70,7 @@ export const SUPPLEMENTS: Supplement[] = [
       "Max 2 capsule/zi; nu în sarcină/alăptare (indicația producătorului).",
       "Întreabă medicul dacă urmezi chimioterapie sau iei nitrați/imunosupresoare.",
     ],
+    suggestedFor: "axy",
     daily: true,
   },
   {
@@ -90,6 +91,7 @@ export const SUPPLEMENTS: Supplement[] = [
       "Nu cu cafea/ceai fierbinte în același moment — căldura omoară tulpinile.",
     ],
     cautions: ["Poate da balonare la început (inulina); prudență la colon iritabil/SIBO."],
+    suggestedFor: "axy",
     daily: true,
   },
   {
@@ -118,30 +120,6 @@ export const SUPPLEMENTS: Supplement[] = [
     contributes: { vitaminD_IU: 400, zinc_mg: 5, iron_mg: 10, magnesium_mg: 100 },
   },
   {
-    key: "molekin-imuno",
-    name: "Molekin Imuno",
-    brand: "Zdrovit",
-    short: "C 1000 mg + D3 2000 UI + Zinc 10 mg",
-    unit: "comprimat",
-    target: 1,
-    timing: "morning",
-    timingNote:
-      "La micul dejun cu grăsimi — dar NU la aceeași masă cu Centrum sau cu fierul (zincul se blochează reciproc cu ele).",
-    foodNote: "Cu o masă care conține grăsimi (pentru D3).",
-    composition:
-      "Vitamina C 1000 mg (eliberare treptată) + Vitamina D3 2000 UI + Zinc 10 mg / comprimat.",
-    interactions: [
-      "Nu odată cu fier, calciu/magneziu sau Centrum — separă cu ~2h.",
-      "Nu în aceeași zi cu alte surse mari de D3 sau zinc (cumul peste limite).",
-    ],
-    cautions: [
-      "E o sursă „plină\": 2000 UI D3 + 10 mg zinc — numără-le în totalul zilei.",
-      "Prudență la istoric de pietre la rinichi (vitamina C 1000 mg).",
-    ],
-    daily: true,
-    contributes: { vitaminD_IU: 2000, zinc_mg: 10 },
-  },
-  {
     key: "kollagen-doppelherz",
     name: "Kollagen 11.000 Plus",
     brand: "Doppelherz system",
@@ -161,29 +139,9 @@ export const SUPPLEMENTS: Supplement[] = [
       "Condroitina poate potența anticoagulantele — aviz medical dacă iei.",
       "Conține zahăr/îndulcitori; origine bovină.",
     ],
+    suggestedFor: "axy",
     daily: true,
     contributes: { vitaminD_IU: 200 },
-  },
-  {
-    key: "d3-gymbeam",
-    name: "Vitamina D3 2000 IU",
-    brand: "GymBeam",
-    short: "D3 2000 UI (50 µg)",
-    unit: "capsulă",
-    target: 1,
-    timing: "morning",
-    timingNote:
-      "La o masă cu grăsimi — absorbție cu ~30–50% mai bună. Alege O SINGURĂ sursă principală de D3 pe zi.",
-    foodNote: "Cu mâncare grasă (ouă, avocado, ulei).",
-    composition: "Colecalciferol 50 µg (2000 UI) / capsulă, în ulei de șofrănel.",
-    interactions: [
-      "NU cumula cu D3+K2 sau Molekin în aceeași zi — 2 produse = 4000 UI, fix limita.",
-    ],
-    cautions: [
-      "Limita superioară: 4000 UI/zi din TOATE sursele (Omega-3, Centrum, colagen au și ele D3).",
-    ],
-    daily: true,
-    contributes: { vitaminD_IU: 2000 },
   },
   {
     key: "d3k2-boost4life",
@@ -198,7 +156,7 @@ export const SUPPLEMENTS: Supplement[] = [
     foodNote: "Cu mâncare (are ulei MCT inclus, dar masa ajută).",
     composition: "D3 2000 UI (50 µg) + K2 MK-7 75 µg + ulei MCT din cocos 400 mg / capsulă.",
     interactions: [
-      "NU cumula cu D3 GymBeam sau Molekin în aceeași zi (total D3 peste limită).",
+      "E sursa voastră principală de D3 — nu adăuga alte produse cu 2000 UI în aceeași zi.",
       "La 2h de fibre (psyllium) — scad absorbția vitaminelor liposolubile.",
     ],
     cautions: [
@@ -218,7 +176,7 @@ export const SUPPLEMENTS: Supplement[] = [
     target: 1,
     timing: "noon",
     timingNote:
-      "La prânz — dimineața e ocupată de Centrum/Molekin/cafea, care îi blochează absorbția. Ia-l cu ceva bogat în vitamina C.",
+      "La prânz — dimineața e ocupată de Centrum și cafea, care îi blochează absorbția. Ia-l cu ceva bogat în vitamina C.",
     foodNote: "În timpul mesei (recomandarea producătorului), ideal cu vitamina C; fără lactate.",
     composition:
       "Fier bisglicinat 71,8 mg (fier elemental 14 mg, 100% VNR) + L-leucină 10 mg; capsulă vegetală.",
@@ -253,6 +211,7 @@ export const SUPPLEMENTS: Supplement[] = [
       "Prudență cu anticoagulante/antiagregante (efect de subțiere a sângelui).",
     ],
     cautions: ["Alergie la pește = nu.", "Oprește înainte de operații (aviz medical)."],
+    suggestedFor: "cip",
     daily: true,
     contributes: { vitaminD_IU: 800 },
   },
@@ -270,13 +229,14 @@ export const SUPPLEMENTS: Supplement[] = [
     composition: "Sulfat de zinc monohidrat 68,8 mg = zinc elemental 25 mg (250% VNR) / capsulă.",
     interactions: [
       "Nu odată cu fier, calciu sau magneziu — minim 2h distanță.",
-      "NU în aceeași zi cu Molekin la aceeași persoană — 35–40 mg zinc, fix la limită.",
+      "Centrum are și el 5 mg zinc — totalul zilei rămâne ok (30 mg), dar nu adăuga alte surse.",
       "Cafea, lactate și cereale integrale în jurul dozei îi scad absorbția.",
     ],
     cautions: [
-      "Limita superioară: 40 mg zinc/zi din toate sursele (Molekin 10 + Centrum 5 se adună).",
+      "Limita superioară: 40 mg zinc/zi din toate sursele (Centrum aduce încă 5 mg).",
       "Cure lungi cu doze mari dau deficit de cupru — fă pauze.",
     ],
+    suggestedFor: "axy",
     daily: true,
     contributes: { zinc_mg: 25 },
   },
@@ -355,6 +315,7 @@ export const SUPPLEMENTS: Supplement[] = [
       "Max 2 tablete/zi pe termen lung — la doze mari B6 depășește limita EFSA (12 mg/zi).",
       "Nu în sarcină/alăptare; poate da somnolență — nu conduce după.",
     ],
+    suggestedFor: "axy",
     daily: false,
     contributes: { fiveHtp_mg: 100 },
   },
@@ -382,6 +343,7 @@ export const SUPPLEMENTS: Supplement[] = [
       "Max 1 porție/zi; prudență la hipertensiune, aritmii, anxietate.",
       "Furnicăturile de la beta-alanină sunt normale și trecătoare.",
     ],
+    suggestedFor: "cip",
     daily: false,
     contributes: { caffeine_mg: 175, vitaminD_IU: 200 },
   },
@@ -404,6 +366,7 @@ export const SUPPLEMENTS: Supplement[] = [
       "Hidratare bună zilnic; evită la boli renale.",
       "Poate crește creatinina la analize fără afectare renală — spune medicului.",
     ],
+    suggestedFor: "cip",
     daily: true,
   },
 ];
@@ -434,21 +397,14 @@ export function dailyTotals(counts: Record<string, number>) {
 export type SmartWarning = { level: "danger" | "warn" | "info"; text: string };
 
 /** Stack-level warnings computed from what's ticked today for one person.
- * Rules mirror the verified research: D3 UL 4000 UI, zinc UL 40 mg, the two
- * identical 5-HTP products, iron vs minerals spacing, evening sedative stack,
- * creatine duplication. */
+ * Rules mirror the verified research: D3 UL 4000 UI, zinc UL 40 mg, iron vs
+ * minerals spacing, creatine duplication, magnesium UL. */
 export function smartWarnings(counts: Record<string, number>): SmartWarning[] {
   const w: SmartWarning[] = [];
   const took = (k: string) => (counts[k] ?? 0) > 0;
   const t = dailyTotals(counts);
 
-  const d3Mains = ["d3-gymbeam", "d3k2-boost4life", "molekin-imuno"].filter(took).length;
-  if (d3Mains >= 2) {
-    w.push({
-      level: "warn",
-      text: `Ai ${d3Mains} surse principale de D3 azi (${Math.round(t.vitaminD_IU)} UI total) — două produse de 2000 UI ating deja limita de 4000 UI. Păstrează UNA singură.`,
-    });
-  } else if (t.vitaminD_IU > 4000) {
+  if (t.vitaminD_IU > 4000) {
     w.push({
       level: "warn",
       text: `Vitamina D totală azi ≈ ${Math.round(t.vitaminD_IU)} UI — peste limita superioară de 4000 UI.`,
@@ -459,15 +415,10 @@ export function smartWarnings(counts: Record<string, number>): SmartWarning[] {
       text: `Vitamina D azi ≈ ${Math.round(t.vitaminD_IU)} UI (Omega-3, Centrum și colagenul aduc și ele) — aproape de limita de 4000 UI.`,
     });
   }
-  if (took("zinc-zenyth") && took("molekin-imuno")) {
-    w.push({
-      level: "warn",
-      text: `Zinc 25 + Molekin în aceeași zi = ${Math.round(t.zinc_mg)} mg zinc — fix la limita superioară de 40 mg. Alege doar unul azi (cronic dă deficit de cupru).`,
-    });
-  } else if (t.zinc_mg > 40) {
+  if (t.zinc_mg > 40) {
     w.push({ level: "warn", text: `Zinc total azi ≈ ${Math.round(t.zinc_mg)} mg — peste limita de 40 mg.` });
   }
-  if (took("iron-boost4life") && (took("zinc-zenyth") || took("magtein-boost4life") || took("molekin-imuno") || took("centrum-women"))) {
+  if (took("iron-boost4life") && (took("zinc-zenyth") || took("magtein-boost4life") || took("centrum-women"))) {
     w.push({
       level: "info",
       text: "Fier + zinc/magneziu/multivitamine azi: ține-le la ≥2h distanță (fierul la prânz, zincul pe la 16, magneziul seara).",
@@ -477,12 +428,6 @@ export function smartWarnings(counts: Record<string, number>): SmartWarning[] {
     w.push({
       level: "info",
       text: `Fier din două surse azi (Centrum 10 + Boost4Life 14 = ${Math.round(t.iron_mg)} mg) — ok doar cu deficit confirmat prin analize (feritină).`,
-    });
-  }
-  if (took("ashwagandha-gymbeam") && took("5htp-naturesway")) {
-    w.push({
-      level: "info",
-      text: "Ashwagandha + 5-HTP în aceeași seară: distanțează-le (ashwagandha după cină, 5-HTP la culcare) — sedare aditivă.",
     });
   }
   if (took("preworkout-on") && took("creatine-myprotein")) {
