@@ -613,56 +613,121 @@ export function SupplementsBoard({
         producători, NIH, examine.com) și nu înlocuiesc sfatul medicului.
       </p>
 
-      {/* Info bottom-sheet */}
+      {/* Info sheet — bottom sheet on mobile, centered modal on desktop */}
       {info && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 animate-fade-in sm:items-center sm:p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 animate-fade-in sm:items-center sm:p-4"
           onClick={() => setInfoKey(null)}
         >
           <div
-            className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-border bg-card p-4 shadow-xl sm:rounded-2xl"
+            className="max-h-[88vh] w-full max-w-md overflow-y-auto rounded-t-2xl border-t border-border bg-card shadow-xl sm:rounded-2xl sm:border"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="font-display text-lg leading-tight">{info.name}</h3>
-                <p className="text-xs text-muted-foreground">{info.brand}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setInfoKey(null)}
-                aria-label="Închide"
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary"
-              >
-                <X className="h-4 w-4" />
-              </button>
+            {/* grab handle (mobile) */}
+            <div className="sticky top-0 z-10 bg-card pt-2 sm:hidden">
+              <div className="mx-auto h-1 w-9 rounded-full bg-border" />
             </div>
-            <dl className="mt-3 space-y-3 text-[13px] leading-relaxed">
-              <InfoRow label="Compoziție">{info.composition}</InfoRow>
-              <InfoRow label="Doza">{`${info.target} ${info.unit}${info.target > 1 ? " / zi" : " / zi"}`}</InfoRow>
-              <InfoRow label="Când">
-                {TIMINGS[info.timing].emoji} {info.timingNote}
-              </InfoRow>
-              <InfoRow label="Cu mâncare?">{info.foodNote}</InfoRow>
+            <div className="p-4 pb-6 sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="font-display text-xl leading-tight tracking-tight">
+                    {info.name}
+                  </h3>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">{info.brand}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setInfoKey(null)}
+                  aria-label="Închide"
+                  className="-mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* quick facts */}
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2.5 py-1 text-[11px] font-medium text-accent">
+                  {info.target} {info.target > 1 ? (info.unit === "capsulă" ? "capsule" : info.unit === "tabletă" ? "tablete" : info.unit) : info.unit} / zi
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium">
+                  {TIMINGS[info.timing].emoji} {TIMINGS[info.timing].label}
+                </span>
+                {info.suggestedFor && (
+                  <span
+                    className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium"
+                    style={{
+                      backgroundColor: PEOPLE[info.suggestedFor].soft,
+                      color: PEOPLE[info.suggestedFor].color,
+                    }}
+                  >
+                    de obicei {PEOPLE[info.suggestedFor].name}
+                  </span>
+                )}
+              </div>
+
+              {/* composition */}
+              <div className="mt-3 rounded-lg bg-secondary/60 px-3 py-2.5">
+                <div className="text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Ce conține
+                </div>
+                <p className="mt-1 text-[12.5px] leading-snug">{info.composition}</p>
+              </div>
+
+              {/* when / food */}
+              <div className="mt-3 grid grid-cols-[auto_1fr] gap-x-2.5 gap-y-2 text-[12.5px] leading-snug">
+                <span className="mt-px text-sm" aria-hidden>
+                  🕐
+                </span>
+                <div>
+                  <span className="font-medium">Când: </span>
+                  <span className="text-muted-foreground">{info.timingNote}</span>
+                </div>
+                <span className="mt-px text-sm" aria-hidden>
+                  🍽️
+                </span>
+                <div>
+                  <span className="font-medium">Cu mâncare: </span>
+                  <span className="text-muted-foreground">{info.foodNote}</span>
+                </div>
+              </div>
+
               {info.interactions.length > 0 && (
-                <InfoRow label="Nu combina cu">
-                  <ul className="list-disc space-y-1 pl-4">
+                <div className="mt-3 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2.5">
+                  <div className="text-[9.5px] font-semibold uppercase tracking-wider text-destructive">
+                    Nu combina cu
+                  </div>
+                  <ul className="mt-1.5 space-y-1 text-[12px] leading-snug">
                     {info.interactions.map((x, i) => (
-                      <li key={i}>{x}</li>
+                      <li key={i} className="flex gap-1.5">
+                        <span className="text-destructive/70" aria-hidden>
+                          •
+                        </span>
+                        <span>{x}</span>
+                      </li>
                     ))}
                   </ul>
-                </InfoRow>
+                </div>
               )}
+
               {info.cautions.length > 0 && (
-                <InfoRow label="Atenție">
-                  <ul className="list-disc space-y-1 pl-4">
+                <div className="mt-2.5 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2.5">
+                  <div className="text-[9.5px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                    Atenție
+                  </div>
+                  <ul className="mt-1.5 space-y-1 text-[12px] leading-snug">
                     {info.cautions.map((x, i) => (
-                      <li key={i}>{x}</li>
+                      <li key={i} className="flex gap-1.5">
+                        <span className="text-amber-500/80" aria-hidden>
+                          •
+                        </span>
+                        <span>{x}</span>
+                      </li>
                     ))}
                   </ul>
-                </InfoRow>
+                </div>
               )}
-            </dl>
+            </div>
           </div>
         </div>
       )}
@@ -699,13 +764,3 @@ function Total({
   );
 }
 
-function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <dt className="text-[10.5px] font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="mt-0.5">{children}</dd>
-    </div>
-  );
-}
