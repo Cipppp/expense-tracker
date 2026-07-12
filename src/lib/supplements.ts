@@ -266,19 +266,19 @@ export const SUPPLEMENTS: Supplement[] = [
     target: 1,
     timing: "noon",
     timingNote:
-      "După-amiaza (~16:00) — la 2h după fierul/Centrum de la prânz și cu 2h înainte de magneziul de seară.",
+      "După-amiaza (~16:00) — la cel puțin 2h de alte minerale și cu 2h înainte de magneziul de seară.",
     foodNote: "Pe stomacul gol dacă îl tolerezi; altfel cu o gustare ușoară, fără lactate.",
     composition: "Sulfat de zinc monohidrat 68,8 mg = zinc elemental 25 mg (250% VNR) / capsulă.",
     interactions: [
       "Nu odată cu fier, calciu sau magneziu — minim 2h distanță.",
-      "Centrum are și el 5 mg zinc — totalul zilei rămâne ok (30 mg), dar nu adăuga alte surse.",
+      "Doza de 25 mg este deja ridicată — nu adăuga alte surse de zinc în aceeași zi.",
       "Cafea, lactate și cereale integrale în jurul dozei îi scad absorbția.",
     ],
     cautions: [
-      "Limita superioară: 40 mg zinc/zi din toate sursele (Centrum aduce încă 5 mg).",
+      "Limita superioară: 40 mg zinc/zi din toate sursele; doza aceasta furnizează deja 25 mg.",
       "Cure lungi cu doze mari dau deficit de cupru — fă pauze.",
     ],
-    suggestedFor: "axy",
+    suggestedFor: "cip",
     daily: true,
     contributes: { zinc_mg: 25 },
   },
