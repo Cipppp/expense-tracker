@@ -18,7 +18,6 @@ import {
 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { PEOPLE, type PersonKey } from "@/lib/chores";
-import { EnableNotifications } from "@/components/push/enable-notifications";
 import type {
   GratitudeFeed,
   Group,
@@ -611,9 +610,6 @@ export function GratitudeList({
               🔥 {streak} {streak === 1 ? "zi" : "zile"} la rând
             </span>
           )}
-        </div>
-        <div className="mt-3">
-          <EnableNotifications />
         </div>
       </header>
 

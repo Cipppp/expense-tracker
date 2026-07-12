@@ -14,10 +14,9 @@ const PUBLIC_PATHS = new Set<string>([
   "/api/timelog",
   // PWA assets — must be public so iPhone can install
   "/manifest.webmanifest",
-  // Push service worker — must be fetchable at the origin root
+  // Service worker path — kept public so the self-unregistering stub (push
+  // notifications were removed) is fetchable to clean up installed PWAs.
   "/sw.js",
-  // Vercel Cron endpoint — authenticated by CRON_SECRET, not the session
-  "/api/cron/gratitude-reminder",
 ]);
 
 export async function middleware(req: NextRequest) {
