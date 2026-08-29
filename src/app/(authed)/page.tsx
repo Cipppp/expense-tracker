@@ -1,5 +1,5 @@
 import {
-  getDailyExpenseSummary,
+  getDailyHeatmap,
   getMonthlyAggregates,
   getMonthlyCategoryBreakdown,
   getMonthTotals,
@@ -45,18 +45,11 @@ export default async function DashboardPage() {
     getMonthlyAggregates(year),
     getTopMerchants(year, month, 5),
     getMonthlyCategoryBreakdown(year),
-    getDailyExpenseSummary(year, month),
+    getDailyHeatmap(year, month),
     getTaxProjection(year, now),
     getMonthTotals(year, month),
     getMonthTotals(prevYear, prevMonth),
   ]);
-  const dailyForHeatmap = daily.map((d) => ({
-    date: `${year}-${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`,
-    ron: d.ron,
-    count: d.count,
-    top: d.top,
-  }));
-
   const startMonth =
     year === settings.startYear ? settings.startMonth : 1;
   const displayCurrency: DisplayCurrency =
@@ -139,7 +132,7 @@ export default async function DashboardPage() {
             <CalendarHeatmap
               year={year}
               month={month}
-              daily={dailyForHeatmap}
+              daily={daily}
               displayCurrency={displayCurrency}
               fxRonToUsd={settings.fxRonToUsd}
             />
