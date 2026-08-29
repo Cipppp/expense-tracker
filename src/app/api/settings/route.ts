@@ -5,6 +5,7 @@ import { baniFromRon } from "@/lib/format";
 
 const Body = z.object({
   fxRonToUsd: z.coerce.number().positive(),
+  fxEurToUsd: z.coerce.number().positive(),
   bsBasRon: z.coerce.number().nonnegative(),         // MAJOR units, in RON
   camRon: z.coerce.number().nonnegative(),           // MAJOR units, in RON
   microPct: z.coerce.number().min(0).max(1),
@@ -64,6 +65,7 @@ export async function PATCH(req: Request) {
     where: { id: 1 },
     update: {
       fxRonToUsd: v.fxRonToUsd,
+      fxEurToUsd: v.fxEurToUsd,
       bsBasRon: baniFromRon(v.bsBasRon),
       camRon: baniFromRon(v.camRon),
       microPct: v.microPct,
@@ -79,6 +81,7 @@ export async function PATCH(req: Request) {
     create: {
       id: 1,
       fxRonToUsd: v.fxRonToUsd,
+      fxEurToUsd: v.fxEurToUsd,
       bsBasRon: baniFromRon(v.bsBasRon),
       camRon: baniFromRon(v.camRon),
       microPct: v.microPct,

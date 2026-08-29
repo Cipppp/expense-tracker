@@ -77,6 +77,10 @@ const NAV_GROUPS: readonly NavGroup[] = [
 
 const STORAGE_KEY = "et:sidebar-collapsed";
 const GROUPS_KEY = "et:nav-groups-closed";
+/* Only Finance is open on a fresh browser — the household pages are a glance,
+   not a daily destination, and an open Finance group is what you want when the
+   app loads on the Dashboard. */
+const DEFAULT_CLOSED = ["household", "system"];
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -130,10 +134,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 /** Shared open/closed state for the grouped nav, persisted per group id. */
 function useGroupState(pathname: string) {
-  const [closed, setClosed] = useState<Set<string>>(new Set());
+  const [closed, setClosed] = useState<Set<string>>(
+    () => new Set(DEFAULT_CLOSED),
+  );
   useEffect(() => {
     try {
       const raw = localStorage.getItem(GROUPS_KEY);
+      // Only an explicit saved choice overrides the default — an absent key
+      // means "never touched it", which keeps Finance-only.
       if (raw) setClosed(new Set(JSON.parse(raw) as string[]));
     } catch {
       // ignore
@@ -323,7 +331,7 @@ function Wordmark({ size = "lg" }: { size?: "lg" | "sm" }) {
           className="ml-[0.08em] inline-block h-[0.22em] w-[0.22em] rounded-full bg-accent align-baseline"
         />
       </div>
-      <div className="mt-1 text-[10px] text-muted-foreground uppercase tracking-[0.15em] truncate">
+      <div className="mt-1 text-[10px] text-muted-foreground uppercase tracking-[0.07em] truncate">
         Project CIP SRL
       </div>
     </div>
@@ -519,7 +527,7 @@ function MobileMenu() {
               className="ml-[0.08em] inline-block h-[0.22em] w-[0.22em] rounded-full bg-accent"
             />
           </SheetTitle>
-          <SheetDescription className="uppercase tracking-[0.15em] text-[10px] mt-1">
+          <SheetDescription className="uppercase tracking-[0.07em] text-[10px] mt-1">
             Project CIP SRL
           </SheetDescription>
         </div>

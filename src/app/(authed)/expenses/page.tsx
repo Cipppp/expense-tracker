@@ -103,10 +103,10 @@ export default async function ExpensesPage(props: {
   return (
     <div className="space-y-8">
       <header>
-        <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
+        <div className="text-xs uppercase tracking-[0.07em] text-muted-foreground">
           Expenses
         </div>
-        <h1 className="mt-1 font-display text-2xl sm:text-4xl tracking-tight">
+        <h1 className="mt-1.5 text-[30px] sm:text-[44px] leading-[1.02]">
           {fmtMonth(year, month)}
         </h1>
       </header>

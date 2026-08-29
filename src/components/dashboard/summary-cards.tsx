@@ -171,21 +171,21 @@ function Stat({
           : "text-foreground";
   return (
     <Card className="overflow-hidden">
-      <CardContent className="p-4 sm:p-5">
-        <div className="flex items-center justify-between text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground">
+      <CardContent className="p-5 sm:p-6">
+        <div className="flex items-center justify-between eyebrow">
           {label}
           <span className={accentClass}>{icon}</span>
         </div>
-        <div className={`mt-2 font-display text-xl sm:text-2xl tracking-tight num ${accentClass}`}>
+        <div className={`mt-3 metric text-[28px] sm:text-[34px] leading-none ${accentClass}`}>
           {value}
         </div>
         {delta && (
-          <div className="mt-2 text-[10px] sm:text-xs leading-snug flex flex-wrap gap-x-1.5">
+          <div className="mt-3 text-[11px] sm:text-xs leading-snug flex flex-wrap gap-x-1.5">
             {delta}
           </div>
         )}
         {footer && (
-          <div className="mt-2 text-xs text-muted-foreground">{footer}</div>
+          <div className="mt-2 text-[11px] text-muted-foreground">{footer}</div>
         )}
       </CardContent>
     </Card>

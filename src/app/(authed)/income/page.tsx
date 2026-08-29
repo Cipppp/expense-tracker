@@ -14,7 +14,7 @@ import {
   weekDates,
   type DisplayCurrency,
 } from "@/lib/format";
-import { getSettings } from "@/lib/queries";
+import { getSettings, incomeToUsdCents } from "@/lib/queries";
 import { WeekGrid, type WeekEntry } from "@/components/income/week-grid";
 import { LumpSumForm } from "@/components/income/lump-sum-form";
 import { LumpSumList } from "@/components/income/lump-sum-list";
@@ -58,7 +58,7 @@ export default async function IncomePage(props: {
     }),
     db.income.findMany({
       where: { date: { gte: monthStart, lte: monthEnd } },
-      select: { amountUsd: true },
+      select: { amountUsd: true, currency: true },
     }),
     db.income.findMany({
       where: { jobId: null, date: { gte: new Date(year, 0, 1) } },
@@ -68,8 +68,10 @@ export default async function IncomePage(props: {
   ]);
 
   const activeJobs = allJobs.filter((j) => j.active);
-  const totalYtd = ytdIncome.reduce((a, b) => a + b.amountUsd, 0);
-  const totalMonth = monthIncome.reduce((a, b) => a + b.amountUsd, 0);
+  // Entries carry their own billing currency, so these have to be converted
+  // before they can be added up — see incomeToUsdCents.
+  const totalYtd = incomeToUsdCents(ytdIncome, settings);
+  const totalMonth = incomeToUsdCents(monthIncome, settings);
   const displayCurrency: DisplayCurrency =
     (settings.displayCurrency as DisplayCurrency) ?? "USD";
   const totalYtdDisplay = fmtDisplay(
@@ -93,7 +95,7 @@ export default async function IncomePage(props: {
     hours: r.hours ?? 0,
     amountUsd: r.amountUsd,
     description: r.description,
-    currency: r.job?.defaultCurrency ?? "USD",
+    currency: r.currency,
     invoiceId: r.invoiceId,
     invoiceNumber: r.invoice
       ? `${r.invoice.series} ${r.invoice.number}`
@@ -104,10 +106,10 @@ export default async function IncomePage(props: {
     <div className="space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
+          <div className="text-xs uppercase tracking-[0.07em] text-muted-foreground">
             Income
           </div>
-          <h1 className="mt-1 font-display text-2xl sm:text-4xl tracking-tight">Time tracker</h1>
+          <h1 className="mt-1.5 text-[30px] sm:text-[44px] leading-[1.02]">Time tracker</h1>
         </div>
         <div className="flex items-start gap-5 sm:gap-8">
           <div className="text-right">
@@ -145,6 +147,8 @@ export default async function IncomePage(props: {
               color: j.color,
               defaultCurrency: j.defaultCurrency,
             }))}
+            fxEurToUsd={settings.fxEurToUsd}
+            fxRonToUsd={settings.fxRonToUsd}
           />
         </TabsContent>
         <TabsContent value="projects" className="space-y-6">

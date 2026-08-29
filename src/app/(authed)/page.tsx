@@ -59,7 +59,7 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
+          <div className="eyebrow">
             {now.toLocaleDateString("en-GB", {
               weekday: "long",
               day: "numeric",
@@ -67,7 +67,7 @@ export default async function DashboardPage() {
               year: "numeric",
             })}
           </div>
-          <h1 className="mt-1 font-display text-2xl sm:text-4xl tracking-tight text-balance">
+          <h1 className="mt-1.5 text-[30px] sm:text-[44px] leading-[1.02] text-balance">
             Dashboard
           </h1>
         </div>
@@ -99,7 +99,7 @@ export default async function DashboardPage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Monthly breakdown</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
               Switch views to see earned vs spent, taxes, or spending categories
               — all per month.
             </p>
@@ -123,7 +123,7 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Spending heatmap</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
               Intensity per day — hover for a quick look.
             </p>
           </CardHeader>
@@ -145,7 +145,7 @@ export default async function DashboardPage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Top merchants</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
               {fmtMonth(year, month)} — sorted by amount spent.
             </p>
           </CardHeader>

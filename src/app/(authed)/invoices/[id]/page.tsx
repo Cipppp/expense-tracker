@@ -61,7 +61,7 @@ export default async function InvoicePage(props: {
 
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground flex items-center gap-2">
+          <div className="text-xs uppercase tracking-[0.07em] text-muted-foreground flex items-center gap-2">
             <FileText className="h-3 w-3" />
             <span className="font-mono">
               {inv.series} {inv.number}
@@ -73,7 +73,7 @@ export default async function InvoicePage(props: {
               {inv.status}
             </Badge>
           </div>
-          <h1 className="mt-1 font-display text-3xl tracking-tight">
+          <h1 className="mt-1.5 text-[28px] sm:text-[34px] leading-[1.05]">
             {inv.clientCompany}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">

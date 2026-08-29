@@ -355,7 +355,6 @@ export function Mascot({
       aria-label={label}
       xmlns="http://www.w3.org/2000/svg"
     >
-      <title>{label}</title>
       <Ground />
       {asleep ? <Zzz /> : pose === "grateful" ? <Spark /> : <Smoke still={still} />}
       <g className={still || asleep ? undefined : "mascot-breathe"}>
