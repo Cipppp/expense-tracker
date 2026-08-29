@@ -25,12 +25,18 @@ export function ClientSummaryTable({
   jobs,
   thisMonthLabel,
   lastMonthLabel,
+  fxEurToUsd,
+  fxRonToUsd,
 }: {
   clients: ClientInvoicingSummary[];
   /** All this-year time entries, pre-bucketed by jobId. Used to power the
    * expandable per-client calendar preview. */
   entriesByJob: Record<string, WeekEntry[]>;
   jobs: JobOpt[];
+  /** Cursurile din Settings — fara ele grila incorporata cadea pe niste
+   *  rate hardcodate si dadea alt total decat pagina /income. */
+  fxEurToUsd: number;
+  fxRonToUsd: number;
   thisMonthLabel: string;
   lastMonthLabel: string;
 }) {
@@ -130,6 +136,8 @@ export function ClientSummaryTable({
             const isOpen = expandedJobId === c.jobId;
             return (
               <ClientRow
+                fxEurToUsd={fxEurToUsd}
+                fxRonToUsd={fxRonToUsd}
                 key={c.jobId}
                 client={c}
                 isOpen={isOpen}
@@ -159,6 +167,8 @@ function ClientRow({
   jobs,
   anchorIso,
   onAnchorChange,
+  fxEurToUsd,
+  fxRonToUsd,
 }: {
   client: ClientInvoicingSummary;
   isOpen: boolean;
@@ -167,6 +177,8 @@ function ClientRow({
   jobs: JobOpt[];
   anchorIso: string;
   onAnchorChange: (iso: string) => void;
+  fxEurToUsd: number;
+  fxRonToUsd: number;
 }) {
   // Pass only this client's job through to the embedded grid so the
   // "New time entry" dialog only offers them as a choice.
@@ -236,6 +248,8 @@ function ClientRow({
           <td colSpan={8} className="px-4 py-4">
             <div className="space-y-4">
               <WeekGrid
+                fxEurToUsd={fxEurToUsd}
+                fxRonToUsd={fxRonToUsd}
                 anchorIso={anchorIso}
                 entries={clientEntries}
                 jobs={filteredJobs}

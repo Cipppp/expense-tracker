@@ -78,7 +78,7 @@ export default async function DashboardPage() {
       </header>
 
       <SummaryCards
-        spentUsd={ytd.spentUsd}
+        spentRon={ytd.spentRon}
         earnedUsd={ytd.earnedUsd}
         count={ytd.count}
         thisMonth={thisMonth}

@@ -35,19 +35,32 @@ export async function PATCH(req: Request) {
   const check = CheckBody.safeParse(json);
   if (check.success) {
     const { isoWeek, key, done } = check.data;
-    const row = await db.choreWeek.upsert({
+    /*
+     * Citit-modificat-scris pe tot array-ul: doi oameni care bifeaza in
+     * acelasi timp isi pierdeau bifa unul altuia, ultimul scriitor castiga.
+     * Postgres poate face operatia atomic pe array, deci upsert-ul doar
+     * asigura existenta randului, iar modificarea o face baza.
+     */
+    await db.choreWeek.upsert({
       where: { isoWeek },
       update: {},
       create: { isoWeek, done: [] },
     });
-    const set = new Set(row.done);
-    if (done) set.add(key);
-    else set.delete(key);
-    await db.choreWeek.update({
+    if (done) {
+      await db.$executeRaw`
+        UPDATE "ChoreWeek"
+        SET done = ARRAY(SELECT DISTINCT unnest(done || ARRAY[${key}]))
+        WHERE "isoWeek" = ${isoWeek}`;
+    } else {
+      await db.$executeRaw`
+        UPDATE "ChoreWeek"
+        SET done = array_remove(done, ${key})
+        WHERE "isoWeek" = ${isoWeek}`;
+    }
+    const updatedRow = await db.choreWeek.findUnique({
       where: { isoWeek },
-      data: { done: Array.from(set) },
     });
-    return NextResponse.json({ ok: true, done: Array.from(set) });
+    return NextResponse.json({ ok: true, done: updatedRow?.done ?? [] });
   }
 
   return NextResponse.json({ error: "Invalid body" }, { status: 400 });

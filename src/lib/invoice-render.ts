@@ -111,9 +111,20 @@ export async function renderActivityReport(
   let rows = invoice.billedEntries.filter(
     (e) => e.startMinutes != null && e.endMinutes != null,
   );
+  /*
+   * Rezerva pe luna emiterii, doar cand factura chiar nu are ore legate.
+   *
+   * CP0028 e emisa pe 3 august pentru munca din IULIE: luna emiterii ar
+   * atasa raportul lunii gresite, iar clientul primeste un raport care nu
+   * are legatura cu factura. Cand factura ARE ore legate se folosesc alea si
+   * nu se ajunge aici; cand nu are, luam luna ANTERIOARA emiterii daca
+   * factura a fost emisa in primele zile ale lunii, pentru ca asa se
+   * factureaza aici — la inceputul lunii, pentru luna incheiata.
+   */
   if (rows.length === 0 && invoice.jobId) {
+    const emittedEarly = invoice.issuedAt.getUTCDate() <= 10;
     const y = invoice.issuedAt.getUTCFullYear();
-    const m = invoice.issuedAt.getUTCMonth();
+    const m = invoice.issuedAt.getUTCMonth() - (emittedEarly ? 1 : 0);
     const monthStart = new Date(Date.UTC(y, m, 1, 0, 0, 0));
     const monthEnd = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999));
     rows = await db.income.findMany({

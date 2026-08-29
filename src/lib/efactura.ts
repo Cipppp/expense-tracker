@@ -60,13 +60,32 @@ const esc = (s: string) =>
     .replace(/"/g, "&quot;");
 
 const money = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
-const qty = (n: number) => (Math.round(n * 100) / 100).toString();
+/*
+ * Cantitatea se scria cu 2 zecimale in timp ce suma liniei pastra precizia
+ * intreaga, deci pe factura cantitate x pret nu dadea totalul liniei (7,42 h
+ * x 25 = 185,50, dar linia scria 185,52). EN16931 permite 4 zecimale.
+ */
+const qty = (n: number) => (Math.round(n * 10000) / 10000).toString();
 
-// Bucharest addresses use CityName "SECTORn" + CountrySubentity "RO-B".
+/*
+ * Localitate pentru o adresa din Romania.
+ *
+ * "Sector N" e un indiciu sigur de Bucuresti. In lipsa lui NU mai presupunem
+ * Bucuresti: un client din Cluj ajungea declarat la ANAF ca fiind din
+ * Bucuresti, sector necunoscut. Cadem pe ultimul segment al adresei si lasam
+ * CountrySubentity gol, ceea ce e valid, spre deosebire de o judetul gresit.
+ */
 function roLocality(address: string): { city: string; subentity: string } {
   const m = address.match(/sector\s*(\d)/i);
   if (m) return { city: `SECTOR${m[1]}`, subentity: "RO-B" };
-  return { city: "BUCURESTI", subentity: "RO-B" };
+  if (/bucure[sș]ti/i.test(address)) return { city: "BUCURESTI", subentity: "RO-B" };
+  /*
+   * cityFromAddress ia penultimul segment, potrivit pentru adrese straine
+   * care se termina cu tara. Adresele romanesti din aplicatie nu au sufix de
+   * tara, deci orasul e ULTIMUL segment: "Str Memorandumului 5, Cluj-Napoca".
+   */
+  const parts = address.split(",").map((x) => x.trim()).filter(Boolean);
+  return { city: parts.length > 1 ? parts[parts.length - 1] : address, subentity: "" };
 }
 
 // UN/ECE unit code: hours → HUR, otherwise "piece" → C62.
@@ -84,6 +103,13 @@ function partyXml(
     vatId?: string | null; // with country prefix for the VAT scheme
     legalName: string;
     legalId?: string | null; // trade-register number
+    /**
+     * false = furnizorul nu e inregistrat in scopuri de TVA (art. 310). Un
+     * CompanyID sub TaxScheme "VAT" declara ca ESTI platitor; pentru un
+     * neplatitor codul fiscal merge pe schema "!" din CIUS-RO, iar
+     * identitatea ramane in PartyLegalEntity.
+     */
+    vatRegistered?: boolean;
   },
 ): string {
   const isRo = p.country === "RO";
@@ -97,7 +123,9 @@ function partyXml(
         <cbc:StreetName>${esc(p.address)}</cbc:StreetName>
         <cbc:CityName>${esc(loc.city)}</cbc:CityName>
         <cbc:PostalZone>${esc(p.postalZone ?? "")}</cbc:PostalZone>${
-          isRo ? `\n        <cbc:CountrySubentity>${loc.subentity}</cbc:CountrySubentity>` : ""
+          isRo && loc.subentity
+            ? `\n        <cbc:CountrySubentity>${loc.subentity}</cbc:CountrySubentity>`
+            : ""
         }
         <cac:Country>
           <cbc:IdentificationCode>${esc(p.country)}</cbc:IdentificationCode>
@@ -106,7 +134,7 @@ function partyXml(
         vat
           ? `\n      <cac:PartyTaxScheme>
         <cbc:CompanyID>${esc(vat)}</cbc:CompanyID>
-        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+        <cac:TaxScheme><cbc:ID>${p.vatRegistered === false ? "!" : "VAT"}</cbc:ID></cac:TaxScheme>
       </cac:PartyTaxScheme>`
           : ""
       }
@@ -224,6 +252,7 @@ ${taxCategoryXml("      ")}
     .join("\n");
 
   const supplier = partyXml("AccountingSupplierParty", {
+    vatRegistered: issuer.vatRegistered ?? true,
     name: issuer.name,
     address: issuer.address,
     country: "RO",
@@ -247,6 +276,8 @@ ${taxCategoryXml("      ")}
   <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:efactura.mfinante.ro:CIUS-RO:1.0.1</cbc:CustomizationID>
   <cbc:ID>${esc(inv.series + inv.number)}</cbc:ID>
   <cbc:IssueDate>${inv.issuedAtISO}</cbc:IssueDate>${
+    /* BT-9. Fara scadenta, factura pleca la SPV fara NICIUN termen de plata —
+       nici DueDate, nici PaymentTerms — asa ca se emite nota de mai jos. */
     inv.dueAtISO ? `\n  <cbc:DueDate>${inv.dueAtISO}</cbc:DueDate>` : ""
   }
   <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
@@ -266,7 +297,13 @@ ${customer}
           : ""
       }
     </cac:PayeeFinancialAccount>
-  </cac:PaymentMeans>
+  </cac:PaymentMeans>${
+    inv.dueAtISO
+      ? ""
+      : `\n  <cac:PaymentTerms>
+    <cbc:Note>Plata la primirea facturii / Payment due on receipt</cbc:Note>
+  </cac:PaymentTerms>`
+  }
 ${taxTotalDoc}${taxTotalRon}
   <cac:LegalMonetaryTotal>
     <cbc:LineExtensionAmount currencyID="${docCur}">${money(net)}</cbc:LineExtensionAmount>
