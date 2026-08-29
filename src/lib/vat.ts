@@ -1,9 +1,14 @@
 /**
- * VAT treatment for a Romanian VAT-registered SRL issuing B2B invoices.
+ * VAT treatment for a Romanian SRL issuing B2B invoices.
  *
- * Three cases that must be distinguished on the invoice — the legal wording
+ * Four cases that must be distinguished on the invoice — the legal wording
  * differs and getting it wrong is an audit problem:
- *   - domestic (RO, or country unknown): charge the standard rate (21%).
+ *   - domestic, VAT-registered (art. 316): charge the standard rate (21%).
+ *   - domestic, exempt (art. 310): 0%, small-enterprise exemption. This is
+ *     PROJECT CIP since the F700 decision of 03.08.2026 cancelled its art. 316
+ *     registration. Being registered under art. 317 for intra-community
+ *     operations does NOT make you a VAT payer — domestic invoices stay
+ *     without VAT.
  *   - EU member state (non-RO): 0%, intra-community reverse charge,
  *     art. 196 Directive 2006/112/EC.
  *   - non-EU (US, UK, etc.): 0%, export of services, non-taxable in Romania
@@ -20,7 +25,12 @@ export const EU_MEMBER_STATES = new Set([
   "SI", "ES", "SE",
 ]);
 
-export type VatKind = "domestic" | "eu_reverse" | "export" | "none";
+export type VatKind =
+  | "domestic"
+  | "exempt_310"
+  | "eu_reverse"
+  | "export"
+  | "none";
 
 function norm(country: string | null | undefined): string {
   return (country ?? "").trim().toUpperCase();
@@ -35,9 +45,14 @@ function norm(country: string | null | undefined): string {
 export function deriveVat(
   country: string | null | undefined,
   roRate: number,
+  vatRegistered = true,
 ): { vatRate: number; kind: VatKind } {
   const c = norm(country);
-  if (c === "" || c === "RO") return { vatRate: roRate, kind: "domestic" };
+  if (c === "" || c === "RO") {
+    return vatRegistered
+      ? { vatRate: roRate, kind: "domestic" }
+      : { vatRate: 0, kind: "exempt_310" };
+  }
   if (EU_MEMBER_STATES.has(c)) return { vatRate: 0, kind: "eu_reverse" };
   return { vatRate: 0, kind: "export" };
 }
@@ -50,10 +65,13 @@ export function deriveVat(
 export function vatKindForInvoice(
   country: string | null | undefined,
   vatRate: number,
+  vatRegistered = true,
 ): VatKind {
+  // A rate was charged, so this invoice was issued under art. 316 — true even
+  // for the invoices already issued before the registration was cancelled.
   if (vatRate > 0) return "domestic";
   const c = norm(country);
-  if (c === "" || c === "RO") return "none";
+  if (c === "" || c === "RO") return vatRegistered ? "none" : "exempt_310";
   if (EU_MEMBER_STATES.has(c)) return "eu_reverse";
   return "export";
 }

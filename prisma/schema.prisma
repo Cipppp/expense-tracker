@@ -218,6 +218,15 @@ model Settings {
   microPct        Float  @default(0.01)   // 1% impozit micro
   dividendePct    Float  @default(0.16)   // 16% impozit dividende
   vatRate         Float  @default(0.21)   // 21% TVA standard rate (RO clients)
+  // Inregistrarea normala in scopuri de TVA (art. 316). Anulata prin decizia
+  // F700 din 03.08.2026: firma a trecut la regimul de scutire art. 310, deci
+  // nu mai colecteaza TVA pe facturile interne.
+  vatRegistered   Boolean @default(true)
+  // Codul special de TVA pentru operatiuni intracomunitare (art. 317). ANAF
+  // atribuie un cod DISTINCT de CIF-ul firmei, valabil in VIES, care se pune
+  // pe facturile catre clienti din UE in locul CIF-ului. Nu face firma
+  // platitoare de TVA. Certificat seria W nr. 10052639, valabil din 10.08.2026.
+  issuerVatIntra  String @default("")
   redThresholdRon Int    @default(5000)   // 50 RON/day in bani → row turns red
   // Lower-bound month (defaults to Apr 2026 — start date in the Excel).
   startYear       Int    @default(2026)
