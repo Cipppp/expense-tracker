@@ -40,7 +40,7 @@ export async function PATCH(
   }
   const existing = await db.invoice.findUnique({
     where: { id },
-    include: { lines: true },
+    include: { lines: true, billedEntries: { select: { id: true } } },
   });
   if (!existing)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -50,7 +50,7 @@ export async function PATCH(
     status?: string;
     paidAt?: Date | null;
     footerNote?: string | null;
-    paidIncomeId?: string;
+    paidIncomeId?: string | null;
   } = {};
 
   if (v.status) data.status = v.status;
@@ -59,8 +59,21 @@ export async function PATCH(
     data.paidAt = v.paidAt ? dateAtNoonUTC(v.paidAt) : null;
   }
 
-  // Transition to paid: create the linked Income entry if not already there.
-  if (v.status === "paid" && !existing.paidIncomeId) {
+  /*
+   * Transition to paid: mirror the invoice into Income — but ONLY for an
+   * invoice that has no logged hours behind it.
+   *
+   * Invoices built from the time tracker already tagged their source rows
+   * with invoiceId, and those rows stay in Income. Minting a second row for
+   * the same money made Earned YTD, the monthly chart and the tax projection
+   * count that invoice twice. The mirror row exists for lump-sum invoices
+   * typed by hand, which have no Income behind them.
+   */
+  if (
+    v.status === "paid" &&
+    !existing.paidIncomeId &&
+    existing.billedEntries.length === 0
+  ) {
     const total = existing.lines.reduce((a, l) => a + l.amount, 0);
     const settings = await db.settings.upsert({
       where: { id: 1 },
@@ -92,9 +105,12 @@ export async function PATCH(
     data.paidIncomeId = income.id;
   }
 
-  // Transition away from paid: detach the income.
+  // Transition away from paid: detach the income. Clearing the pointer too,
+  // otherwise marking the invoice paid again finds paidIncomeId still set and
+  // silently records no revenue at all.
   if (existing.paidIncomeId && v.status && v.status !== "paid") {
     await db.income.deleteMany({ where: { id: existing.paidIncomeId } });
+    data.paidIncomeId = null;
   }
 
   // Voiding an invoice releases the billed entries back to "unbilled" so

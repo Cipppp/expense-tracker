@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Clock, RefreshCw } from "@/lib/icons";
 import { toast } from "sonner";
@@ -210,6 +210,15 @@ export function InvoiceForm({
     [lines],
   );
 
+  // Refs, nu state: functia async de mai jos are nevoie de valoarea de ACUM,
+  // nu de cea capturata cand a pornit cererea.
+  const currencyRef = useRef(invoiceCurrency);
+  const issuedAtRef = useRef(issuedAt);
+  useEffect(() => {
+    currencyRef.current = invoiceCurrency;
+    issuedAtRef.current = issuedAt;
+  }, [invoiceCurrency, issuedAt]);
+
   const needsBnrRate = invoiceCurrency !== "RON";
   const bnrRateNum = Number(bnrRate) || 0;
   const legalTotal = needsBnrRate && bnrRateNum > 0 ? subtotal * bnrRateNum : subtotal;
@@ -219,12 +228,27 @@ export function InvoiceForm({
     if (invoiceCurrency === "RON") return false;
     if (bnrLoading) return false;
     if (!force && bnrRate.trim()) return false;
+    /*
+     * Snapshot what we are asking about. Change the currency from EUR to USD
+     * while the EUR request is still in flight and the late answer would land
+     * in the field as if it were the USD rate — a wrong BNR rate on a filed
+     * invoice, which is the one number ANAF actually checks. The guard below
+     * throws away any answer that no longer matches the form.
+     */
+    const askedCurrency = invoiceCurrency;
+    const askedDate = issuedAt;
     setBnrLoading(true);
     try {
       const res = await fetch(
-        `/api/bnr-rate?currency=${invoiceCurrency}&date=${issuedAt}`,
+        `/api/bnr-rate?currency=${askedCurrency}&date=${askedDate}`,
       );
       const data = await res.json();
+      if (
+        askedCurrency !== currencyRef.current ||
+        askedDate !== issuedAtRef.current
+      ) {
+        return false; // stale answer, the form moved on
+      }
       if (!res.ok || typeof data.rate !== "number") {
         toast.error(data?.error ?? "Could not fetch BNR rate");
         return false;

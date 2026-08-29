@@ -194,6 +194,7 @@ export async function POST(req: Request) {
         data: {
           endMinutes: newEnd,
           hours,
+          currency: job.defaultCurrency,
           amountUsd: centsFromUsd(hours * rate),
           description:
             description && !existing.description.includes(description)
@@ -217,7 +218,8 @@ export async function POST(req: Request) {
         endMinutes: e,
         hours,
         hourlyRate: rate,
-        amountUsd: centsFromUsd(hours * rate),
+        currency: job.defaultCurrency,
+          amountUsd: centsFromUsd(hours * rate),
       },
     });
     return summary(row, jobName!, jobId!, dayLo, dayHi, "created");
@@ -250,7 +252,8 @@ export async function POST(req: Request) {
       endMinutes: endMin,
       hours,
       hourlyRate: rate,
-      amountUsd: centsFromUsd(hours * rate),
+      currency: job.defaultCurrency,
+          amountUsd: centsFromUsd(hours * rate),
     },
   });
   return summary(row, jobName!, jobId!, dayLo, dayHi, "created");

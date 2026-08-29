@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { Resend } from "resend";
 import { db } from "@/lib/db";
+import { EU_MEMBER_STATES } from "@/lib/vat";
 import { renderInvoicePdf, renderActivityReport } from "@/lib/invoice-render";
 import { buildEfacturaXml } from "@/lib/efactura";
 import { pickIssuerIban } from "@/lib/invoice";
@@ -87,8 +88,21 @@ export async function POST(
     const xml = buildEfacturaXml({
       issuer: {
         name: settings.issuerName,
-        cif: settings.issuerCif,
+        /*
+       * Acelasi swap ca pe ruta de descarcare. Fara el, emailul pleca cu un
+       * PDF care scrie "Cod TVA intracomunitar: RO55415170" si un XML care
+       * declara CIF-ul firmei — doua documente care se contrazic, pentru
+       * aceeasi factura.
+       */
+      cif:
+        settings.issuerVatIntra &&
+        invoice.clientCountry &&
+        invoice.clientCountry.toUpperCase() !== "RO" &&
+        EU_MEMBER_STATES.has(invoice.clientCountry.toUpperCase())
+          ? settings.issuerVatIntra
+          : settings.issuerCif,
         reg: settings.issuerReg,
+      vatRegistered: settings.vatRegistered,
         address: settings.issuerAddress,
         iban: pickIssuerIban(settings, invoice.clientCountry, invoice.invoiceCurrency),
         swift: settings.issuerSwift,
