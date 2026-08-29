@@ -370,14 +370,19 @@ export function Mascot({
 }
 
 /**
- * The square badge — the mark set inside a rounded-square ink tile, exactly
- * like the app icon.
+ * The logo mark — a house drawn as architecture, not as a pictogram.
  *
- * The full character is TALL: chimney, smoke and a ground shadow stack into a
- * portrait silhouette, and at 36px in a sidebar that reads as a sliver rather
- * than a logo. A logo lockup next to a wordmark wants to be square, so the
- * badge crops away everything above the roof and sits the house in a tile
- * whose proportions match the favicon the phone already shows.
+ * Two earlier attempts failed in opposite directions. The full character is
+ * portrait: chimney, smoke and shadow stack vertically, so at 36px it reads
+ * as a sliver. Putting it in a rounded tile made it square but flat — a
+ * generic app-icon house behind a visible frame.
+ *
+ * This one gets its square proportion from MASS instead of a container: a
+ * main volume with a pitched roof plus a lower recessed wing on the right,
+ * which widens the footprint to roughly the height. The depth comes from
+ * planes — a lit and a shaded roof face with the ridge drawn between them,
+ * and the wing a step back in shadow — so it holds up enlarged without
+ * turning to noise at sidebar size, where only the silhouette survives.
  */
 export function MascotBadge({
   className,
@@ -390,7 +395,7 @@ export function MascotBadge({
 }) {
   return (
     <svg
-      viewBox="0 0 120 120"
+      viewBox="0 0 100 100"
       width={size}
       height={size}
       className={className}
@@ -398,51 +403,66 @@ export function MascotBadge({
       aria-label={title}
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect width="120" height="120" rx="26" fill={INK} />
-      {/* Hairline: the ink tile is only a few points off a dark sidebar, so
-          without this the badge loses its edge in dark mode. */}
-      <rect
-        x="0.75"
-        y="0.75"
-        width="118.5"
-        height="118.5"
-        rx="25.4"
-        fill="none"
-        stroke={PAPER}
-        strokeOpacity="0.14"
-        strokeWidth="1.5"
+      {/* Umbra de sub casa — o singura elipsa, da greutate fara sa adauge
+          inaltime siluetei. */}
+      <ellipse cx="50" cy="88.5" rx="34" ry="3" fill={INK} opacity="0.12" />
+
+      {/* Aripa din dreapta: un volum mai scund, retras. Ea face silueta lata
+          in loc de inalta si da constructiei doua planuri, nu unul. */}
+      <path
+        d="M64 52 L86 52 L86 86 L64 86 Z"
+        fill={SHADOW}
+        stroke={INK}
+        strokeWidth="3"
+        strokeLinejoin="round"
       />
-      <g transform="translate(60 64) scale(0.88) translate(-60 -62)">
-        <path
-          d="M60 24 L94 54 H26 Z"
-          fill={ACCENT}
-          stroke={INK}
-          strokeWidth="3"
-          strokeLinejoin="round"
-        />
-        {/* Eave shadow — the roof reads as a plane, not a flat triangle. */}
-        <path d="M60 24 L94 54 H74 Z" fill={ACCENT_DEEP} opacity="0.5" />
-        <rect
-          x="36"
-          y="54"
-          width="48"
-          height="46"
-          rx="7"
-          fill={PAPER}
-          stroke={INK}
-          strokeWidth="3"
-          strokeLinejoin="round"
-        />
-        <rect x="46" y="64" width="12" height="12" rx="3.5" fill={INK} />
-        <rect x="64" y="64" width="12" height="12" rx="3.5" fill={INK} />
-        <path
-          d="M52 100 v-12 a8 8 0 0 1 16 0 v12 z"
-          fill={ACCENT}
-          stroke={INK}
-          strokeWidth="3"
-          strokeLinejoin="round"
-        />
+      <path
+        d="M60 54 L90 54 L75 41 Z"
+        fill={ACCENT}
+        stroke={INK}
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
+      <path d="M75 41 L90 54 L75 54 Z" fill={ACCENT_DEEP} opacity="0.5" />
+
+      {/* Corpul principal. */}
+      <path
+        d="M14 50 L62 50 L62 86 L14 86 Z"
+        fill={PAPER}
+        stroke={INK}
+        strokeWidth="3.4"
+        strokeLinejoin="round"
+      />
+
+      {/* Acoperisul: doua plane, cu o coama vizibila. */}
+      <path
+        d="M8 52 L38 26 L68 52 Z"
+        fill={ACCENT}
+        stroke={INK}
+        strokeWidth="3.4"
+        strokeLinejoin="round"
+      />
+      <path d="M38 26 L68 52 L38 52 Z" fill={ACCENT_DEEP} opacity="0.55" />
+      <path d="M38 26 L38 52" stroke={INK} strokeWidth="2" opacity="0.3" />
+
+      {/* Ferestre cu cercevea — detaliul care il scoate din pictograma plata,
+          fara sa devina zgomot la 36px. */}
+      <g>
+        <rect x="22" y="58" width="15" height="15" rx="2" fill={INK} />
+        <path d="M29.5 58 v15 M22 65.5 h15" stroke={PAPER} strokeWidth="1.8" />
       </g>
+      <rect x="70" y="60" width="10" height="10" rx="2" fill={INK} />
+
+      {/* Usa cu arc si prag. */}
+      <path
+        d="M45 86 v-15 a6.5 6.5 0 0 1 13 0 v15 z"
+        fill={ACCENT}
+        stroke={INK}
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
+      <circle cx="54" cy="79" r="1.6" fill={PAPER} />
+      <path d="M12 86 h78" stroke={INK} strokeWidth="3.4" strokeLinecap="round" />
     </svg>
   );
 }
