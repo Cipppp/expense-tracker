@@ -200,6 +200,34 @@ model Subscription {
 }
 
 // Single-row settings table.
+/*
+ * Taxe platite efectiv, extrase din extrasul bancar al firmei.
+ *
+ * Proiectia de pe dashboard raspunde la "cat o sa datorez"; asta raspunde la
+ * "cat am dat deja si pentru ce luna". Sunt doua intrebari diferite si pana
+ * acum a doua nu avea raspuns nicaieri in aplicatie.
+ *
+ * `forPeriod` e luna ACOPERITA, nu cea in care s-a facut plata: "BS+BAS
+ * martie" se plateste pe 4 mai, iar comparatia lunara are sens doar dupa luna
+ * acoperita.
+ */
+model TaxPayment {
+  id          String   @id @default(cuid())
+  paidAt      DateTime
+  forPeriod   String?              // "2026-03"
+  kind        String               // bs_bas | dividende | venit | micro | cam | tva | alte
+  amountRon   Int                  // in bani
+  description String
+  // Cheie naturala din extras (data + suma + eticheta), ca reimportarea
+  // aceluiasi extras sa nu duplice nimic.
+  dedupKey    String   @unique
+  createdAt   DateTime @default(now())
+
+  @@index([paidAt])
+  @@index([forPeriod])
+  @@index([kind])
+}
+
 model Settings {
   id              Int    @id @default(1)
   // App-wide display currency. Storage is unchanged (USD cents for income,

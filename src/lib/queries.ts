@@ -285,6 +285,78 @@ export async function getDailyHeatmap(
   }));
 }
 
+export type TaxPaidSummary = {
+  totalRon: number;                       // bani
+  byKind: Array<{ kind: string; label: string; amountRon: number; count: number }>;
+  byMonth: Array<{ period: string; amountRon: number }>;
+  lastPaidAt: Date | null;
+  unassigned: number;                     // bani, plati fara luna in eticheta
+};
+
+const TAX_LABELS: Record<string, string> = {
+  bs_bas: "BS + BAS",
+  dividende: "Impozit dividende",
+  venit: "Impozit venit",
+  micro: "Impozit micro",
+  cam: "CAM",
+  tva: "TVA",
+  alte: "Alte obligații",
+};
+
+/**
+ * Taxe chiar platite intr-un an, din extrasul bancar.
+ *
+ * Perechea proiectiei: aia estimeaza ce vei datora la ritmul curent, asta
+ * spune ce a plecat deja din cont si pentru ce luna. Gruparea e pe luna
+ * ACOPERITA, nu pe cea a platii — "BS+BAS martie" iese pe 4 mai, iar altfel
+ * lunile ar arata mereu decalate.
+ */
+export async function getTaxPaid(year: number): Promise<TaxPaidSummary> {
+  const rows = await db.taxPayment.findMany({
+    where: {
+      OR: [
+        { forPeriod: { startsWith: String(year) } },
+        {
+          AND: [
+            { forPeriod: null },
+            {
+              paidAt: {
+                gte: new Date(Date.UTC(year, 0, 1)),
+                lte: new Date(Date.UTC(year, 11, 31, 23, 59, 59)),
+              },
+            },
+          ],
+        },
+      ],
+    },
+    orderBy: { paidAt: "asc" },
+  });
+
+  const kinds = new Map<string, { amountRon: number; count: number }>();
+  const months = new Map<string, number>();
+  let unassigned = 0;
+  for (const r of rows) {
+    const k = kinds.get(r.kind) ?? { amountRon: 0, count: 0 };
+    k.amountRon += r.amountRon;
+    k.count += 1;
+    kinds.set(r.kind, k);
+    if (r.forPeriod) months.set(r.forPeriod, (months.get(r.forPeriod) ?? 0) + r.amountRon);
+    else unassigned += r.amountRon;
+  }
+
+  return {
+    totalRon: rows.reduce((a, r) => a + r.amountRon, 0),
+    byKind: [...kinds.entries()]
+      .map(([kind, v]) => ({ kind, label: TAX_LABELS[kind] ?? kind, ...v }))
+      .sort((a, b) => b.amountRon - a.amountRon),
+    byMonth: [...months.entries()]
+      .map(([period, amountRon]) => ({ period, amountRon }))
+      .sort((a, b) => (a.period < b.period ? -1 : 1)),
+    lastPaidAt: rows.length ? rows[rows.length - 1].paidAt : null,
+    unassigned,
+  };
+}
+
 export type ClientInvoicingSummary = {
   jobId: string;
   name: string;
