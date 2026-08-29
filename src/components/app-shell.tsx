@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette } from "@/components/command-palette";
-import { Mascot, MascotMark } from "@/components/mascot";
+import { MascotBadge } from "@/components/mascot";
 import {
   Sheet,
   SheetContent,
@@ -378,12 +378,12 @@ function DesktopSidebar({
               title="Expand sidebar"
               className="h-9 w-9 inline-flex items-center justify-center rounded-md hover:bg-secondary transition-colors"
             >
-              <MascotMark className="h-6 w-6" />
+              <MascotBadge className="h-7 w-7" />
             </button>
           ) : (
             <>
               <Link href="/" className="flex items-center gap-2.5 min-w-0">
-                <Mascot pose="waving" className="h-9 w-9 shrink-0" />
+                <MascotBadge className="h-9 w-9 shrink-0" />
                 <Wordmark />
               </Link>
               <button
@@ -488,7 +488,7 @@ function MobileHeader() {
     <header className="md:hidden sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur safe-top">
       <div className="flex items-center justify-between px-4 py-2.5">
         <Link href="/" className="flex items-center gap-2 min-w-0">
-          <Mascot pose="default" className="h-8 w-8 shrink-0" />
+          <MascotBadge className="h-8 w-8 shrink-0" />
           <Wordmark size="sm" />
         </Link>
         <Sheet open={open} onOpenChange={setOpen}>
@@ -515,7 +515,7 @@ function MobileMenu() {
   return (
     <>
       <div className="px-5 pt-6 pb-3 flex items-center gap-3">
-        <Mascot pose="waving" className="h-10 w-10 shrink-0" />
+        <MascotBadge className="h-10 w-10 shrink-0" />
         <div className="min-w-0">
           <SheetTitle
             className="font-display font-extrabold tracking-[-0.03em] text-lg leading-none"

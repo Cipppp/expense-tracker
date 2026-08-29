@@ -1,11 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="t">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="t">
   <title id="t">House Cefani</title>
-  <rect width="512" height="512" rx="112" fill="#17161c"/>
-  <g transform="translate(256 268) scale(3.05) translate(-60 -62)">
+  <rect width="120" height="120" rx="26" fill="#17161c"/>
+  <g transform="translate(60 64) scale(0.88) translate(-60 -62)">
     <path d="M60 24 L94 54 H26 Z" fill="#f24b1a" stroke="#17161c" stroke-width="3" stroke-linejoin="round"/>
-    <rect x="36" y="54" width="48" height="46" rx="6" fill="#fdfdfc" stroke="#17161c" stroke-width="3" stroke-linejoin="round"/>
-    <rect x="46" y="64" width="12" height="12" rx="3" fill="#17161c"/>
-    <rect x="64" y="64" width="12" height="12" rx="3" fill="#17161c"/>
+    <path d="M60 24 L94 54 H74 Z" fill="#d43a0d" opacity="0.5"/>
+    <rect x="36" y="54" width="48" height="46" rx="7" fill="#fdfdfc" stroke="#17161c" stroke-width="3" stroke-linejoin="round"/>
+    <rect x="46" y="64" width="12" height="12" rx="3.5" fill="#17161c"/>
+    <rect x="64" y="64" width="12" height="12" rx="3.5" fill="#17161c"/>
     <path d="M52 100 v-12 a8 8 0 0 1 16 0 v12 z" fill="#f24b1a" stroke="#17161c" stroke-width="3" stroke-linejoin="round"/>
   </g>
 </svg>
