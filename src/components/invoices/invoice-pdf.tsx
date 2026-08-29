@@ -78,6 +78,8 @@ export type InvoicePdfProps = {
     cif: string;
     /** Codul special de TVA art. 317, folosit doar pe facturile catre UE. */
     vatIntra?: string;
+    /** false = scutit art. 310; schimba si cota afisata, si mentiunea. */
+    vatRegistered?: boolean;
     reg: string;
     address: string;
     iban: string;
@@ -114,7 +116,11 @@ export type InvoicePdfProps = {
 
 export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
   const rate = invoice.bnrRate ?? 1;
-  const kind = vatKindForInvoice(invoice.clientCountry, invoice.vatRate);
+  const kind = vatKindForInvoice(
+    invoice.clientCountry,
+    invoice.vatRate,
+    issuer.vatRegistered ?? true,
+  );
 
   // Presentation currency: Romanian clients are always invoiced in RON (legal
   // requirement); everyone else is invoiced in the contract currency. So an

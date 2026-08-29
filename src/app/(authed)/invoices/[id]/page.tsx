@@ -239,7 +239,11 @@ export default async function InvoicePage(props: {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               });
-            const vatKind = vatKindForInvoice(inv.clientCountry, inv.vatRate);
+            const vatKind = vatKindForInvoice(
+              inv.clientCountry,
+              inv.vatRate,
+              settings.vatRegistered,
+            );
             const reverse = vatKind === "eu_reverse" || vatKind === "export";
             // Presentation currency mirrors the PDF: RO clients in RON,
             // everyone else in their contract currency.

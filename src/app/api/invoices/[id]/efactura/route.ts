@@ -56,6 +56,7 @@ export async function GET(
           ? settings.issuerVatIntra
           : settings.issuerCif,
       reg: settings.issuerReg,
+      vatRegistered: settings.vatRegistered,
       address: settings.issuerAddress,
       iban: pickIssuerIban(settings, invoice.clientCountry, invoice.invoiceCurrency),
       swift: settings.issuerSwift,

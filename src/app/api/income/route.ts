@@ -67,6 +67,10 @@ export async function POST(req: Request) {
         endMinutes: v.endMinutes,
         hours,
         hourlyRate: job.rateUsd,
+        // job.rateUsd e tariful in moneda clientului, nu in USD (numele e
+        // istoric). Fara linia asta randul ramane pe "USD" din schema si
+        // 8h x 100 RON/h intra in Earned YTD ca $800.
+        currency: job.defaultCurrency,
         amountUsd,
         notes: v.notes ?? null,
       },

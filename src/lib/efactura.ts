@@ -19,6 +19,9 @@ type EfacturaInput = {
   issuer: {
     name: string;
     cif: string; // RO51711091
+    /** false = scutit art. 310. Fara el, o factura interna la 0% iesea ca
+     *  "O — servicii prestate in afara UE", ceea ce e complet alta operatiune. */
+    vatRegistered?: boolean;
     reg: string; // J2025030670009
     address: string;
     iban: string;
@@ -125,7 +128,11 @@ function cityFromAddress(address: string): string {
 export function buildEfacturaXml(input: EfacturaInput): string {
   const { issuer, invoice: inv } = input;
   const rate = inv.bnrRate ?? 1;
-  const kind = vatKindForInvoice(inv.clientCountry, inv.vatRate);
+  const kind = vatKindForInvoice(
+    inv.clientCountry,
+    inv.vatRate,
+    issuer.vatRegistered ?? true,
+  );
 
   // Presentation/document currency mirrors the PDF: RON for RO clients, the
   // contract currency otherwise.
@@ -152,6 +159,17 @@ export function buildEfacturaXml(input: EfacturaInput): string {
       ? { id: "S", percent: inv.vatRate * 100 as number | null, reasonCode: "", reason: "" }
       : kind === "eu_reverse"
         ? { id: "AE", percent: 0 as number | null, reasonCode: "VATEX-EU-AE", reason: "Reverse charge" }
+        // Category E ("Exempt from VAT"): scutirea de mica intreprindere.
+        // O factura interna a unui neplatitor NU e categoria O — aia inseamna
+        // servicii prestate in afara UE si ar declara altceva la SPV.
+        : kind === "exempt_310"
+          ? {
+              id: "E",
+              percent: 0 as number | null,
+              reasonCode: "VATEX-EU-D",
+              reason:
+                "Scutit conform art. 310 din Legea nr. 227/2015 - regim special de scutire pentru intreprinderi mici",
+            }
         // Category O ("Not subject to VAT", services outside the EU): the VAT
         // rate is PROHIBITED by EN16931 BR-O-05 — emit no cbc:Percent.
         : { id: "O", percent: null as number | null, reasonCode: "VATEX-EU-O", reason: "Not subject to VAT - services supplied outside the EU" };

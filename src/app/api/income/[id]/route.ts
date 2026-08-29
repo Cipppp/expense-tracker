@@ -40,7 +40,16 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       );
     }
     hours = (endMinutes - startMinutes) / 60;
-    amountUsd = centsFromUsd(hours * job.rateUsd);
+    /*
+     * Re-price at the rate this entry was LOGGED at, not the client's rate
+     * today. Dragging a May block by 15 minutes must not silently restate it
+     * at a rate agreed in August — the activity report attached to the
+     * invoice would stop matching the invoice.  Only a genuine change of
+     * client falls back to that client's current rate.
+     */
+    const jobChanged = job.id !== existing.jobId;
+    const rate = jobChanged ? job.rateUsd : (existing.hourlyRate ?? job.rateUsd);
+    amountUsd = centsFromUsd(hours * rate);
   }
 
   const row = await db.income.update({
@@ -52,7 +61,13 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       startMinutes,
       endMinutes,
       hours,
-      hourlyRate: job ? job.rateUsd : existing.hourlyRate,
+      // Same rule for the stored snapshot: keep it unless the client changed.
+      hourlyRate:
+        job && job.id !== existing.jobId ? job.rateUsd : existing.hourlyRate,
+      currency:
+        job && job.id !== existing.jobId
+          ? job.defaultCurrency
+          : existing.currency,
       amountUsd,
       description: v.description ?? existing.description,
       notes: v.notes === undefined ? existing.notes : v.notes,
