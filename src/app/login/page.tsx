@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Mascot } from "@/components/mascot";
 
 function LoginForm() {
   const router = useRouter();
@@ -173,9 +174,17 @@ export default function LoginPage() {
   return (
     <div className="min-h-[100dvh] flex items-center justify-center bg-secondary/50 px-4 py-8 safe-bottom">
       <div className="w-full max-w-md animate-fade-in">
-        <div className="text-center mb-8">
-          <div className="font-display text-3xl tracking-tight">
-            expense tracker
+        <div className="flex flex-col items-center text-center mb-8">
+          <Mascot pose="waving" className="h-24 w-24 -mb-1" />
+          <div
+            className="font-display font-extrabold text-3xl tracking-[-0.03em]"
+            style={{ fontVariationSettings: '"wdth" 92' }}
+          >
+            house cefani
+            <span
+              aria-hidden="true"
+              className="ml-[0.08em] inline-block h-[0.2em] w-[0.2em] rounded-full bg-accent"
+            />
           </div>
           <div className="mt-2 text-xs text-muted-foreground uppercase tracking-[0.15em]">
             Project CIP SRL

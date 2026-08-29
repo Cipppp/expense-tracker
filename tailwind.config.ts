@@ -11,8 +11,19 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
-        display: ["var(--font-display)", "Georgia", "serif"],
+        sans: [
+          "var(--font-sans)",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "sans-serif",
+        ],
+        display: [
+          "var(--font-display)",
+          "Helvetica Neue",
+          "Arial",
+          "sans-serif",
+        ],
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
       },
       colors: {
@@ -40,6 +51,14 @@ const config: Config = {
         accent: {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
+          /* AA-safe sibling for coloured TEXT — the fill orange is 3.44:1. */
+          text: "hsl(var(--accent-text))",
+        },
+        /* CTAs, links and focus rings. Kept apart from `accent` so the signal
+           orange stays a signal instead of becoming every button. */
+        action: {
+          DEFAULT: "hsl(var(--action))",
+          foreground: "hsl(var(--action-foreground))",
         },
         popover: {
           DEFAULT: "hsl(var(--popover))",

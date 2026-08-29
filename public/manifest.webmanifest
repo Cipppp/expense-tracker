@@ -1,14 +1,18 @@
 {
-  "name": "Expense Tracker — Project CIP SRL",
-  "short_name": "Expense Tracker",
-  "description": "Personal expense tracker with Romanian micro-enterprise tax math.",
+  "name": "House Cefani — Project CIP SRL",
+  "short_name": "House Cefani",
+  "description": "Household and business ledger: expenses, invoices, chores, supplements.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#faf9f7",
-  "theme_color": "#1c1917",
-  "categories": ["finance", "productivity"],
+  "background_color": "#f7f7f9",
+  "theme_color": "#17161c",
+  "categories": [
+    "finance",
+    "productivity",
+    "lifestyle"
+  ],
   "icons": [
     {
       "src": "/icon-192.png",

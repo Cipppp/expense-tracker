@@ -3,92 +3,119 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * Palette — aligned with korbern-app (2026-08-29).
+   *
+   * The old scheme was warm stone + terracotta: pleasant, but soft in a way
+   * that reads "lifestyle blog" rather than "the money is in here". Korbern's
+   * rebrand solved the same problem by going cool and Apple-quiet on the
+   * neutrals and spending ALL the colour on one signal orange, with a blue
+   * reserved for actions and focus. Same system here, same hexes.
+   *
+   *   ink     #1d1d1f   text, never a fill
+   *   muted   #6e6e73   secondary text
+   *   accent  #f24b1a   the brand signal — money, active state, the dot
+   *   action  #0071e3   buttons, links, focus rings
+   *   border  #e8e8ed   cool hairline
+   *
+   * Neutrals carry a 240° cast, so they're cool but never a dead grey. No
+   * pure black anywhere; card white is the only pure value, because a
+   * dashboard full of cards needs them to actually lift off the page.
+   */
   :root {
-    /* Warm, professional palette — inspired by tweakcn neutral presets,
-       tuned for financial dashboards: legible, calm, occasional accent.   */
-    --background: 36 33% 97%;          /* warm off-white */
-    --foreground: 20 14% 12%;          /* near-black, warm */
+    --background: 240 14% 97%;         /* #f7f7f9 — recessed page */
+    --foreground: 240 3% 12%;          /* #1d1d1f — ink */
 
     --card: 0 0% 100%;
-    --card-foreground: 20 14% 12%;
+    --card-foreground: 240 3% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 20 14% 12%;
+    --popover-foreground: 240 3% 12%;
 
-    --primary: 20 14% 16%;             /* warm graphite */
-    --primary-foreground: 36 33% 98%;
+    --primary: 240 3% 12%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 32 18% 94%;
-    --secondary-foreground: 20 14% 16%;
+    --secondary: 240 11% 96%;          /* #f5f5f7 */
+    --secondary-foreground: 240 6% 30%;
 
-    --muted: 30 12% 93%;
-    --muted-foreground: 24 6% 42%;
+    --muted: 240 11% 96%;
+    --muted-foreground: 240 2% 44%;    /* #6e6e73 */
 
-    --accent: 18 65% 48%;              /* refined terracotta */
-    --accent-foreground: 36 33% 98%;
+    --accent: 14 89% 53%;              /* #f24b1a — signal orange */
+    --accent-foreground: 0 0% 100%;
+    /* The fill orange is only 3.44:1 on the page background, so it fails AA
+       as text. This is the text-safe sibling — use it for coloured words. */
+    --accent-text: 15 85% 41%;         /* #c23c10 */
 
-    --destructive: 0 70% 48%;
+    --action: 210 100% 45%;            /* #0071e3 — CTAs, links, focus */
+    --action-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 152 50% 38%;
+    --success: 158 64% 30%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 35 90% 50%;
-    --warning-foreground: 20 14% 12%;
+    --warning: 35 92% 44%;
+    --warning-foreground: 0 0% 100%;
 
-    --border: 28 14% 88%;
-    --input: 28 14% 88%;
-    --ring: 18 65% 48%;
+    --border: 240 12% 92%;             /* #e8e8ed */
+    --input: 240 12% 92%;
+    --ring: 210 100% 45%;              /* focus is blue, not orange */
 
-    --chart-1: 18 65% 48%;             /* terracotta */
-    --chart-2: 152 35% 42%;            /* sage */
-    --chart-3: 220 30% 45%;            /* dusty blue */
-    --chart-4: 35 75% 55%;             /* amber */
-    --chart-5: 280 25% 50%;            /* muted plum */
+    --chart-1: 14 89% 53%;             /* signal orange */
+    --chart-2: 210 100% 45%;           /* action blue */
+    --chart-3: 180 84% 35%;            /* teal */
+    --chart-4: 258 90% 66%;            /* violet */
+    --chart-5: 80 42% 43%;             /* olive */
 
-    --radius: 0.625rem;
+    --radius: 0.75rem;
   }
 
   .dark {
-    --background: 20 14% 8%;
-    --foreground: 36 20% 92%;
+    --background: 240 8% 8%;
+    --foreground: 240 12% 94%;
 
-    --card: 20 14% 11%;
-    --card-foreground: 36 20% 92%;
+    --card: 240 8% 11%;
+    --card-foreground: 240 12% 94%;
 
-    --popover: 20 14% 11%;
-    --popover-foreground: 36 20% 92%;
+    --popover: 240 8% 11%;
+    --popover-foreground: 240 12% 94%;
 
-    --primary: 36 20% 92%;
-    --primary-foreground: 20 14% 11%;
+    --primary: 240 12% 94%;
+    --primary-foreground: 240 8% 11%;
 
-    --secondary: 20 12% 16%;
-    --secondary-foreground: 36 20% 92%;
+    --secondary: 240 7% 16%;
+    --secondary-foreground: 240 12% 94%;
 
-    --muted: 20 12% 16%;
-    --muted-foreground: 28 10% 65%;
+    --muted: 240 7% 16%;
+    --muted-foreground: 240 6% 66%;
 
-    --accent: 18 70% 55%;
-    --accent-foreground: 20 14% 8%;
+    --accent: 14 92% 58%;
+    --accent-foreground: 0 0% 100%;
+    --accent-text: 14 92% 68%;
 
-    --destructive: 0 70% 55%;
+    --action: 210 100% 62%;
+    --action-foreground: 240 8% 8%;
+
+    --destructive: 0 72% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 152 50% 50%;
-    --success-foreground: 0 0% 100%;
+    --success: 158 55% 48%;
+    --success-foreground: 240 8% 8%;
 
-    --warning: 35 90% 60%;
-    --warning-foreground: 20 14% 12%;
+    --warning: 35 92% 58%;
+    --warning-foreground: 240 8% 8%;
 
-    --border: 20 12% 20%;
-    --input: 20 12% 20%;
-    --ring: 18 70% 55%;
+    --border: 240 7% 20%;
+    --input: 240 7% 20%;
+    --ring: 210 100% 62%;
 
-    --chart-1: 18 70% 58%;
-    --chart-2: 152 40% 55%;
-    --chart-3: 220 40% 65%;
-    --chart-4: 35 80% 65%;
-    --chart-5: 280 35% 65%;
+    --chart-1: 14 92% 60%;
+    --chart-2: 210 100% 66%;
+    --chart-3: 180 65% 48%;
+    --chart-4: 258 90% 74%;
+    --chart-5: 80 45% 55%;
   }
 }
 
@@ -103,7 +130,18 @@
   }
   body {
     @apply bg-background text-foreground font-sans;
-    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    /* Manrope sets tighter than SF Pro by default, so half of apple.com's
+       -0.022em is the right dose here. */
+    letter-spacing: -0.011em;
+  }
+  /* Archivo carries every heading. Hierarchy comes from SIZE, not from
+     everything shouting — bold, never black, except brand moments that opt
+     back in explicitly. */
+  h1,
+  h2,
+  h3 {
+    @apply font-display font-bold tracking-[-0.02em];
   }
   ::selection {
     background: hsl(var(--accent) / 0.25);
@@ -133,5 +171,93 @@
      accounting for the chrome that shows/hides. */
   .min-h-dvh {
     min-height: 100dvh;
+  }
+}
+
+/* Mascot rig ----------------------------------------------------------------
+ *
+ * Cefi's ambient motion. Origins here must match the rig contract documented
+ * in components/mascot.tsx — move a part in the SVG, move its origin here.
+ * Everything is slow and small on purpose: a mascot that jiggles reads as a
+ * banner ad, and this one sits permanently in the sidebar.
+ */
+@keyframes mascot-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scaleY(1);
+  }
+  50% {
+    transform: translateY(-1px) scaleY(1.012);
+  }
+}
+
+@keyframes mascot-smoke {
+  0% {
+    transform: translate(0, 4px) scale(0.85);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translate(6px, -14px) scale(1.15);
+    opacity: 0;
+  }
+}
+
+@keyframes mascot-wave {
+  0%,
+  60%,
+  100% {
+    transform: rotate(0deg);
+  }
+  70% {
+    transform: rotate(-16deg);
+  }
+  80% {
+    transform: rotate(6deg);
+  }
+  90% {
+    transform: rotate(-12deg);
+  }
+}
+
+@keyframes mascot-confetti {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-3px);
+    opacity: 0.65;
+  }
+}
+
+.mascot-breathe {
+  transform-origin: 60px 104px;
+  animation: mascot-breathe 4.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.mascot-smoke {
+  transform-origin: 75px 12px;
+  animation: mascot-smoke 4s linear infinite;
+}
+
+.mascot-wave {
+  transform-origin: 85px 78px;
+  animation: mascot-wave 3.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.mascot-confetti {
+  animation: mascot-confetti 2.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot-breathe,
+  .mascot-smoke,
+  .mascot-wave,
+  .mascot-confetti {
+    animation: none;
   }
 }
