@@ -4,6 +4,7 @@ import {
   getMonthlyCategoryBreakdown,
   getMonthTotals,
   getSettings,
+  getTaxPaid,
   getTaxProjection,
   getTopMerchants,
   getYtd,
@@ -37,6 +38,7 @@ export default async function DashboardPage() {
     categories,
     daily,
     taxProjection,
+    taxPaid,
     thisMonth,
     lastMonth,
   ] = await Promise.all([
@@ -47,6 +49,7 @@ export default async function DashboardPage() {
     getMonthlyCategoryBreakdown(year),
     getDailyHeatmap(year, month),
     getTaxProjection(year, now),
+    getTaxPaid(year),
     getMonthTotals(year, month),
     getMonthTotals(prevYear, prevMonth),
   ]);
@@ -90,6 +93,7 @@ export default async function DashboardPage() {
 
       <TaxProjectionCard
         projection={taxProjection}
+        paid={taxPaid}
         displayCurrency={displayCurrency}
         fxRonToUsd={settings.fxRonToUsd}
       />
