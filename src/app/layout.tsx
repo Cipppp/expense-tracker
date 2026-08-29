@@ -1,20 +1,30 @@
 import type { Metadata, Viewport } from "next";
-import { Montserrat, Fraunces, JetBrains_Mono } from "next/font/google";
+import { Archivo, Manrope, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
-const sans = Montserrat({
+/*
+ * Type pairing lifted from korbern-app: Archivo on display, Manrope on body.
+ *
+ * Archivo is variable on BOTH axes (weight 100-900, width 62-125) and the
+ * width axis is load-bearing rather than decorative — brand moments can
+ * condense a headline without the smeared strokes a scaleX() would give.
+ * Manrope handles everything else because this UI lives at 12-14px in dense
+ * tables, where a display grotesque that heavy turns to mud.
+ */
+const display = Archivo({
   subsets: ["latin"],
-  variable: "--font-sans",
+  axes: ["wdth"],
+  variable: "--font-display",
   display: "swap",
 });
 
-const display = Fraunces({
+const sans = Manrope({
   subsets: ["latin"],
-  variable: "--font-display",
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-sans",
   display: "swap",
-  axes: ["opsz", "SOFT"],
 });
 
 const mono = JetBrains_Mono({
@@ -24,13 +34,13 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Expense Tracker — Project CIP SRL",
+  title: "House Cefani — Project CIP SRL",
   description:
-    "Personal expense tracker with Romanian micro-enterprise tax math.",
+    "Household and business ledger: expenses, invoices, chores, supplements.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Expense Tracker",
+    title: "House Cefani",
     statusBarStyle: "default",
   },
   icons: {
@@ -45,8 +55,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf9f7" },
-    { media: "(prefers-color-scheme: dark)", color: "#1c1917" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f7f9" },
+    { media: "(prefers-color-scheme: dark)", color: "#131318" },
   ],
   width: "device-width",
   initialScale: 1,

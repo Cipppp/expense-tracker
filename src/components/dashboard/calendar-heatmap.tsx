@@ -241,7 +241,7 @@ export function CalendarHeatmap({
                     isHot ? "text-white/85" : "text-muted-foreground",
                   )}
                 >
-                  {compactRon(ron)}
+                  {compactAmount(ron, displayCurrency, fxRonToUsd)}
                 </span>
               )}
             </button>
@@ -325,14 +325,21 @@ export function CalendarHeatmap({
 }
 
 /**
- * Compact RON formatter for the small heatmap cells. Falls back to whole
- * RON values below 1000 and "Xk" above to fit a 9px font.
+ * Compact formatter for the small heatmap cells. Converts the stored RON bani
+ * into whatever the dashboard's currency toggle is showing, then shortens it
+ * to fit a 9px cell: whole units below 1000, "Xk" above. USD keeps its "$" so
+ * a cell reading "180" can't be mistaken for RON.
  */
-function compactRon(bani: number): string {
-  const ron = Math.round(bani / 100);
-  if (ron < 1000) return String(ron);
-  if (ron < 10000) return `${(ron / 1000).toFixed(1)}k`;
-  return `${Math.round(ron / 1000)}k`;
+function compactAmount(
+  bani: number,
+  display: DisplayCurrency,
+  fxRonToUsd: number,
+): string {
+  const major = Math.round(ronBaniToDisplay(bani, display, fxRonToUsd) / 100);
+  const sym = display === "USD" ? "$" : "";
+  if (major < 1000) return `${sym}${major}`;
+  if (major < 10000) return `${sym}${(major / 1000).toFixed(1)}k`;
+  return `${sym}${Math.round(major / 1000)}k`;
 }
 
 function DayDetail({
