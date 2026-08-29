@@ -27,7 +27,8 @@ const Body = z.object({
   invoiceCurrency: z.enum(["RON", "USD", "EUR"]).default("RON"),
   bnrRate: z.coerce.number().positive().optional().nullable(),
   // VAT rate (0.21 or 0). If omitted, derived from the client country:
-  // RO → settings.vatRate, anything else → 0 (intra-community reverse charge).
+  // RO → settings.vatRate daca firma e platitoare de TVA (art. 316), altfel 0
+  // (scutire art. 310). Orice alta tara → 0 (taxare inversa / export).
   vatRate: z.coerce.number().min(0).max(1).optional(),
   footerNote: z.string().optional().nullable(),
   lines: z.array(LineInput).min(1),
@@ -74,7 +75,9 @@ export async function POST(req: Request) {
   // RO / unknown → standard rate (domestic); EU → 0 reverse charge; non-EU
   // → 0 export of services. See lib/vat for the legal distinction.
   const vatRate =
-    v.vatRate != null ? v.vatRate : deriveVat(v.clientCountry, settings.vatRate).vatRate;
+    v.vatRate != null
+      ? v.vatRate
+      : deriveVat(v.clientCountry, settings.vatRate, settings.vatRegistered).vatRate;
 
   const linesWithAmount = v.lines.map((l, i) => ({
     ...l,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { EU_MEMBER_STATES } from "@/lib/vat";
 import { buildEfacturaXml } from "@/lib/efactura";
 import { pickIssuerIban } from "@/lib/invoice";
 
@@ -41,7 +42,19 @@ export async function GET(
   const xml = buildEfacturaXml({
     issuer: {
       name: settings.issuerName,
-      cif: settings.issuerCif,
+      /*
+       * BT-31, identificatorul de TVA al furnizorului. Pentru clientii din UE
+       * se pune codul special art. 317 (RO55415170) — el e cel din VIES pe
+       * care se sprijina taxarea inversa; CIF-ul firmei nu mai e valabil in
+       * scopuri de TVA de la decizia F700 din 03.08.2026.
+       */
+      cif:
+        settings.issuerVatIntra &&
+        invoice.clientCountry &&
+        invoice.clientCountry.toUpperCase() !== "RO" &&
+        EU_MEMBER_STATES.has(invoice.clientCountry.toUpperCase())
+          ? settings.issuerVatIntra
+          : settings.issuerCif,
       reg: settings.issuerReg,
       address: settings.issuerAddress,
       iban: pickIssuerIban(settings, invoice.clientCountry, invoice.invoiceCurrency),

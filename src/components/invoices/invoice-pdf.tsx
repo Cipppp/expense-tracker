@@ -76,6 +76,8 @@ export type InvoicePdfProps = {
   issuer: {
     name: string;
     cif: string;
+    /** Codul special de TVA art. 317, folosit doar pe facturile catre UE. */
+    vatIntra?: string;
     reg: string;
     address: string;
     iban: string;
@@ -158,7 +160,16 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
           <View style={styles.block}>
             <Text style={styles.blockTitle}>Furnizor: {issuer.name}</Text>
             <Text style={styles.blockLine}>Reg. com.: {issuer.reg}</Text>
-            <Text style={styles.blockLine}>CIF: {issuer.cif}</Text>
+            {/* Pe facturile catre UE se trece codul special de TVA (art. 317),
+                nu CIF-ul firmei — el e cel valabil in VIES pentru taxare
+                inversa. Pe rest ramane CIF-ul obisnuit. */}
+            {kind === "eu_reverse" && issuer.vatIntra ? (
+              <Text style={styles.blockLine}>
+                Cod TVA intracomunitar: {issuer.vatIntra}
+              </Text>
+            ) : (
+              <Text style={styles.blockLine}>CIF: {issuer.cif}</Text>
+            )}
             <Text style={styles.blockLine}>Adresa: {issuer.address}</Text>
             <Text style={styles.blockLine}>IBAN: {issuer.iban}</Text>
             {issuer.swift ? (
@@ -180,7 +191,9 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
                   ? "taxare inversa"
                   : kind === "export"
                     ? "neimpozabil"
-                    : `${Math.round(invoice.vatRate * 100)}%`}
+                    : kind === "exempt_310"
+                      ? "scutit art. 310"
+                      : `${Math.round(invoice.vatRate * 100)}%`}
               </Text>
             </View>
           </View>
@@ -259,6 +272,14 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
               Operatiune neimpozabila in Romania - taxare inversa (reverse charge).
               TVA se achita de beneficiar conform art. 196 din Directiva 2006/112/CE
               (servicii intracomunitare B2B).
+            </Text>
+          </View>
+        ) : kind === "exempt_310" ? (
+          <View style={styles.note}>
+            <Text>
+              Neplatitor de TVA - scutit conform art. 310 din Legea nr. 227/2015
+              privind Codul fiscal (regim special de scutire pentru
+              intreprinderile mici).
             </Text>
           </View>
         ) : kind === "export" ? (

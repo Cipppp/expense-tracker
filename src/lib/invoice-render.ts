@@ -45,6 +45,7 @@ export async function renderInvoicePdf(
       issuer: {
         name: settings.issuerName,
         cif: settings.issuerCif,
+        vatIntra: settings.issuerVatIntra,
         reg: settings.issuerReg,
         address: settings.issuerAddress,
         iban: pickIssuerIban(settings, invoice.clientCountry, invoice.invoiceCurrency),
