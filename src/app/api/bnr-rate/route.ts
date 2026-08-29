@@ -2,9 +2,16 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const TODAY_URL = "https://www.bnr.ro/nbrfxrates.xml";
+/*
+ * BNR moved the rate feeds to the `curs.bnr.ro` subdomain. The old
+ * www.bnr.ro paths now 302 to the homepage, and because that redirect ends
+ * in a 200 full of HTML, this route was failing with the useless "no rate
+ * data in BNR feed" instead of a network error — invoices silently lost
+ * their auto-filled rate. Verified 2026-08-30.
+ */
+const TODAY_URL = "https://curs.bnr.ro/nbrfxrates.xml";
 const YEAR_URL = (year: number) =>
-  `https://www.bnr.ro/files/xml/years/nbrfxrates${year}.xml`;
+  `https://curs.bnr.ro/files/xml/years/nbrfxrates${year}.xml`;
 
 /**
  * Fetch the official BNR reference rate (RON per 1 unit of `currency`) for
@@ -38,11 +45,17 @@ export async function GET(req: Request) {
     return NextResponse.json({ currency: "RON", rate: 1, date: null });
   }
 
-  // Pick the right XML feed: today's daily file or a year archive.
-  let xmlUrl = TODAY_URL;
+  /*
+   * Pick the right XML feed. ANY explicit date goes to that year's archive,
+   * including the current year: the daily feed carries a single Cube, so a
+   * back-dated invoice used to silently get TODAY's rate with fellBack=true.
+   * That is not a cosmetic fallback — ANAF wants the rate of the invoice
+   * date, and CP0022 (29.06, EUR 5.2430) would have been auto-filled with
+   * 5.2584. The archive is published through the last business day, so it
+   * answers every invoice date; only a no-date request uses the daily file.
+   */
   const year = date ? parseInt(date.slice(0, 4), 10) : new Date().getFullYear();
-  const now = new Date();
-  if (date && year < now.getFullYear()) xmlUrl = YEAR_URL(year);
+  let xmlUrl = date ? YEAR_URL(year) : TODAY_URL;
 
   let xml: string;
   try {
@@ -57,6 +70,14 @@ export async function GET(req: Request) {
       );
     }
     xml = await res.text();
+    // A redirect to an HTML page still arrives as 200. Fail loudly here so
+    // the next time BNR moves the feed the error names the real cause.
+    if (!xml.includes("<Cube")) {
+      return NextResponse.json(
+        { error: `BNR feed at ${xmlUrl} returned no XML rate data (moved again?)` },
+        { status: 502 },
+      );
+    }
   } catch (err) {
     return NextResponse.json(
       { error: `BNR feed unreachable: ${err instanceof Error ? err.message : "unknown"}` },
@@ -83,7 +104,22 @@ export async function GET(req: Request) {
   // Pick the cube on or before the requested date (or the latest available).
   const target = date ?? cubes[cubes.length - 1].date;
   const valid = cubes.filter((c) => c.date <= target);
-  const cube = valid.length > 0 ? valid[valid.length - 1] : cubes[0];
+  let cube = valid.length > 0 ? valid[valid.length - 1] : cubes[0];
+
+  // Today, asked before BNR publishes (~13:00): the archive may not have it
+  // yet while the daily feed does. Try the daily feed before giving up.
+  if (date && cube.date > target && xmlUrl !== TODAY_URL) {
+    try {
+      const res = await fetch(TODAY_URL, { next: { revalidate: 60 * 60 * 6 } });
+      if (res.ok) {
+        const daily = await res.text();
+        const dm = /<Cube\s+date="([^"]+)">([\s\S]*?)<\/Cube>/.exec(daily);
+        if (dm && dm[1] <= target) cube = { date: dm[1], body: dm[2] };
+      }
+    } catch {
+      // keep the archive answer
+    }
+  }
 
   // Extract the requested currency's rate from this cube.
   const rateRe = new RegExp(
