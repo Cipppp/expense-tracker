@@ -370,8 +370,86 @@ export function Mascot({
 }
 
 /**
- * The bare mark — roof + wall + door, no face, no limbs. For favicons, the
- * sidebar wordmark and anywhere the full character would be noise.
+ * The square badge — the mark set inside a rounded-square ink tile, exactly
+ * like the app icon.
+ *
+ * The full character is TALL: chimney, smoke and a ground shadow stack into a
+ * portrait silhouette, and at 36px in a sidebar that reads as a sliver rather
+ * than a logo. A logo lockup next to a wordmark wants to be square, so the
+ * badge crops away everything above the roof and sits the house in a tile
+ * whose proportions match the favicon the phone already shows.
+ */
+export function MascotBadge({
+  className,
+  size,
+  title = "House Cefani",
+}: {
+  className?: string;
+  size?: number;
+  title?: string;
+}) {
+  return (
+    <svg
+      viewBox="0 0 120 120"
+      width={size}
+      height={size}
+      className={className}
+      role="img"
+      aria-label={title}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect width="120" height="120" rx="26" fill={INK} />
+      {/* Hairline: the ink tile is only a few points off a dark sidebar, so
+          without this the badge loses its edge in dark mode. */}
+      <rect
+        x="0.75"
+        y="0.75"
+        width="118.5"
+        height="118.5"
+        rx="25.4"
+        fill="none"
+        stroke={PAPER}
+        strokeOpacity="0.14"
+        strokeWidth="1.5"
+      />
+      <g transform="translate(60 64) scale(0.88) translate(-60 -62)">
+        <path
+          d="M60 24 L94 54 H26 Z"
+          fill={ACCENT}
+          stroke={INK}
+          strokeWidth="3"
+          strokeLinejoin="round"
+        />
+        {/* Eave shadow — the roof reads as a plane, not a flat triangle. */}
+        <path d="M60 24 L94 54 H74 Z" fill={ACCENT_DEEP} opacity="0.5" />
+        <rect
+          x="36"
+          y="54"
+          width="48"
+          height="46"
+          rx="7"
+          fill={PAPER}
+          stroke={INK}
+          strokeWidth="3"
+          strokeLinejoin="round"
+        />
+        <rect x="46" y="64" width="12" height="12" rx="3.5" fill={INK} />
+        <rect x="64" y="64" width="12" height="12" rx="3.5" fill={INK} />
+        <path
+          d="M52 100 v-12 a8 8 0 0 1 16 0 v12 z"
+          fill={ACCENT}
+          stroke={INK}
+          strokeWidth="3"
+          strokeLinejoin="round"
+        />
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * The bare mark — roof + wall + door, no face, no limbs, no tile. For places
+ * that supply their own background.
  */
 export function MascotMark({
   className,
