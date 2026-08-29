@@ -1,12 +1,12 @@
 import { ArrowDownRight, ArrowUpRight, Receipt, Wallet } from "@/lib/icons";
 import { Card, CardContent } from "@/components/ui/card";
-import { fmtDisplay, usdCentsToDisplay } from "@/lib/format";
+import { fmtDisplay, ronBaniToDisplay, usdCentsToDisplay } from "@/lib/format";
 import type { DisplayCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { MonthTotals } from "@/lib/queries";
 
 export function SummaryCards({
-  spentUsd,
+  spentRon,
   earnedUsd,
   count,
   thisMonth,
@@ -15,7 +15,10 @@ export function SummaryCards({
   displayCurrency,
   fxRonToUsd,
 }: {
-  spentUsd: number;
+  /** Cheltuielile in bani RON — sursa de adevar. `amountUsd` de pe fiecare
+   *  rand e inghetat la cursul din ziua importului, deci reconvertit azi
+   *  dadea alta cifra decat /expenses si decat proiectia de taxe. */
+  spentRon: number;
   earnedUsd: number;
   count: number;
   thisMonth: MonthTotals;
@@ -24,23 +27,32 @@ export function SummaryCards({
   displayCurrency: DisplayCurrency;
   fxRonToUsd: number;
 }) {
-  const conv = (cents: number) =>
-    usdCentsToDisplay(cents, displayCurrency, fxRonToUsd);
-  const fmt = (cents: number) => fmtDisplay(conv(cents), displayCurrency);
-  const netUsd = earnedUsd - spentUsd;
-  const thisNet = thisMonth.earnedUsd - thisMonth.spentUsd;
-  const lastNet = lastMonth.earnedUsd - lastMonth.spentUsd;
+  /*
+   * Totul se aduna in bani RON si se converteste O SINGURA DATA la afisare.
+   * Amestecul de dinainte — venituri in centi USD minus cheltuieli in centi
+   * USD de la import — facea ca "Spent YTD" sa nu se potriveasca cu pagina
+   * de cheltuieli, iar netul sa fie calculat din doua unitati diferite.
+   */
+  const usdToRon = (cents: number) => usdCentsToDisplay(cents, "RON", fxRonToUsd);
+  const fmtRonBani = (bani: number) =>
+    fmtDisplay(ronBaniToDisplay(bani, displayCurrency, fxRonToUsd), displayCurrency);
+  const fmt = fmtRonBani;
+
+  const earnedRon = usdToRon(earnedUsd);
+  const netRon = earnedRon - spentRon;
+  const thisNet = usdToRon(thisMonth.earnedUsd) - thisMonth.spentRon;
+  const lastNet = usdToRon(lastMonth.earnedUsd) - lastMonth.spentRon;
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <Stat
         label="Earned YTD"
-        value={fmt(earnedUsd)}
+        value={fmt(earnedRon)}
         accent="success"
         icon={<ArrowUpRight className="h-4 w-4" />}
         delta={
           <Delta
-            now={thisMonth.earnedUsd}
-            prev={lastMonth.earnedUsd}
+            now={usdToRon(thisMonth.earnedUsd)}
+            prev={usdToRon(lastMonth.earnedUsd)}
             higherIsGood
             prevLabel={lastMonthLabel}
             displayCurrency={displayCurrency}
@@ -50,13 +62,13 @@ export function SummaryCards({
       />
       <Stat
         label="Spent YTD"
-        value={fmt(spentUsd)}
+        value={fmt(spentRon)}
         accent="destructive"
         icon={<ArrowDownRight className="h-4 w-4" />}
         delta={
           <Delta
-            now={thisMonth.spentUsd}
-            prev={lastMonth.spentUsd}
+            now={thisMonth.spentRon}
+            prev={lastMonth.spentRon}
             higherIsGood={false}
             prevLabel={lastMonthLabel}
             displayCurrency={displayCurrency}
@@ -65,9 +77,9 @@ export function SummaryCards({
         }
       />
       <Stat
-        label={netUsd >= 0 ? "Net YTD" : "Net YTD (in red)"}
-        value={fmt(netUsd)}
-        accent={netUsd >= 0 ? "default" : "destructive"}
+        label={netRon >= 0 ? "Net YTD" : "Net YTD (in red)"}
+        value={fmt(netRon)}
+        accent={netRon >= 0 ? "default" : "destructive"}
         icon={<Wallet className="h-4 w-4" />}
         delta={
           <Delta
@@ -109,8 +121,9 @@ function Delta({
   displayCurrency: DisplayCurrency;
   fxRonToUsd: number;
 }) {
-  const fmt = (cents: number) =>
-    fmtDisplay(usdCentsToDisplay(cents, displayCurrency, fxRonToUsd), displayCurrency);
+  // Intrarile vin deja in bani RON, ca sa nu se mai amestece unitatile.
+  const fmt = (bani: number) =>
+    fmtDisplay(ronBaniToDisplay(bani, displayCurrency, fxRonToUsd), displayCurrency);
   if (prev === 0 && now === 0) {
     return (
       <span className="text-muted-foreground">No data vs {prevLabel}</span>

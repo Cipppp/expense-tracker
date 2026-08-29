@@ -159,11 +159,18 @@ export function InvoiceForm({
     for (const g of unbilled) {
       if (!nextPicked.has(g.month)) continue;
       for (const e of g.entries) ids.push(e.id);
+      /*
+       * Tariful se ia din orele DEJA logate, nu din tariful de azi al
+       * clientului. Altfel emailul pleaca cu o factura la tariful nou si un
+       * raport de activitate care aduna acelasi timp la tariful vechi — doua
+       * documente care nu se potrivesc.
+       */
+      const effective = g.hours > 0 ? g.amount / 100 / g.hours : selectedJob.rateUsd;
       generated.push({
         description: `Consulting services — ${monthName(g.month)}`,
         unit: "h",
         quantity: String(g.hours),
-        unitPrice: String(selectedJob.rateUsd),
+        unitPrice: String(Math.round(effective * 100) / 100),
       });
     }
     // Keep manual (non-generated) lines around; replace the previous batch
@@ -498,7 +505,7 @@ export function InvoiceForm({
                         <>
                           {" · "}
                           {fmtCurrency(
-                            Math.round(g.hours * selectedJob.rateUsd * 100),
+                            g.amount,
                             invoiceCurrency,
                           )}
                         </>

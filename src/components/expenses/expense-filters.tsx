@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search, X, Filter } from "@/lib/icons";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,14 @@ export function ExpenseFilters({
   const [maxRon, setMaxRon] = useState(initial.maxRon);
   const [q, setQ] = useState(initial.q);
 
+  /*
+   * Valorile curente intr-un ref: temporizatorul de 350ms captura filtrele
+   * de la momentul tastarii, deci o categorie aleasa in ultima jumatate de
+   * secunda era rescrisa cu valoarea veche cand se declansa cautarea.
+   */
+  const filtersRef = useRef({ category, minRon, maxRon, q });
+  filtersRef.current = { category, minRon, maxRon, q };
+
   // Debounced application of search box.
   useEffect(() => {
     const id = setTimeout(() => apply({ q }), 350);
@@ -49,12 +57,15 @@ export function ExpenseFilters({
   }, [q]);
 
   function apply(partial: Partial<{ category: string; minRon: string; maxRon: string; q: string }>) {
-    const next = new URLSearchParams(searchParams.toString());
+    // Si URL-ul se citeste la aplicare, nu din closure — altfel o navigare
+    // intervenita intre timp e anulata.
+    const next = new URLSearchParams(
+      typeof window === "undefined"
+        ? searchParams.toString()
+        : window.location.search,
+    );
     const values = {
-      category,
-      minRon,
-      maxRon,
-      q,
+      ...filtersRef.current,
       ...partial,
     };
     for (const [key, value] of Object.entries(values)) {

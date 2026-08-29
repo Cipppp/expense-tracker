@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fmtDate, localISODate } from "@/lib/format";
-import { getClientInvoicingSummaries } from "@/lib/queries";
+import { getClientInvoicingSummaries, getSettings } from "@/lib/queries";
 import { ClientSummaryTable } from "@/components/invoices/client-summary-table";
 import type { WeekEntry } from "@/components/income/week-grid";
 
@@ -28,7 +28,7 @@ export default async function InvoicesPage() {
   const yearStart = new Date(year, 0, 1);
   const yearEnd = new Date(year, 11, 31, 23, 59, 59);
 
-  const [invoices, clientSummaries, jobs, incomeRows] = await Promise.all([
+  const [invoices, clientSummaries, jobs, incomeRows, settings] = await Promise.all([
     db.invoice.findMany({
       orderBy: [{ issuedAt: "desc" }, { seriesNumber: "desc" }],
       include: { lines: true },
@@ -46,6 +46,7 @@ export default async function InvoicesPage() {
       },
       orderBy: { date: "asc" },
     }),
+    getSettings(),
   ]);
 
   const total = invoices.length;
@@ -74,7 +75,7 @@ export default async function InvoicesPage() {
       hours: r.hours ?? 0,
       amountUsd: r.amountUsd,
       description: r.description,
-      currency: r.job?.defaultCurrency ?? "USD",
+      currency: r.currency,
       invoiceId: r.invoiceId,
       invoiceNumber: r.invoice
         ? `${r.invoice.series} ${r.invoice.number}`
@@ -234,6 +235,8 @@ export default async function InvoicesPage() {
                 clients={clientSummaries}
                 entriesByJob={entriesByJobObj}
                 jobs={jobOpts}
+                fxEurToUsd={settings.fxEurToUsd}
+                fxRonToUsd={settings.fxRonToUsd}
                 thisMonthLabel={new Date().toLocaleDateString("en-US", { month: "short" })}
                 lastMonthLabel={new Date(
                   new Date().getFullYear(),

@@ -182,8 +182,20 @@ export async function POST(req: Request) {
 
   // ---- APPEND MODE: grow today's block for this client ----
   if (appendMinutes != null) {
+    /*
+     * Doar blocuri NEfacturate. Prelungind unul deja legat de o factura, orele
+     * cresc pe un rand care a fost deja trimis clientului — factura si
+     * raportul de activitate raman cu vechile ore, iar Earned YTD creste in
+     * tacere. Daca singurul bloc al zilei e facturat, cade pe ramura de
+     * creare si porneste un bloc nou.
+     */
     const existing = await db.income.findFirst({
-      where: { jobId, date: { gte: dayLo, lte: dayHi }, startMinutes: { not: null } },
+      where: {
+        jobId,
+        date: { gte: dayLo, lte: dayHi },
+        startMinutes: { not: null },
+        invoiceId: null,
+      },
       orderBy: { endMinutes: "desc" },
     });
     if (existing && existing.startMinutes != null && existing.endMinutes != null) {

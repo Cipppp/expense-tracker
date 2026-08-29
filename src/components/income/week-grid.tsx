@@ -293,10 +293,20 @@ export function WeekGrid({
         } else if (d.mode === "resize-top") {
           newStart = Math.min(d.origEnd - SLOT_MIN, d.origStart + deltaMin);
         }
-        // Time-axis clamps. End may run past 1440 (overnight); cap at
-        // start + 24h to avoid runaway shifts; start stays inside one day.
-        newStart = Math.max(0, Math.min(DAY_MIN, newStart));
-        newEnd = Math.min(newStart + 24 * 60, Math.max(0, newEnd));
+        /*
+         * Limitele axei de timp. La MUTARE durata trebuie sa ramana aceeasi:
+         * limitand capetele independent, un bloc tarat pana la marginea zilei
+         * se scurta, iar suma facturata scadea odata cu el. La redimensionare
+         * limitam capatul tras, ca acolo schimbarea duratei e chiar scopul.
+         */
+        if (d.mode === "move") {
+          const duration = d.origEnd - d.origStart;
+          newStart = Math.max(0, Math.min(DAY_MIN, newStart));
+          newEnd = newStart + duration;
+        } else {
+          newStart = Math.max(0, Math.min(DAY_MIN, newStart));
+          newEnd = Math.min(newStart + 24 * 60, Math.max(0, newEnd));
+        }
         return {
           ...d,
           current: { start: newStart, end: newEnd, date: newDate },
@@ -374,7 +384,14 @@ export function WeekGrid({
   }, [entries, drag]);
 
   const weekTotals = useMemo(() => {
-    const hours = entries.reduce((a, b) => a + b.hours, 0);
+    /*
+     * Numai intrarile din saptamana desenata. Componenta e refolosita si in
+     * previzualizarea per client din /invoices, care ii da luni intregi:
+     * acolo "Saptamana 120h" arata de fapt tot ce s-a trimis, nu saptamana.
+     */
+    const weekKeys = new Set(days.map(localISODate));
+    const visible = entries.filter((e) => weekKeys.has(e.date));
+    const hours = visible.reduce((a, b) => a + b.hours, 0);
     const perClient = new Map<
       string,
       {
@@ -388,7 +405,7 @@ export function WeekGrid({
     // Per-currency cents totals. The stored amount represents the amount in
     // the client's contract currency (we display it with the right symbol).
     const byCurrency: Record<string, number> = {};
-    for (const e of entries) {
+    for (const e of visible) {
       const key = e.jobId ?? e.jobName;
       const cur =
         perClient.get(key) ??
@@ -423,7 +440,7 @@ export function WeekGrid({
       byCurrency,
       perClient: Array.from(perClient.values()).sort((a, b) => b.hours - a.hours),
     };
-  }, [entries, fxEurToUsd, fxRonToUsd]);
+  }, [entries, days, fxEurToUsd, fxRonToUsd]);
 
   const weekLabel = `${days[0].toLocaleDateString("en-GB", {
     day: "numeric",

@@ -106,6 +106,38 @@ export async function GET(req: Request) {
   const valid = cubes.filter((c) => c.date <= target);
   let cube = valid.length > 0 ? valid[valid.length - 1] : cubes[0];
 
+  /*
+   * `cubes[0]` e prima publicare a anului. Pentru o data dinaintea ei (5
+   * ianuarie e prima din 2026) am intoarce un curs de DUPA data ceruta — mai
+   * rau decat o eroare, pentru ca pare corect. Se cauta in arhiva anului
+   * precedent, unde ultima publicare chiar precede data.
+   */
+  if (date && valid.length === 0) {
+    try {
+      const prev = await fetch(YEAR_URL(year - 1), {
+        next: { revalidate: 60 * 60 * 24 },
+      });
+      if (prev.ok) {
+        const prevXml = await prev.text();
+        const prevCubes: { date: string; body: string }[] = [];
+        const re = /<Cube\s+date="([^"]+)">([\s\S]*?)<\/Cube>/g;
+        let pm;
+        while ((pm = re.exec(prevXml)) !== null)
+          prevCubes.push({ date: pm[1], body: pm[2] });
+        const before = prevCubes.filter((c) => c.date <= target);
+        if (before.length > 0) cube = before[before.length - 1];
+      }
+    } catch {
+      // pastram raspunsul din anul cerut
+    }
+    if (cube.date > target) {
+      return NextResponse.json(
+        { error: `BNR nu a publicat niciun curs la sau inainte de ${target}` },
+        { status: 404 },
+      );
+    }
+  }
+
   // Today, asked before BNR publishes (~13:00): the archive may not have it
   // yet while the daily feed does. Try the daily feed before giving up.
   if (date && cube.date > target && xmlUrl !== TODAY_URL) {
