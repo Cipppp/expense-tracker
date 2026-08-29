@@ -236,6 +236,33 @@ export async function getDailyExpenseSummary(year: number, month: number) {
   return out;
 }
 
+export type DailyHeatmapCell = {
+  date: string; // YYYY-MM-DD
+  ron: number;
+  count: number;
+  top: Array<{ description: string; amountRon: number; category: string }>;
+};
+
+/**
+ * Heatmap-shaped view of `getDailyExpenseSummary`: day numbers resolved to ISO
+ * dates so the client can key cells by date while navigating between months.
+ * Shared by the dashboard RSC (initial month) and /api/expenses/daily (the
+ * months fetched on demand when you page backwards).
+ */
+export async function getDailyHeatmap(
+  year: number,
+  month: number,
+): Promise<DailyHeatmapCell[]> {
+  const daily = await getDailyExpenseSummary(year, month);
+  const mm = String(month).padStart(2, "0");
+  return daily.map((d) => ({
+    date: `${year}-${mm}-${String(d.day).padStart(2, "0")}`,
+    ron: d.ron,
+    count: d.count,
+    top: d.top,
+  }));
+}
+
 export type ClientInvoicingSummary = {
   jobId: string;
   name: string;

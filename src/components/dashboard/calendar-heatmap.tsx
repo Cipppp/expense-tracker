@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "@/lib/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -17,6 +17,9 @@ type DailyTotal = {
   count: number;
   top: Array<{ description: string; amountRon: number; category: string }>;
 };
+
+const monthKey = (year: number, month: number) =>
+  `${year}-${String(month).padStart(2, "0")}`;
 
 export function CalendarHeatmap({
   year: initialYear,
@@ -38,11 +41,71 @@ export function CalendarHeatmap({
     month: initialMonth,
   });
 
+  // Only the month rendered on the server arrives as a prop; every other month
+  // is fetched on demand and kept here so paging back and forth is instant.
+  const [months, setMonths] = useState<Record<string, DailyTotal[]>>(() => ({
+    [monthKey(initialYear, initialMonth)]: daily,
+  }));
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inFlight = useRef(new Set<string>());
+
+  const key = monthKey(year, month);
+  const monthDaily = months[key];
+
+  const fetchMonth = useCallback(
+    async (y: number, m: number, { silent = false } = {}) => {
+      const k = monthKey(y, m);
+      if (inFlight.current.has(k)) return;
+      inFlight.current.add(k);
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
+      try {
+        const res = await fetch(`/api/expenses/daily?year=${y}&month=${m}`);
+        if (!res.ok) throw new Error(String(res.status));
+        const json = (await res.json()) as { daily: DailyTotal[] };
+        setMonths((prev) =>
+          prev[k] ? prev : { ...prev, [k]: json.daily ?? [] },
+        );
+      } catch {
+        if (!silent) setError("Couldn't load this month.");
+      } finally {
+        inFlight.current.delete(k);
+        if (!silent) setLoading(false);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (months[key]) return;
+    void fetchMonth(year, month);
+  }, [key, year, month, months, fetchMonth]);
+
+  // Warm the previous month once the visible one has landed — paging backwards
+  // through history is the common move, and this makes it feel instant.
+  useEffect(() => {
+    if (!monthDaily) return;
+    const prev = new Date(year, month - 2, 1);
+    const pk = monthKey(prev.getFullYear(), prev.getMonth() + 1);
+    if (months[pk]) return;
+    const t = setTimeout(
+      () =>
+        void fetchMonth(prev.getFullYear(), prev.getMonth() + 1, {
+          silent: true,
+        }),
+      400,
+    );
+    return () => clearTimeout(t);
+  }, [monthDaily, year, month, months, fetchMonth]);
+
   const byDay = useMemo(() => {
     const m = new Map<string, DailyTotal>();
-    for (const d of daily) m.set(d.date, d);
+    for (const d of monthDaily ?? []) m.set(d.date, d);
     return m;
-  }, [daily]);
+  }, [monthDaily]);
 
   const cells = useMemo(() => {
     const first = new Date(year, month - 1, 1);
@@ -86,6 +149,8 @@ export function CalendarHeatmap({
     setRange({ year: y, month: m });
   }
 
+  const pending = loading && !monthDaily;
+  const isInitialMonth = year === initialYear && month === initialMonth;
   const title = new Date(year, month - 1, 1).toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",
@@ -93,9 +158,20 @@ export function CalendarHeatmap({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-medium tabular-nums">{title}</div>
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-baseline gap-2 min-w-0">
+          <div className="text-sm font-medium tabular-nums truncate">{title}</div>
+          {!isInitialMonth && (
+            <button
+              type="button"
+              onClick={() => setRange({ year: initialYear, month: initialMonth })}
+              className="text-[10px] uppercase tracking-wider text-accent hover:underline shrink-0"
+            >
+              Today
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
             onClick={() => nav(-1)}
@@ -115,7 +191,13 @@ export function CalendarHeatmap({
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      <div
+        className={cn(
+          "grid grid-cols-7 gap-1 transition-opacity duration-200 ease-expo",
+          pending && "opacity-50 animate-pulse",
+        )}
+        aria-busy={pending}
+      >
         {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
           <div
             key={i}
@@ -195,7 +277,7 @@ export function CalendarHeatmap({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-[10px] text-muted-foreground pt-1">
-        {stats.daysWithSpend > 0 && (
+        {stats.daysWithSpend > 0 ? (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
             <span>
               Avg/day · <span className="text-foreground font-medium">{fmtMoney(stats.avg)}</span>
@@ -211,6 +293,18 @@ export function CalendarHeatmap({
               </span>
             </span>
           </div>
+        ) : error ? (
+          <button
+            type="button"
+            onClick={() => void fetchMonth(year, month)}
+            className="text-destructive hover:underline"
+          >
+            {error} Retry.
+          </button>
+        ) : pending ? (
+          <span>Loading {title}…</span>
+        ) : (
+          <span>No expenses recorded in {title}.</span>
         )}
         <div className="flex items-center gap-1.5 ml-auto">
           <span>Less</span>
