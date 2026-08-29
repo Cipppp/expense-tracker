@@ -15,10 +15,10 @@ export default async function ImportPage() {
   return (
     <div className="space-y-8 max-w-4xl">
       <header>
-        <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
+        <div className="text-xs uppercase tracking-[0.07em] text-muted-foreground">
           Import
         </div>
-        <h1 className="mt-1 font-display text-2xl sm:text-4xl tracking-tight">Revolut CSV</h1>
+        <h1 className="mt-1.5 text-[30px] sm:text-[44px] leading-[1.02]">Revolut CSV</h1>
         <p className="mt-2 text-sm text-muted-foreground max-w-2xl">
           Drop one or more Revolut statement CSVs below. Only RON expenses with
           state <span className="font-mono text-foreground">COMPLETED</span> are imported. Dedup

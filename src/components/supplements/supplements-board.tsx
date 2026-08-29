@@ -251,10 +251,10 @@ export function SupplementsBoard({
   return (
     <div className="space-y-5 max-w-2xl">
       <header>
-        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.15em] text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.07em] text-muted-foreground">
           💊 Suplimente
         </div>
-        <h1 className="mt-1 font-display text-2xl sm:text-4xl tracking-tight">
+        <h1 className="mt-1.5 text-[30px] sm:text-[44px] leading-[1.02]">
           Ce am luat azi
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -355,7 +355,7 @@ export function SupplementsBoard({
           <section key={tk} className="space-y-1.5">
             <div className="flex items-center gap-2">
               <span className="text-sm">{t.emoji}</span>
-              <h2 className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground">
+              <h2 className="text-xs font-medium uppercase tracking-[0.07em] text-muted-foreground">
                 {t.label}
               </h2>
               <span className="text-[11px] text-muted-foreground/70">{t.hint}</span>
@@ -444,7 +444,7 @@ export function SupplementsBoard({
 
       {/* End-of-day recap: who took what */}
       <section className="rounded-xl border border-border bg-card px-4 py-3.5">
-        <h3 className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground">
+        <h3 className="text-xs font-medium uppercase tracking-[0.07em] text-muted-foreground">
           Rezumatul zilei · <span className="capitalize">{dayLabel(day, today)}</span>
         </h3>
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -550,7 +550,7 @@ export function SupplementsBoard({
 
       {/* Daily totals */}
       <section className="rounded-xl border border-border bg-card px-4 py-3">
-        <h3 className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground">
+        <h3 className="text-xs font-medium uppercase tracking-[0.07em] text-muted-foreground">
           Totaluri azi · {PEOPLE[person].name}
         </h3>
         <div className="mt-3 grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-3">
@@ -565,7 +565,7 @@ export function SupplementsBoard({
 
       {/* 7-day metrics */}
       <section className="rounded-xl border border-border bg-card px-4 py-3">
-        <h3 className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground">
+        <h3 className="text-xs font-medium uppercase tracking-[0.07em] text-muted-foreground">
           Ultimele 7 zile
         </h3>
         <div className="mt-3 space-y-3">

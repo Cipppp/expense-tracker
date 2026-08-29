@@ -59,7 +59,15 @@ model Income {
   endMinutes   Int?
   hours        Float?
   hourlyRate   Float?
-  amountUsd    Int      // in cents — derived for hourly, manual for projects
+  // Currency this entry was billed in. Clients are not all on one currency
+  // (NETOP and Aethra invoice in EUR, BLNG in USD, FUSECON in RON) and some
+  // clients straddle two — Rudig's Upwork milestones were USD while its
+  // direct invoices are EUR — so the currency belongs on the ENTRY, not on
+  // the job.
+  currency     String   @default("USD") // USD | EUR | RON
+  // Minor units of `currency` (cents / bani), despite the legacy name.
+  // Aggregates convert to USD via Settings.fxEurToUsd / fxRonToUsd.
+  amountUsd    Int
   notes        String?
   // Optional link to the invoice that billed this entry. Set when the user
   // generates an invoice from logged hours; cleared (SetNull) if the invoice
@@ -201,6 +209,9 @@ model Settings {
   // like Conductor POST hours without a browser session. Null = disabled.
   timelogToken    String?
   fxRonToUsd      Float  @default(0.2255)
+  // USD per 1 EUR. Needed to total earnings across clients billed in
+  // different currencies; ~5.2473 RON/EUR x 0.2255 USD/RON as of Aug 2026.
+  fxEurToUsd      Float  @default(1.1833)
   // Romanian micro-enterprise tax inputs.
   bsBasRon        Int    @default(141500) // 1415.00 RON in bani
   camRon          Int    @default(8400)   //   84.00 RON in bani

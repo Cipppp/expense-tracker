@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 
 type Initial = {
   fxRonToUsd: number;
+  fxEurToUsd: number;
   bsBasRon: number;
   camRon: number;
   microPct: number;
@@ -32,6 +33,7 @@ export function SettingsForm({ initial }: { initial: Initial }) {
     const fd = new FormData(e.currentTarget);
     const payload = {
       fxRonToUsd: Number(fd.get("fxRonToUsd")),
+      fxEurToUsd: Number(fd.get("fxEurToUsd")),
       bsBasRon: Number(fd.get("bsBasRon")),
       camRon: Number(fd.get("camRon")),
       microPct: Number(fd.get("microPct")) / 100,
@@ -67,6 +69,15 @@ export function SettingsForm({ initial }: { initial: Initial }) {
           step="0.0001"
           name="fxRonToUsd"
           defaultValue={initial.fxRonToUsd}
+          required
+        />
+      </Field>
+      <Field label="EUR → USD rate">
+        <Input
+          type="number"
+          step="0.0001"
+          name="fxEurToUsd"
+          defaultValue={initial.fxEurToUsd}
           required
         />
       </Field>

@@ -52,3 +52,4 @@ next-env.d.ts
 
 # local screenshots / context attachments (kept locally, not in repo)
 .context/screenshots/
+.backups/

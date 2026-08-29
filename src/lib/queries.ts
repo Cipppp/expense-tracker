@@ -124,6 +124,25 @@ export async function getYearIncome(year: number) {
   });
 }
 
+/**
+ * Income is stored in the currency it was billed in — NETOP and Aethra
+ * invoice in EUR, BLNG in USD, FUSECON and NINE in RON — so summing
+ * `amountUsd` raw would count 4,200 EUR as $4,200. Every aggregate goes
+ * through here instead.
+ */
+export function incomeToUsdCents(
+  rows: Array<{ amountUsd: number; currency: string }>,
+  fx: { fxEurToUsd: number; fxRonToUsd: number },
+): number {
+  let total = 0;
+  for (const r of rows) {
+    if (r.currency === "EUR") total += r.amountUsd * fx.fxEurToUsd;
+    else if (r.currency === "RON") total += r.amountUsd * fx.fxRonToUsd;
+    else total += r.amountUsd;
+  }
+  return Math.round(total);
+}
+
 export async function getSettings() {
   return db.settings.upsert({
     where: { id: 1 },
@@ -155,8 +174,11 @@ export async function getTopMerchants(year: number, month: number, limit = 5) {
 
 /** Monthly aggregates for the year — used in the Dashboard chart. */
 export async function getMonthlyAggregates(year: number) {
-  const expenses = await getYearExpenses(year);
-  const income = await getYearIncome(year);
+  const [expenses, income, settings] = await Promise.all([
+    getYearExpenses(year),
+    getYearIncome(year),
+    getSettings(),
+  ]);
 
   const months: Array<{
     month: number;
@@ -182,7 +204,7 @@ export async function getMonthlyAggregates(year: number) {
   }
   for (const i of income) {
     const m = i.date.getMonth();
-    months[m].earnedUsd += i.amountUsd;
+    months[m].earnedUsd += incomeToUsdCents([i], settings);
   }
   return months;
 }
@@ -383,11 +405,14 @@ export async function getClientInvoicingSummaries(
 
 /** YTD totals — used in the Dashboard summary cards. Excluded rows skipped. */
 export async function getYtd(year: number) {
-  const expenses = await getYearExpenses(year);
-  const income = await getYearIncome(year);
+  const [expenses, income, settings] = await Promise.all([
+    getYearExpenses(year),
+    getYearIncome(year),
+    getSettings(),
+  ]);
   const spentRon = expenses.reduce((a, b) => a + b.amountRon, 0);
   const spentUsd = expenses.reduce((a, b) => a + b.amountUsd, 0);
-  const earnedUsd = income.reduce((a, b) => a + b.amountUsd, 0);
+  const earnedUsd = incomeToUsdCents(income, settings);
   return { spentRon, spentUsd, earnedUsd, count: expenses.length };
 }
 
@@ -404,20 +429,21 @@ export async function getMonthTotals(
 ): Promise<MonthTotals> {
   const start = startOfMonth(year, month);
   const end = endOfMonth(year, month);
-  const [expenses, income] = await Promise.all([
+  const [expenses, income, settings] = await Promise.all([
     db.expense.findMany({
       where: { date: { gte: start, lte: end }, excluded: false },
       select: { amountRon: true, amountUsd: true },
     }),
     db.income.findMany({
       where: { date: { gte: start, lte: end } },
-      select: { amountUsd: true },
+      select: { amountUsd: true, currency: true },
     }),
+    getSettings(),
   ]);
   return {
     spentRon: expenses.reduce((a, b) => a + b.amountRon, 0),
     spentUsd: expenses.reduce((a, b) => a + b.amountUsd, 0),
-    earnedUsd: income.reduce((a, b) => a + b.amountUsd, 0),
+    earnedUsd: incomeToUsdCents(income, settings),
   };
 }
 

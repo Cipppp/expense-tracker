@@ -159,10 +159,16 @@ export function WeekGrid({
   jobs,
   onWeekChange,
   compact = false,
+  fxEurToUsd = 1.1833,
+  fxRonToUsd = 0.2255,
 }: {
   anchorIso: string;
   entries: WeekEntry[];
   jobs: JobOpt[];
+  /** USD per EUR / per RON, from Settings — used for the mixed-currency
+   * week total. Defaults mirror the Settings defaults for embedded callers. */
+  fxEurToUsd?: number;
+  fxRonToUsd?: number;
   /** If provided, controls week navigation (used to embed the grid outside
    * /income without redirecting the page). Default: navigate to /income?week. */
   onWeekChange?: (iso: string) => void;
@@ -399,9 +405,14 @@ export function WeekGrid({
       const c = e.currency || "USD";
       byCurrency[c] = (byCurrency[c] ?? 0) + e.amountUsd;
     }
-    // Convert per-currency subtotals to USD for the grand total.
-    // Hardcoded approximation: 1 EUR ≈ 1.08 USD, 1 RON ≈ 0.22 USD.
-    const FX: Record<string, number> = { USD: 1, EUR: 1.08, RON: 0.22 };
+    // Convert per-currency subtotals to USD for the grand total, using the
+    // same rates the dashboard totals use (Settings.fxEurToUsd / fxRonToUsd)
+    // rather than a second, drifting set of hardcoded guesses.
+    const FX: Record<string, number> = {
+      USD: 1,
+      EUR: fxEurToUsd,
+      RON: fxRonToUsd,
+    };
     let totalUsd = 0;
     for (const [c, cents] of Object.entries(byCurrency)) {
       totalUsd += cents * (FX[c] ?? 1);
@@ -412,7 +423,7 @@ export function WeekGrid({
       byCurrency,
       perClient: Array.from(perClient.values()).sort((a, b) => b.hours - a.hours),
     };
-  }, [entries]);
+  }, [entries, fxEurToUsd, fxRonToUsd]);
 
   const weekLabel = `${days[0].toLocaleDateString("en-GB", {
     day: "numeric",

@@ -22,10 +22,10 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-4 max-w-3xl">
       <header className="pb-2">
-        <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
+        <div className="text-xs uppercase tracking-[0.07em] text-muted-foreground">
           Settings
         </div>
-        <h1 className="mt-1 font-display text-2xl sm:text-4xl tracking-tight">
+        <h1 className="mt-1.5 text-[30px] sm:text-[44px] leading-[1.02]">
           Tax, FX & clients
         </h1>
       </header>
@@ -90,6 +90,7 @@ export default async function SettingsPage() {
         <SettingsForm
           initial={{
             fxRonToUsd: settings.fxRonToUsd,
+            fxEurToUsd: settings.fxEurToUsd,
             bsBasRon: ronFromBani(settings.bsBasRon),
             camRon: ronFromBani(settings.camRon),
             microPct: settings.microPct,

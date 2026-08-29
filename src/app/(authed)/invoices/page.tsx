@@ -97,10 +97,10 @@ export default async function InvoicesPage() {
     <div className="space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
+          <div className="text-xs uppercase tracking-[0.07em] text-muted-foreground">
             Invoices
           </div>
-          <h1 className="mt-1 font-display text-2xl sm:text-4xl tracking-tight">All invoices</h1>
+          <h1 className="mt-1.5 text-[30px] sm:text-[44px] leading-[1.02]">All invoices</h1>
         </div>
         <Button asChild variant="accent" size="sm" className="sm:h-10 sm:px-4">
           <Link href="/invoices/new">

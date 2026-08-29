@@ -135,13 +135,18 @@
        -0.022em is the right dose here. */
     letter-spacing: -0.011em;
   }
-  /* Archivo carries every heading. Hierarchy comes from SIZE, not from
-     everything shouting — bold, never black, except brand moments that opt
-     back in explicitly. */
+  /*
+   * Archivo carries every heading, at SEMIbold. Hierarchy comes from size,
+   * not from everything shouting: bold headings at 40px read as a template,
+   * semibold with tight tracking reads like a product. The width axis is
+   * pulled in a touch (96) for the same reason — slightly condensed display
+   * type is what makes a headline feel drawn rather than typed.
+   */
   h1,
   h2,
   h3 {
-    @apply font-display font-bold tracking-[-0.02em];
+    @apply font-display font-semibold tracking-[-0.028em];
+    font-variation-settings: "wdth" 96;
   }
   ::selection {
     background: hsl(var(--accent) / 0.25);
@@ -149,6 +154,28 @@
 }
 
 @layer utilities {
+  /*
+   * The two type roles this app repeats everywhere.
+   *
+   * `.metric` is the big number on a card: display face, semibold, tabular,
+   * and tracked in hard. Money set at default tracking looks like a
+   * spreadsheet; -0.035em is what makes it look composed.
+   *
+   * `.eyebrow` is the small caps label above it. The old 0.15em tracking is
+   * the standard dashboard-template tell — halved here, and weight carries
+   * the emphasis instead of spacing.
+   */
+  .metric {
+    @apply font-display font-semibold;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    letter-spacing: -0.035em;
+    font-variation-settings: "wdth" 96;
+  }
+  .eyebrow {
+    @apply text-[11px] font-medium uppercase text-muted-foreground;
+    letter-spacing: 0.07em;
+  }
   .num {
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";

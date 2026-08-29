@@ -592,11 +592,11 @@ export function GratitudeList({
   return (
     <div className="space-y-6 max-w-2xl">
       <header>
-        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.15em] text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.07em] text-muted-foreground">
           <Sparkle weight="fill" className="h-3.5 w-3.5 text-accent" />
           Recunoștință
         </div>
-        <h1 className="mt-1 font-display text-2xl sm:text-4xl tracking-tight">
+        <h1 className="mt-1.5 text-[30px] sm:text-[44px] leading-[1.02]">
           Pentru ce merită să fim fericiți împreună
         </h1>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
@@ -723,7 +723,7 @@ export function GratitudeList({
       {/* Pinned */}
       {pinned.length > 0 && (
         <section className="space-y-2">
-          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground">
+          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.07em] text-muted-foreground">
             <PushPin weight="fill" className="h-3.5 w-3.5 text-accent" />
             Fixate
           </div>
@@ -744,7 +744,7 @@ export function GratitudeList({
           {filteredGroups.map((g) => (
             <section key={g.key} className="space-y-3">
               <div className="flex items-center gap-3">
-                <span className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground">
+                <span className="text-xs font-medium uppercase tracking-[0.07em] text-muted-foreground">
                   {g.label}
                 </span>
                 <span className="h-px flex-1 bg-border" />

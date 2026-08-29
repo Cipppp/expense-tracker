@@ -186,7 +186,7 @@ export default function LoginPage() {
               className="ml-[0.08em] inline-block h-[0.2em] w-[0.2em] rounded-full bg-accent"
             />
           </div>
-          <div className="mt-2 text-xs text-muted-foreground uppercase tracking-[0.15em]">
+          <div className="mt-2 text-xs text-muted-foreground uppercase tracking-[0.07em]">
             Project CIP SRL
           </div>
         </div>

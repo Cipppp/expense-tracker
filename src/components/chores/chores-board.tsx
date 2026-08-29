@@ -116,11 +116,11 @@ export function ChoresBoard({
   return (
     <div className="space-y-8">
       <header>
-        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.15em] text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.07em] text-muted-foreground">
           <Broom className="h-3.5 w-3.5" />
           Treburi casnice
         </div>
-        <h1 className="mt-1 font-display text-2xl sm:text-4xl tracking-tight">
+        <h1 className="mt-1.5 text-[30px] sm:text-[44px] leading-[1.02]">
           Rândul săptămânii
         </h1>
         <p className="mt-1 text-sm text-muted-foreground capitalize">

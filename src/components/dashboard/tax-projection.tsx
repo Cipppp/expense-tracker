@@ -29,7 +29,7 @@ export function TaxProjectionCard({
       <CardContent className="p-4 sm:p-5">
         <div className="flex items-baseline justify-between gap-2 mb-4">
           <div>
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">
+            <div className="eyebrow">
               EOY tax projection
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -41,7 +41,7 @@ export function TaxProjectionCard({
           </div>
           <div
             className={cn(
-              "font-display text-xl sm:text-2xl tabular-nums",
+              "metric text-[26px] sm:text-[32px] leading-none",
               inRed ? "text-destructive" : "text-success",
             )}
           >
@@ -95,7 +95,7 @@ function Row({
 }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+      <div className="eyebrow text-[10px]">
         {label}
       </div>
       <div
