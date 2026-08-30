@@ -4,14 +4,12 @@ import {
   getMonthlyCategoryBreakdown,
   getMonthTotals,
   getSettings,
-  getTaxPaid,
   getTopMerchants,
   getYtd,
 } from "@/lib/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
-import { TaxPaidCard } from "@/components/dashboard/tax-paid";
 import { TopMerchants } from "@/components/dashboard/top-merchants";
 import { UnifiedMonthlyChart } from "@/components/dashboard/unified-monthly-chart";
 import { CalendarHeatmap } from "@/components/dashboard/calendar-heatmap";
@@ -36,7 +34,6 @@ export default async function DashboardPage() {
     top,
     categories,
     daily,
-    taxPaid,
     thisMonth,
     lastMonth,
   ] = await Promise.all([
@@ -46,7 +43,6 @@ export default async function DashboardPage() {
     getTopMerchants(year, month, 5),
     getMonthlyCategoryBreakdown(year),
     getDailyHeatmap(year, month),
-    getTaxPaid(year),
     getMonthTotals(year, month),
     getMonthTotals(prevYear, prevMonth),
   ]);
@@ -88,11 +84,6 @@ export default async function DashboardPage() {
         fxRonToUsd={settings.fxRonToUsd}
       />
 
-      <TaxPaidCard
-        paid={taxPaid}
-        displayCurrency={displayCurrency}
-        fxRonToUsd={settings.fxRonToUsd}
-      />
 
       {/* Row 1: chart + heatmap, side by side, similar natural heights */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

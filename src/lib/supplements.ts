@@ -43,14 +43,19 @@ export type Supplement = {
   }>;
 };
 
+/*
+ * Momentele zilei. `icon` numeste o iconita din setul aplicatiei, nu un
+ * emoji: emoji-urile se randeaza altfel pe fiecare sistem si arata a mesagerie,
+ * nu a aplicatie.
+ */
 export const TIMINGS: Record<
   TimingKey,
-  { label: string; emoji: string; hint: string }
+  { label: string; icon: "sun" | "fork" | "moon" | "barbell"; hint: string }
 > = {
-  morning: { label: "Dimineața", emoji: "☀️", hint: "la micul dejun" },
-  noon: { label: "Prânz / după-amiază", emoji: "🍽️", hint: "masa principală · zinc pe la 16:00" },
-  evening: { label: "Seara", emoji: "🌙", hint: "la cină / înainte de culcare" },
-  preworkout: { label: "Antrenament", emoji: "💪", hint: "în zilele de sport" },
+  morning: { label: "Dimineața", icon: "sun", hint: "la micul dejun" },
+  noon: { label: "Prânz / după-amiază", icon: "fork", hint: "masa principală · zinc pe la 16:00" },
+  evening: { label: "Seara", icon: "moon", hint: "la cină / înainte de culcare" },
+  preworkout: { label: "Antrenament", icon: "barbell", hint: "în zilele de sport" },
 };
 
 export const SUPPLEMENTS: Supplement[] = [

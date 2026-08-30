@@ -5,27 +5,25 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import {
-  Broom,
-  ShoppingCart,
-  Sparkle,
-  CheckCircle,
-  Circle,
-  ArrowsLeftRight,
-} from "@/lib/icons";
+import { Broom, ShoppingCart, Sparkle, CheckCircle, Circle, ArrowsLeftRight, X, Pencil } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import {
-  CHORES,
   DAYS,
   PEOPLE,
-  choreKey,
-  setTotal,
   personForSet,
   type SetId,
   type PersonKey,
 } from "@/lib/chores";
 
 type Assignment = { cip: SetId; axy: SetId };
+
+export type ChoreItem = {
+  id: string;
+  setId: number;
+  day: number;
+  label: string;
+  shopping: boolean;
+};
 
 export function ChoresBoard({
   weekKey,
@@ -35,6 +33,7 @@ export function ChoresBoard({
   done: initialDone,
   todayIdx,
   dayNums,
+  chores: initialChores,
 }: {
   weekKey: string;
   weekRange: string;
@@ -44,8 +43,44 @@ export function ChoresBoard({
   todayIdx: number;
   dayNums: number[];
   flip: boolean;
+  chores: ChoreItem[];
 }) {
   const [done, setDone] = useState<Set<string>>(() => new Set(initialDone));
+  const [chores, setChores] = useState<ChoreItem[]>(initialChores);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+
+  /** Sarcinile unei zile dintr-un rand, in ordinea lor. */
+  const cellChores = (set: SetId, day: number) =>
+    chores.filter((c) => c.setId === set && c.day === day);
+
+  async function addChore(set: SetId, day: number) {
+    const label = (draft[`${set}-${day}`] ?? "").trim();
+    if (!label) return;
+    const res = await fetch("/api/chores", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "add", setId: set, day, label }),
+    });
+    if (!res.ok) return toast.error("N-am putut adăuga");
+    const { chore } = await res.json();
+    setChores((c) => [...c, chore]);
+    setDraft((d) => ({ ...d, [`${set}-${day}`]: "" }));
+  }
+
+  async function removeChore(id: string) {
+    const before = chores;
+    setChores((c) => c.filter((x) => x.id !== id));
+    const res = await fetch("/api/chores", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "remove", id }),
+    });
+    if (!res.ok) {
+      setChores(before);
+      toast.error("N-am putut șterge");
+    }
+  }
   const [assign, setAssign] = useState<Assignment>(assignmentThis);
   const [assignNext, setAssignNext] = useState<Assignment>(assignmentNext);
   const [swapping, setSwapping] = useState(false);
@@ -104,13 +139,8 @@ export function ChoresBoard({
   }
 
   function setProgress(set: SetId) {
-    let d = 0;
-    CHORES[set].forEach((day, di) =>
-      day.forEach((_, ci) => {
-        if (done.has(choreKey(set, di, ci))) d++;
-      }),
-    );
-    return { done: d, total: setTotal(set) };
+    const all = chores.filter((c) => c.setId === set);
+    return { done: all.filter((c) => done.has(c.id)).length, total: all.length };
   }
 
   return (
@@ -195,6 +225,15 @@ export function ChoresBoard({
             </span>
           </p>
           <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditing((e) => !e)}
+              className="mr-2"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              {editing ? "Gata" : "Editează"}
+            </Button>
+            <Button
             variant="outline"
             size="sm"
             onClick={swap}
@@ -258,15 +297,15 @@ export function ChoresBoard({
                       </span>
                     </div>
                     <ul className="mt-2 space-y-0.5">
-                      {CHORES[set][di].map((chore, ci) => {
-                        const key = choreKey(set, di, ci);
+                      {cellChores(set, di).map((chore) => {
+                        const key = chore.id;
                         const isDone = done.has(key);
                         return (
-                          <li key={ci}>
+                          <li key={chore.id} className="group/row flex items-start gap-1">
                             <button
                               type="button"
                               onClick={() => toggle(key)}
-                              className="group flex w-full items-start gap-2 rounded-md py-1 pl-0.5 pr-1 text-left text-[13px] hover:bg-secondary/60 transition-colors"
+                              className="group flex flex-1 items-start gap-2 rounded-md py-1 pl-0.5 pr-1 text-left text-[13px] hover:bg-secondary/60 transition-colors"
                             >
                               {isDone ? (
                                 <CheckCircle
@@ -292,9 +331,35 @@ export function ChoresBoard({
                                 {chore.label}
                               </span>
                             </button>
+                            {editing && (
+                              <button
+                                type="button"
+                                onClick={() => removeChore(chore.id)}
+                                aria-label={`Șterge ${chore.label}`}
+                                className="mt-1 shrink-0 rounded p-0.5 text-muted-foreground/50 hover:text-destructive transition-colors"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                           </li>
                         );
                       })}
+                      {editing && (
+                        <li className="pt-1">
+                          <input
+                            value={draft[`${set}-${di}`] ?? ""}
+                            onChange={(e) =>
+                              setDraft((d) => ({ ...d, [`${set}-${di}`]: e.target.value }))
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") addChore(set, di);
+                            }}
+                            onBlur={() => addChore(set, di)}
+                            placeholder="+ adaugă"
+                            className="w-full rounded-md border border-dashed border-border bg-transparent px-2 py-1 text-[12.5px] placeholder:text-muted-foreground/60 focus:outline-none focus:border-accent"
+                          />
+                        </li>
+                      )}
                     </ul>
                   </div>
                 );
