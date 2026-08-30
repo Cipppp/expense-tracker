@@ -40,7 +40,9 @@ export default async function InvestmentsPage() {
       <InvestmentsBoard
         portfolio={portfolio}
         displayCurrency={displayCurrency}
-        fxRonToUsd={settings.fxRonToUsd}
+        // Cursul BNR de azi, nu setarea invechita — altfel o suma in USD
+        // convertita in RON si inapoi se intoarce cu 1,86% mai mare.
+        fxRonToUsd={portfolio.usdPerRon ?? settings.fxRonToUsd}
       />
     </div>
   );
