@@ -16,26 +16,71 @@ export type Quote = {
   price: number;
   currency: string;
   changePct: number | null;
+  prevClose: number | null;
+  dayLow: number | null;
+  dayHigh: number | null;
+  weekLow52: number | null;
+  weekHigh52: number | null;
+  name: string | null;
+  exchange: string | null;
+  /** Inchideri zilnice pe ultima luna, cu data lor. */
+  series: Array<{ day: string; close: number }>;
 };
 
-/** Cotatie de la Yahoo. Fara cheie de API; null daca simbolul nu raspunde. */
+/**
+ * Cotatie de la Yahoo. Fara cheie de API; null daca simbolul nu raspunde.
+ *
+ * Un singur apel aduce si pretul, si intervalele, si seria pe o luna — nu are
+ * rost sa cerem de trei ori acelasi lucru.
+ */
 export async function quote(symbol: string): Promise<Quote | null> {
   try {
     const res = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1d`,
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1mo&interval=1d`,
       { headers: { "User-Agent": UA }, next: { revalidate: 120 } },
     );
     if (!res.ok) return null;
     const j = await res.json();
-    const m = j?.chart?.result?.[0]?.meta;
+    const r = j?.chart?.result?.[0];
+    const m = r?.meta;
     if (!m || typeof m.regularMarketPrice !== "number") return null;
+
+    const changePct =
+      typeof m.regularMarketChangePercent === "number"
+        ? m.regularMarketChangePercent
+        : null;
+    // Yahoo nu da mereu previousClose; se deduce din variatia zilei.
+    const prevClose =
+      typeof m.previousClose === "number"
+        ? m.previousClose
+        : changePct !== null && changePct !== -100
+          ? m.regularMarketPrice / (1 + changePct / 100)
+          : null;
+
+    const stamps: number[] = r.timestamp ?? [];
+    const closes: Array<number | null> = r.indicators?.quote?.[0]?.close ?? [];
+    const series: Array<{ day: string; close: number }> = [];
+    for (let i = 0; i < stamps.length; i++) {
+      const c = closes[i];
+      if (typeof c !== "number") continue;
+      series.push({
+        day: new Date(stamps[i] * 1000).toISOString().slice(0, 10),
+        close: c,
+      });
+    }
+
     return {
       price: m.regularMarketPrice,
       currency: m.currency ?? "USD",
-      changePct:
-        typeof m.regularMarketChangePercent === "number"
-          ? m.regularMarketChangePercent
-          : null,
+      changePct,
+      prevClose,
+      dayLow: m.regularMarketDayLow ?? null,
+      dayHigh: m.regularMarketDayHigh ?? null,
+      weekLow52: m.fiftyTwoWeekLow ?? null,
+      weekHigh52: m.fiftyTwoWeekHigh ?? null,
+      name: m.shortName ?? m.longName ?? null,
+      exchange: m.fullExchangeName ?? m.exchangeName ?? null,
+      series,
     };
   } catch {
     return null;
@@ -65,16 +110,25 @@ export type ValuedHolding = {
   id: string;
   symbol: string;
   name: string | null;
+  exchange: string | null;
   source: string;
   quantity: number;
   avgCost: number | null;
   currency: string;
   price: number | null;
+  prevClose: number | null;
   changePct: number | null;
-  valueRon: number | null;   // bani
-  pnl: number | null;        // in moneda listarii
+  dayChange: number | null;      // in moneda listarii, pe toata pozitia
+  dayLow: number | null;
+  dayHigh: number | null;
+  weekLow52: number | null;
+  weekHigh52: number | null;
+  valueRon: number | null;       // bani
+  costRon: number | null;        // bani
+  pnl: number | null;            // in moneda listarii
   pnlPct: number | null;
-  weight: number;            // pondere in actiuni, 0..1
+  weight: number;                // pondere in actiuni, 0..1
+  series: number[];              // inchideri, pentru sparkline
   stale: boolean;
 };
 
@@ -86,6 +140,12 @@ export type Portfolio = {
   stocksRon: number;
   savingsRon: number;
   totalRon: number;
+  costRon: number;
+  pnlRon: number;
+  dayChangeRon: number;
+  bySource: Array<{ source: string; valueRon: number; weight: number; count: number }>;
+  /** Valoarea portofoliului ACTUAL la preturile din trecut — vezi mai jos. */
+  history: Array<{ day: string; valueRon: number }>;
   fxDate: string;
   warnings: string[];
 };
@@ -105,18 +165,22 @@ export async function getPortfolio(): Promise<Portfolio> {
     fx = { date: "", rates: { RON: 1 } };
   }
 
-  const toRon = (amount: number, currency: string): number | null => {
+  const rate = (currency: string): number | null => {
     // Londra coteaza in pence (GBp): 100 pence = 1 GBP, iar BNR n-are "GBp".
     if (currency === "GBp" || currency === "GBX") {
       const g = fx.rates.GBP;
-      return g == null ? null : Math.round((amount / 100) * g * 100);
+      return g == null ? null : g / 100;
     }
     const r = fx.rates[currency];
     if (r == null) {
       warnings.push(`Fara curs BNR pentru ${currency}`);
       return null;
     }
-    return Math.round(amount * r * 100);
+    return r;
+  };
+  const toRon = (amount: number, currency: string): number | null => {
+    const r = rate(currency);
+    return r === null ? null : Math.round(amount * r * 100);
   };
 
   const symbols = [...new Set(rawHoldings.map((h) => h.symbol))];
@@ -124,7 +188,7 @@ export async function getPortfolio(): Promise<Portfolio> {
     await Promise.all(symbols.map(async (s) => [s, await quote(s)] as const)),
   ) as Record<string, Quote | null>;
 
-  const valued = rawHoldings.map((h) => {
+  const valued: ValuedHolding[] = rawHoldings.map((h) => {
     const q = quotes[h.symbol];
     const currency = q?.currency ?? h.currency;
     const price = q?.price ?? null;
@@ -132,13 +196,22 @@ export async function getPortfolio(): Promise<Portfolio> {
     const cost = h.avgCost ? h.avgCost * h.quantity : null;
     if (!q) warnings.push(`Fara pret pentru ${h.symbol}`);
     return {
-      id: h.id, symbol: h.symbol, name: h.name, source: h.source,
-      quantity: h.quantity, avgCost: h.avgCost, currency,
-      price, changePct: q?.changePct ?? null,
+      id: h.id, symbol: h.symbol,
+      name: q?.name ?? h.name, exchange: q?.exchange ?? null,
+      source: h.source, quantity: h.quantity, avgCost: h.avgCost, currency,
+      price, prevClose: q?.prevClose ?? null, changePct: q?.changePct ?? null,
+      dayChange:
+        price !== null && q?.prevClose != null
+          ? (price - q.prevClose) * h.quantity
+          : null,
+      dayLow: q?.dayLow ?? null, dayHigh: q?.dayHigh ?? null,
+      weekLow52: q?.weekLow52 ?? null, weekHigh52: q?.weekHigh52 ?? null,
       valueRon: value === null ? null : toRon(value, currency),
+      costRon: cost === null ? null : toRon(cost, currency),
       pnl: value !== null && cost !== null ? value - cost : null,
       pnlPct: value !== null && cost ? ((value - cost) / cost) * 100 : null,
       weight: 0,
+      series: (q?.series ?? []).map((p) => p.close),
       stale: !q,
     };
   });
@@ -152,12 +225,68 @@ export async function getPortfolio(): Promise<Portfolio> {
   }));
   const savingsRon = savings.reduce((a, s) => a + (s.valueRon ?? 0), 0);
 
+  const bySourceMap = new Map<string, { valueRon: number; count: number }>();
+  for (const h of valued) {
+    const cur = bySourceMap.get(h.source) ?? { valueRon: 0, count: 0 };
+    cur.valueRon += h.valueRon ?? 0;
+    cur.count += 1;
+    bySourceMap.set(h.source, cur);
+  }
+
+  /*
+   * Istoric: portofoliul de ACUM evaluat la preturile din ultima luna.
+   *
+   * Nu e valoarea reala de atunci — nu stim ce aveai in cont acum trei
+   * saptamani. E raspunsul la "cum s-ar fi miscat ce detin azi", care e ce
+   * vrei de fapt sa vezi, si e disponibil imediat, spre deosebire de un
+   * grafic care are nevoie de luni de snapshot-uri ca sa devina util.
+   * Zilele lipsa dintr-o serie se completeaza cu ultima inchidere cunoscuta.
+   */
+  const allDays = [
+    ...new Set(
+      symbols.flatMap((s) => (quotes[s]?.series ?? []).map((p) => p.day)),
+    ),
+  ].sort();
+  const history = allDays.map((day) => {
+    let valueRon = 0;
+    for (const h of rawHoldings) {
+      const q = quotes[h.symbol];
+      if (!q || q.series.length === 0) continue;
+      let close: number | null = null;
+      for (const p of q.series) {
+        if (p.day <= day) close = p.close;
+        else break;
+      }
+      if (close === null) close = q.series[0].close;
+      const r = rate(q.currency);
+      if (r === null) continue;
+      valueRon += Math.round(close * h.quantity * r * 100);
+    }
+    return { day, valueRon };
+  });
+
   return {
     holdings: valued.sort((a, b) => (b.valueRon ?? 0) - (a.valueRon ?? 0)),
     savings,
     stocksRon,
     savingsRon,
     totalRon: stocksRon + savingsRon,
+    costRon: valued.reduce((a, h) => a + (h.costRon ?? 0), 0),
+    pnlRon: valued.reduce(
+      (a, h) => a + ((h.valueRon ?? 0) - (h.costRon ?? h.valueRon ?? 0)),
+      0,
+    ),
+    dayChangeRon: valued.reduce((a, h) => {
+      const r = rate(h.currency);
+      return a + (h.dayChange !== null && r !== null ? Math.round(h.dayChange * r * 100) : 0);
+    }, 0),
+    bySource: [...bySourceMap.entries()]
+      .map(([source, v]) => ({
+        source, ...v,
+        weight: stocksRon ? v.valueRon / stocksRon : 0,
+      }))
+      .sort((a, b) => b.valueRon - a.valueRon),
+    history,
     fxDate: fx.date,
     warnings: [...new Set(warnings)],
   };
