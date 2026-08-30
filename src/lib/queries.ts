@@ -210,6 +210,8 @@ export async function getMonthlyAggregates(year: number) {
     /** Taxe chiar platite pentru luna asta, pe fel, in bani RON. */
     taxRon: Record<string, number>;
     taxTotalRon: number;
+    /** Obligatii fixe estimate, pentru lunile inca neplatite. */
+    taxForecastRon: number;
   }> = [];
   for (let m = 1; m <= 12; m++) {
     months.push({
@@ -221,6 +223,7 @@ export async function getMonthlyAggregates(year: number) {
       outstandingUsd: 0,
       taxRon: {},
       taxTotalRon: 0,
+      taxForecastRon: 0,
     });
   }
 
@@ -238,6 +241,17 @@ export async function getMonthlyAggregates(year: number) {
    * dividende se datoreaza pe dividendele chiar distribuite. Pe iulie formula
    * dadea 10.242 RON fata de 7.325 platiti in realitate.
    */
+  /*
+   * Estimare pentru lunile inca neplatite.
+   *
+   * Doar obligatiile chiar fixe: contributiile salariale (BS+BAS) si CAM,
+   * care se datoreaza in fiecare luna indiferent de incasari. Impozitul micro
+   * e trimestrial, iar cel pe dividende depinde de cat distribui — alea NU se
+   * estimeaza, pentru ca exact asta facea graficul vechi gresit.
+   */
+  const nowMonth =
+    year === new Date().getFullYear() ? new Date().getMonth() : 12;
+
   for (const t of taxes) {
     if (!t.forPeriod?.startsWith(String(year))) continue;
     const m = Number(t.forPeriod.slice(5, 7)) - 1;
@@ -252,6 +266,14 @@ export async function getMonthlyAggregates(year: number) {
     if (isCollected(i)) months[m].earnedUsd += usd;
     else months[m].outstandingUsd += usd;
   }
+
+  for (let m = 0; m < 12; m++) {
+    // Luna curenta si cele viitoare: plata pleaca abia luna urmatoare.
+    if (months[m].taxTotalRon === 0 && m >= nowMonth) {
+      months[m].taxForecastRon = settings.bsBasRon + settings.camRon;
+    }
+  }
+
   return months;
 }
 
