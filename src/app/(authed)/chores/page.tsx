@@ -15,9 +15,10 @@ export default async function ChoresPage() {
   const weekKey = isoWeekKey(now);
   const { week } = isoWeekParts(now);
 
-  const [settings, choreWeek] = await Promise.all([
+  const [settings, choreWeek, chores] = await Promise.all([
     db.settings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
     db.choreWeek.findUnique({ where: { isoWeek: weekKey } }),
+    db.chore.findMany({ orderBy: [{ setId: "asc" }, { day: "asc" }, { position: "asc" }] }),
   ]);
 
   const flip = settings.choresFlip;
@@ -42,6 +43,9 @@ export default async function ChoresPage() {
       todayIdx={weekdayIndex(now)}
       dayNums={days.map((d) => d.getDate())}
       flip={flip}
+      chores={chores.map((c) => ({
+        id: c.id, setId: c.setId, day: c.day, label: c.label, shopping: c.shopping,
+      }))}
     />
   );
 }

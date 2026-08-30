@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 const SwapBody = z.object({ swap: z.literal(true) });
 const CheckBody = z.object({
   isoWeek: z.string().regex(/^\d{4}-W\d{2}$/),
-  key: z.string().regex(/^[12]-[0-6]-\d+$/), // set-day-chore
+  key: z.string().min(1), // ID-ul sarcinii; era "set-zi-index" inainte
   done: z.boolean(),
 });
 
@@ -64,4 +64,61 @@ export async function PATCH(req: Request) {
   }
 
   return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+}
+
+
+const EditBody = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("add"),
+    setId: z.union([z.literal(1), z.literal(2)]),
+    day: z.coerce.number().int().min(0).max(6),
+    label: z.string().trim().min(1).max(80),
+  }),
+  z.object({ action: z.literal("remove"), id: z.string().min(1) }),
+]);
+
+/** Adauga sau sterge o sarcina din lista saptamanala. */
+export async function POST(req: Request) {
+  const json = await req.json().catch(() => null);
+  const parsed = EditBody.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+  const v = parsed.data;
+
+  if (v.action === "add") {
+    const last = await db.chore.findFirst({
+      where: { setId: v.setId, day: v.day },
+      orderBy: { position: "desc" },
+    });
+    const chore = await db.chore.create({
+      data: {
+        setId: v.setId,
+        day: v.day,
+        label: v.label.trim(),
+        // Cumparaturile se marcau manual in tabelul vechi; le recunoastem
+        // dupa text ca sa pastreze aceeasi evidentiere.
+        shopping: /bringo|cump[aă]r/i.test(v.label),
+        position: (last?.position ?? -1) + 1,
+      },
+    });
+    return NextResponse.json({ ok: true, chore });
+  }
+
+  /*
+   * Stergerea scoate si bifele care trimit la sarcina. Altfel raman ID-uri
+   * orfane in ChoreWeek.done, iar progresul ar arata mai multe bifate decat
+   * sarcini existente.
+   */
+  await db.chore.delete({ where: { id: v.id } });
+  const weeks = await db.choreWeek.findMany();
+  for (const w of weeks) {
+    if (w.done.includes(v.id)) {
+      await db.choreWeek.update({
+        where: { isoWeek: w.isoWeek },
+        data: { done: w.done.filter((d) => d !== v.id) },
+      });
+    }
+  }
+  return NextResponse.json({ ok: true });
 }

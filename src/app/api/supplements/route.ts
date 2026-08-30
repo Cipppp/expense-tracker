@@ -49,3 +49,68 @@ export async function PATCH(req: Request) {
   });
   return NextResponse.json({ ok: true });
 }
+
+const CatalogBody = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("add"),
+    name: z.string().trim().min(1).max(80),
+    short: z.string().trim().max(120).optional().default(""),
+    unit: z.string().trim().min(1).max(24).optional().default("capsulă"),
+    target: z.coerce.number().int().min(1).max(20).optional().default(1),
+    timing: z.enum(["morning", "noon", "evening", "preworkout"]),
+    suggestedFor: z.enum(["cip", "axy"]).nullable().optional(),
+  }),
+  z.object({ action: z.literal("remove"), key: z.string().min(1) }),
+]);
+
+/** Adauga sau scoate un supliment din catalog. */
+export async function PUT(req: Request) {
+  const json = await req.json().catch(() => null);
+  const parsed = CatalogBody.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+  const v = parsed.data;
+
+  if (v.action === "add") {
+    /*
+     * Cheia se deriva din nume si trebuie sa fie stabila: bifele din
+     * SupplementLog trimit la ea, deci nu se schimba niciodata dupa creare.
+     * Un sufix numeric rezolva coliziunile ("Magneziu" de doua ori).
+     */
+    const base =
+      v.name
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "supliment";
+    let key = base;
+    for (let i = 2; await db.supplement.findUnique({ where: { key } }); i++) {
+      key = `${base}-${i}`;
+    }
+    const last = await db.supplement.findFirst({ orderBy: { position: "desc" } });
+    const row = await db.supplement.create({
+      data: {
+        key,
+        name: v.name.trim(),
+        short: v.short ?? "",
+        unit: v.unit ?? "capsulă",
+        target: v.target ?? 1,
+        timing: v.timing,
+        suggestedFor: v.suggestedFor ?? null,
+        benefits: [],
+        interactions: [],
+        cautions: [],
+        daily: true,
+        position: (last?.position ?? -1) + 1,
+      },
+    });
+    return NextResponse.json({ ok: true, supplement: row });
+  }
+
+  // Bifele raman: sunt un fapt istoric ("am luat asta pe 12 august"), iar
+  // stergerea produsului din catalog nu il face neluat.
+  await db.supplement.delete({ where: { key: v.key } });
+  return NextResponse.json({ ok: true });
+}

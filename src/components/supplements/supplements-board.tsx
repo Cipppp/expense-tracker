@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { PEOPLE, type PersonKey } from "@/lib/chores";
 import {
-  SUPPLEMENTS,
   SUPP_BY_KEY,
   TIMINGS,
   dailyTotals,
@@ -20,6 +19,13 @@ import {
   X,
   WarningCircle,
   Info,
+  Sun,
+  Moon,
+  ForkKnife,
+  Barbell,
+  Pencil,
+  Plus,
+  Pill,
 } from "@/lib/icons";
 
 export type LogRow = {
@@ -54,8 +60,8 @@ function dayLabel(day: string, today: string): string {
 }
 
 /** Items that count toward a person's daily adherence. */
-function dailyItemsFor(person: PersonKey): Supplement[] {
-  return SUPPLEMENTS.filter(
+function dailyItemsFor(catalog: Supplement[], person: PersonKey): Supplement[] {
+  return catalog.filter(
     (s) => s.daily && (!s.suggestedFor || s.suggestedFor === person),
   );
 }
@@ -63,10 +69,56 @@ function dailyItemsFor(person: PersonKey): Supplement[] {
 export function SupplementsBoard({
   initialLogs,
   today,
+  catalog: initialCatalog,
 }: {
   initialLogs: LogRow[];
   today: string;
+  catalog: Supplement[];
 }) {
+  const [catalog, setCatalog] = useState<Supplement[]>(initialCatalog);
+  const [editing, setEditing] = useState(false);
+  const [adding, setAdding] = useState<TimingKey | null>(null);
+  const [form, setForm] = useState({ name: "", short: "", unit: "capsulă", target: "1", who: "" });
+
+  async function addSupplement(timing: TimingKey) {
+    const name = form.name.trim();
+    if (!name) return;
+    const res = await fetch("/api/supplements", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "add", name, short: form.short, unit: form.unit,
+        target: Number(form.target) || 1, timing,
+        suggestedFor: form.who || null,
+      }),
+    });
+    if (!res.ok) {
+      toast.error("N-am putut adăuga");
+      return;
+    }
+    const { supplement } = await res.json();
+    setCatalog((c) => [...c, { ...supplement, benefits: [], interactions: [], cautions: [] }]);
+    setForm({ name: "", short: "", unit: "capsulă", target: "1", who: "" });
+    setAdding(null);
+    toast.success(`${name} adăugat`);
+  }
+
+  async function removeSupplement(key: string, name: string) {
+    const before = catalog;
+    setCatalog((c) => c.filter((x) => x.key !== key));
+    const res = await fetch("/api/supplements", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "remove", key }),
+    });
+    if (!res.ok) {
+      setCatalog(before);
+      toast.error("N-am putut șterge");
+      return;
+    }
+    toast.success(`${name} scos din listă`);
+  }
+
   const [logs, setLogs] = useState<Map<string, { count: number; updatedAt: string }>>(
     () => new Map(initialLogs.map((l) => [lk(l.day, l.person, l.key), { count: l.count, updatedAt: l.updatedAt }])),
   );
@@ -194,7 +246,7 @@ export function SupplementsBoard({
   // Selected person's counts for the visible day.
   const counts: Record<string, number> = useMemo(() => {
     const c: Record<string, number> = {};
-    for (const s of SUPPLEMENTS) c[s.key] = countOf(day, person, s.key);
+    for (const s of catalog) c[s.key] = countOf(day, person, s.key);
     return c;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logs, day, person]);
@@ -219,7 +271,7 @@ export function SupplementsBoard({
 
   // Adherence for a (person, day): fraction of applicable daily items taken.
   function adherence(p: PersonKey, d: string): number {
-    const items = dailyItemsFor(p);
+    const items = dailyItemsFor(catalog, p);
     if (items.length === 0) return 0;
     let sum = 0;
     for (const s of items) sum += Math.min(countOf(d, p, s.key) / s.target, 1);
@@ -231,9 +283,9 @@ export function SupplementsBoard({
     let n = 0;
     let d = today;
     // grace: if nothing today yet, start from yesterday
-    const loggedToday = SUPPLEMENTS.some((s) => countOf(today, p, s.key) > 0);
+    const loggedToday = catalog.some((s) => countOf(today, p, s.key) > 0);
     if (!loggedToday) d = shiftDay(d, -1);
-    while (SUPPLEMENTS.some((s) => countOf(d, p, s.key) > 0)) {
+    while (catalog.some((s) => countOf(d, p, s.key) > 0)) {
       n++;
       d = shiftDay(d, -1);
       if (n > 60) break;
@@ -242,7 +294,7 @@ export function SupplementsBoard({
   }
 
   const takenToday = (p: PersonKey) =>
-    dailyItemsFor(p).filter((s) => countOf(day, p, s.key) >= s.target).length;
+    dailyItemsFor(catalog, p).filter((s) => countOf(day, p, s.key) >= s.target).length;
 
   const info = infoKey ? SUPP_BY_KEY[infoKey] : null;
 
@@ -252,7 +304,8 @@ export function SupplementsBoard({
     <div className="space-y-5 max-w-2xl">
       <header>
         <div className="flex items-center gap-2 text-xs uppercase tracking-[0.07em] text-muted-foreground">
-          💊 Suplimente
+          <Pill className="h-3.5 w-3.5" />
+          Suplimente
         </div>
         <h1 className="mt-1.5 text-[30px] sm:text-[44px] leading-[1.02]">
           Ce am luat azi
@@ -295,6 +348,19 @@ export function SupplementsBoard({
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
+        <button
+          type="button"
+          onClick={() => { setEditing((e) => !e); setAdding(null); }}
+          className={
+            "ml-auto inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11.5px] font-medium transition-colors " +
+            (editing
+              ? "border-accent/40 bg-accent/10 text-accent-text dark:text-accent"
+              : "border-border text-muted-foreground hover:text-foreground")
+          }
+        >
+          <Pencil className="h-3 w-3" />
+          {editing ? "Gata" : "Editează lista"}
+        </button>
         <div className="flex items-center gap-1.5">
           {(["cip", "axy"] as PersonKey[]).map((pk) => {
             const p = PEOPLE[pk];
@@ -313,7 +379,7 @@ export function SupplementsBoard({
                 <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: on ? "#fff" : p.color }} />
                 {p.name}
                 <span className={cn("tabular-nums text-xs", on ? "text-white/80" : "text-muted-foreground")}>
-                  {takenToday(pk)}/{dailyItemsFor(pk).length}
+                  {takenToday(pk)}/{dailyItemsFor(catalog, pk).length}
                 </span>
               </button>
             );
@@ -349,18 +415,84 @@ export function SupplementsBoard({
       {/* Sections */}
       {sections.map((tk) => {
         const t = TIMINGS[tk];
-        const items = SUPPLEMENTS.filter((s) => s.timing === tk);
-        if (items.length === 0) return null;
+        const items = catalog.filter((s) => s.timing === tk);
+        if (items.length === 0 && !editing) return null;
         return (
           <section key={tk} className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-sm">{t.emoji}</span>
+              <TimingIcon icon={t.icon} className="h-3.5 w-3.5 text-muted-foreground" />
               <h2 className="text-xs font-medium uppercase tracking-[0.07em] text-muted-foreground">
                 {t.label}
               </h2>
               <span className="text-[11px] text-muted-foreground/70">{t.hint}</span>
               <span className="h-px flex-1 bg-border" />
+              {editing && (
+                <button
+                  type="button"
+                  onClick={() => setAdding(adding === tk ? null : tk)}
+                  className="shrink-0 inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2 py-0.5 text-[10.5px] text-muted-foreground hover:text-foreground hover:border-accent transition-colors"
+                >
+                  <Plus className="h-3 w-3" /> adaugă
+                </button>
+              )}
             </div>
+
+            {editing && adding === tk && (
+              <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    autoFocus
+                    value={form.name}
+                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                    placeholder="Nume (ex. Vitamina C 1000)"
+                    className="flex-1 min-w-[150px] h-8 rounded-md border border-border bg-background px-2 text-[12.5px]"
+                  />
+                  <input
+                    value={form.target}
+                    onChange={(e) => setForm((f) => ({ ...f, target: e.target.value }))}
+                    type="number" min="1"
+                    className="w-16 h-8 rounded-md border border-border bg-background px-2 text-[12.5px] text-right tabular-nums"
+                  />
+                  <input
+                    value={form.unit}
+                    onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
+                    placeholder="capsulă"
+                    className="w-24 h-8 rounded-md border border-border bg-background px-2 text-[12.5px]"
+                  />
+                  <select
+                    value={form.who}
+                    onChange={(e) => setForm((f) => ({ ...f, who: e.target.value }))}
+                    className="h-8 rounded-md border border-border bg-background px-2 text-[12.5px]"
+                  >
+                    <option value="">amândoi</option>
+                    <option value="cip">doar Cip</option>
+                    <option value="axy">doar Axy</option>
+                  </select>
+                </div>
+                <input
+                  value={form.short}
+                  onChange={(e) => setForm((f) => ({ ...f, short: e.target.value }))}
+                  placeholder="Ce conține (opțional) — ex. Acid ascorbic 1000 mg"
+                  className="w-full h-8 rounded-md border border-border bg-background px-2 text-[12.5px]"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => addSupplement(tk)}
+                    className="h-7 rounded-md bg-accent px-3 text-[11.5px] font-semibold text-accent-foreground"
+                  >
+                    Adaugă
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdding(null)}
+                    className="h-7 rounded-md border border-border px-3 text-[11.5px]"
+                  >
+                    Renunță
+                  </button>
+                </div>
+              </div>
+            )}
             <ul className="space-y-1">
               {items.map((s) => {
                 const c = counts[s.key] ?? 0;
@@ -433,6 +565,16 @@ export function SupplementsBoard({
                       >
                         <Info className="h-4 w-4" />
                       </button>
+                      {editing && (
+                        <button
+                          type="button"
+                          onClick={() => removeSupplement(s.key, s.name)}
+                          aria-label={`Scoate ${s.name}`}
+                          className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </li>
                 );
@@ -450,7 +592,7 @@ export function SupplementsBoard({
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {(["cip", "axy"] as PersonKey[]).map((pk) => {
             const p = PEOPLE[pk];
-            const applicable = SUPPLEMENTS.filter(
+            const applicable = catalog.filter(
               (s) => !s.suggestedFor || s.suggestedFor === pk,
             );
             const cFor = (key: string) => countOf(day, pk, key);
@@ -458,12 +600,12 @@ export function SupplementsBoard({
             const partial = applicable.filter(
               (s) => cFor(s.key) > 0 && cFor(s.key) < s.target,
             );
-            const dailyApplicable = dailyItemsFor(pk);
+            const dailyApplicable = dailyItemsFor(catalog, pk);
             const doneDaily = dailyApplicable.filter((s) => cFor(s.key) >= s.target).length;
             const pct = Math.round(adherence(pk, day) * 100);
             // per-person daily totals
             const cRec: Record<string, number> = {};
-            for (const s of SUPPLEMENTS) cRec[s.key] = cFor(s.key);
+            for (const s of catalog) cRec[s.key] = cFor(s.key);
             const pt = dailyTotals(cRec);
             const totalsBits = [
               pt.vitaminD_IU > 0 && `D ${Math.round(pt.vitaminD_IU)} UI`,
@@ -647,7 +789,11 @@ export function SupplementsBoard({
                   {info.target} {info.target > 1 ? (info.unit === "capsulă" ? "capsule" : info.unit === "tabletă" ? "tablete" : info.unit) : info.unit} / zi
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium">
-                  {TIMINGS[info.timing].emoji} {TIMINGS[info.timing].label}
+                  <TimingIcon
+                    icon={TIMINGS[info.timing].icon}
+                    className="inline h-3.5 w-3.5 mr-1 -mt-px"
+                  />
+                  {TIMINGS[info.timing].label}
                 </span>
                 {info.suggestedFor && (
                   <span
@@ -829,3 +975,14 @@ function Donut({ pct, color, size = 60 }: { pct: number; color: string; size?: n
   );
 }
 
+/** Iconita momentului zilei — din setul aplicatiei, nu emoji. */
+function TimingIcon({
+  icon,
+  className,
+}: {
+  icon: "sun" | "fork" | "moon" | "barbell";
+  className?: string;
+}) {
+  const C = icon === "sun" ? Sun : icon === "fork" ? ForkKnife : icon === "moon" ? Moon : Barbell;
+  return <C className={className} />;
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -133,7 +133,7 @@ export function InvestmentsBoard({
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 items-start">
         {/* ---- pozitii --------------------------------------------------- */}
         <Card className="xl:col-span-2 overflow-hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
@@ -283,52 +283,33 @@ export function InvestmentsBoard({
           )}
         </Card>
 
-        {/* ---- alocare + brokeri ---------------------------------------- */}
-        <div className="space-y-3">
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-[13px] font-semibold mb-3">Allocation</div>
-              {alloc.length === 0 ? (
-                <p className="text-muted-foreground">Nothing yet.</p>
-              ) : (
-                <Donut
-                  items={alloc.map((h) => ({
-                    id: h.id, label: `${h.symbol} · ${h.source}`,
-                    value: h.valueRon ?? 0, color: colorOf(h.id),
-                  }))}
-                  total={portfolio.stocksRon}
-                  hover={hover}
-                  onHover={setHover}
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-[13px] font-semibold mb-3">By broker</div>
-              <div className="space-y-2.5">
-                {portfolio.bySource.map((b) => (
-                  <div key={b.source}>
-                    <div className="flex justify-between text-[11.5px]">
-                      <span>
-                        {b.source}
-                        <span className="text-muted-foreground"> · {b.count}</span>
-                      </span>
-                      <span className="tabular-nums">{fmt(b.valueRon)}</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-secondary mt-1 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-action transition-[width] duration-500 ease-expo"
-                        style={{ width: `${b.weight * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* ---- alocare -------------------------------------------------- */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-[13px] font-semibold mb-1">Allocation</div>
+            <p className="text-[10.5px] text-muted-foreground mb-3">
+              Hover a slice for the detail.
+            </p>
+            {alloc.length === 0 ? (
+              <p className="text-muted-foreground">Nothing yet.</p>
+            ) : (
+              <Donut
+                items={alloc.map((h) => ({
+                  id: h.id, label: `${h.symbol} · ${h.source}`,
+                  value: h.valueRon ?? 0, color: colorOf(h.id),
+                  qty: h.quantity, price: h.price, currency: h.currency,
+                  changePct: h.changePct, pnlPct: h.pnlPct,
+                }))}
+                total={portfolio.stocksRon}
+                hover={hover}
+                onHover={setHover}
+                fmt={fmt}
+                num={num}
+                pct={pct}
+              />
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* ---- evolutie + economii ---------------------------------------- */}
@@ -476,65 +457,124 @@ function Spark({ data, up }: { data: number[]; up: boolean }) {
   );
 }
 
+type Slice = {
+  id: string; label: string; value: number; color: string;
+  qty: number; price: number | null; currency: string;
+  changePct: number | null; pnlPct: number | null;
+};
+
+/**
+ * Inelul de alocare, cu popup pe felie.
+ *
+ * Feliile sunt arce SVG, nu segmente de stroke: doar asa se poate calcula
+ * unghiul de mijloc si aseza cartonasul in dreptul feliei, iar felia activa
+ * se poate impinge putin in afara.
+ */
 function Donut({
-  items, total, hover, onHover,
+  items, total, hover, onHover, fmt, num, pct,
 }: {
-  items: Array<{ id: string; label: string; value: number; color: string }>;
+  items: Slice[];
   total: number;
   hover: string | null;
   onHover: (id: string | null) => void;
+  fmt: (n: number | null) => string;
+  num: (n: number | null, d?: number) => string;
+  pct: (n: number | null) => string;
 }) {
-  const R = 48, C = 2 * Math.PI * R;
-  let off = 0;
+  const CX = 100, CY = 100, R = 82, INNER = 50;
+  let angle = -Math.PI / 2;
+  const slices = items.map((it) => {
+    const frac = Math.max(0, Math.min(1, it.value / (total || 1)));
+    const a0 = angle;
+    const a1 = angle + frac * Math.PI * 2;
+    angle = a1;
+    return { it, a0, a1, mid: (a0 + a1) / 2, frac };
+  });
+
+  const active = slices.find((s) => s.it.id === hover) ?? null;
+  const pt = (a: number, r: number) => [CX + Math.cos(a) * r, CY + Math.sin(a) * r];
+
   return (
-    <div className="flex items-center gap-4">
-      <svg viewBox="0 0 120 120" className="h-[120px] w-[120px] shrink-0">
-        <circle cx="60" cy="60" r={R} fill="none" stroke="hsl(var(--secondary))" strokeWidth="15" />
-        {items.map((it) => {
-          const frac = Math.max(0, Math.min(1, it.value / (total || 1)));
-          const len = frac * C;
-          const dim = hover !== null && hover !== it.id;
-          // Un segment care acopera tot cercul se deseneaza ca cerc plin: un
-          // dasharray cu gap 0 se randeaza inconsistent intre motoare.
-          const common = {
-            cx: 60, cy: 60, r: R, fill: "none", stroke: it.color,
-            strokeWidth: hover === it.id ? 18 : 15,
-            opacity: dim ? 0.28 : 1,
-            onMouseEnter: () => onHover(it.id),
-            onMouseLeave: () => onHover(null),
-            style: { transition: "opacity .25s, stroke-width .25s", cursor: "pointer" as const },
-          };
-          const el =
-            frac > 0.999 ? (
-              <circle key={it.id} {...common} />
-            ) : (
-              <circle
-                key={it.id} {...common}
-                strokeDasharray={`${len.toFixed(2)} ${(C - len).toFixed(2)}`}
-                strokeDashoffset={(-off).toFixed(2)}
-                transform="rotate(-90 60 60)"
-              />
+    <div className="relative">
+      <svg viewBox="0 0 200 200" className="w-full max-w-[260px] mx-auto block">
+        {slices.map(({ it, a0, a1, frac }) => {
+          const isActive = hover === it.id;
+          // Felia activa iese putin din inel, pe bisectoarea ei.
+          const push = isActive ? 5 : 0;
+          const mid = (a0 + a1) / 2;
+          const dx = Math.cos(mid) * push, dy = Math.sin(mid) * push;
+          const large = a1 - a0 > Math.PI ? 1 : 0;
+          const [x0, y0] = pt(a0, R), [x1, y1] = pt(a1, R);
+          const [ix1, iy1] = pt(a1, INNER), [ix0, iy0] = pt(a0, INNER);
+          // Un singur segment care acopera tot cercul nu se poate desena ca
+          // arc (start = final): se deseneaza ca doua inele concentrice.
+          if (frac > 0.999) {
+            return (
+              <g key={it.id} onMouseEnter={() => onHover(it.id)} onMouseLeave={() => onHover(null)}>
+                <circle cx={CX} cy={CY} r={(R + INNER) / 2} fill="none"
+                        stroke={it.color} strokeWidth={R - INNER} />
+              </g>
             );
-          off += len;
-          return el;
+          }
+          return (
+            <path
+              key={it.id}
+              d={`M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1} L ${ix1} ${iy1} A ${INNER} ${INNER} 0 ${large} 0 ${ix0} ${iy0} Z`}
+              fill={it.color}
+              transform={`translate(${dx} ${dy})`}
+              opacity={hover && !isActive ? 0.3 : 1}
+              style={{ transition: "opacity .2s, transform .25s cubic-bezier(.16,1,.3,1)", cursor: "pointer" }}
+              onMouseEnter={() => onHover(it.id)}
+              onMouseLeave={() => onHover(null)}
+            />
+          );
         })}
+        {/* centrul: totalul, sau felia peste care stai */}
+        <text x={CX} y={active ? CY - 6 : CY - 2} textAnchor="middle"
+              className="fill-foreground" style={{ fontSize: active ? 13 : 15, fontWeight: 600 }}>
+          {active ? `${(active.frac * 100).toFixed(1)}%` : fmt(total)}
+        </text>
+        {active && (
+          <text x={CX} y={CY + 11} textAnchor="middle"
+                className="fill-muted-foreground" style={{ fontSize: 9 }}>
+            {active.it.label}
+          </text>
+        )}
       </svg>
-      <div className="flex-1 min-w-0 space-y-1.5">
-        {items.map((it) => (
+
+      {/* popup-ul feliei */}
+      {active && (
+        <div className="absolute left-1/2 -translate-x-1/2 top-2 z-10 pointer-events-none
+                        rounded-lg border border-border bg-popover shadow-lg px-3 py-2 min-w-[160px]
+                        animate-fade-in">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="h-2 w-2 rounded-sm" style={{ background: active.it.color }} />
+            <span className="font-semibold text-[12px]">{active.it.label}</span>
+          </div>
+          <Line k="Value" v={fmt(active.it.value)} />
+          <Line k="Weight" v={`${(active.frac * 100).toFixed(1)}%`} />
+          <Line k="Qty" v={num(active.it.qty, active.it.qty % 1 ? 4 : 0)} />
+          <Line k="Price" v={`${num(active.it.price)} ${active.it.currency}`} />
+          <Line k="Today" v={pct(active.it.changePct)} />
+          <Line k="P&L" v={pct(active.it.pnlPct)} />
+        </div>
+      )}
+
+      <div className="mt-3 space-y-1.5">
+        {slices.map(({ it, frac }) => (
           <div
             key={it.id}
             onMouseEnter={() => onHover(it.id)}
             onMouseLeave={() => onHover(null)}
             className={cn(
-              "flex items-center gap-2 text-[11.5px] rounded px-1 -mx-1 transition-colors cursor-default",
+              "flex items-center gap-2 text-[11.5px] rounded px-1.5 py-0.5 -mx-1.5 transition-colors cursor-default",
               hover === it.id && "bg-secondary",
             )}
           >
             <span className="h-2 w-2 rounded-sm shrink-0" style={{ background: it.color }} />
             <span className="flex-1 truncate">{it.label}</span>
-            <span className="text-muted-foreground tabular-nums">
-              {((it.value / (total || 1)) * 100).toFixed(1)}%
-            </span>
+            <span className="tabular-nums text-muted-foreground">{fmt(it.value)}</span>
+            <span className="tabular-nums w-11 text-right">{(frac * 100).toFixed(1)}%</span>
           </div>
         ))}
       </div>
@@ -542,38 +582,100 @@ function Donut({
   );
 }
 
+function Line({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex justify-between gap-4 text-[11px]">
+      <span className="text-muted-foreground">{k}</span>
+      <span className="tabular-nums">{v}</span>
+    </div>
+  );
+}
+
+/**
+ * Graficul pe ultima luna, cu cursor tras cu mouse-ul sau cu degetul.
+ *
+ * Punctul cel mai apropiat se cauta dupa pozitia X convertita in indice, nu
+ * cautand prin toate punctele: seria e uniforma, deci e o inmultire, si merge
+ * la fel de bine la 23 de puncte ca la 2300.
+ */
 function History({
   data, fmt,
 }: {
   data: Array<{ day: string; valueRon: number }>;
   fmt: (n: number | null) => string;
 }) {
+  const [i, setI] = useState<number | null>(null);
+  const ref = useRef<SVGSVGElement | null>(null);
+
   if (data.length < 2) {
     return <p className="text-muted-foreground mt-2">Not enough price history yet.</p>;
   }
-  const W = 700, H = 120, P = { t: 8, r: 4, b: 14, l: 4 };
+
+  const W = 700, H = 130, P = { t: 10, r: 4, b: 16, l: 4 };
   const ys = data.map((d) => d.valueRon);
   const min = Math.min(...ys), max = Math.max(...ys);
-  const X = (i: number) => P.l + (i / (data.length - 1)) * (W - P.l - P.r);
+  const X = (k: number) => P.l + (k / (data.length - 1)) * (W - P.l - P.r);
   const Y = (v: number) => P.t + (1 - (v - min) / (max - min || 1)) * (H - P.t - P.b);
-  const line = ys.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(" ");
-  const first = ys[0], last = ys[ys.length - 1];
-  const change = first ? ((last - first) / first) * 100 : 0;
+  const line = ys.map((v, k) => `${k ? "L" : "M"}${X(k).toFixed(1)} ${Y(v).toFixed(1)}`).join(" ");
+
+  const first = ys[0];
+  const shownIdx = i ?? ys.length - 1;
+  const shown = ys[shownIdx];
+  const change = first ? ((shown - first) / first) * 100 : 0;
+
+  function track(clientX: number) {
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const rel = (clientX - r.left) / r.width;          // 0..1 pe latimea desenata
+    const inner = (rel * W - P.l) / (W - P.l - P.r);   // 0..1 in zona graficului
+    setI(Math.max(0, Math.min(data.length - 1, Math.round(inner * (data.length - 1)))));
+  }
+
   return (
     <div>
-      <div className="flex items-baseline gap-2 mb-1.5">
-        <span className="metric text-[19px]">{fmt(last)}</span>
+      <div className="flex items-baseline gap-2 mb-1.5 min-h-[24px]">
+        <span className="metric text-[19px]">{fmt(shown)}</span>
         <span className={cn("text-[11.5px]", change >= 0 ? "text-success" : "text-destructive")}>
           {change >= 0 ? "+" : ""}
-          {change.toFixed(2)}% · {fmt(last - first)}
+          {change.toFixed(2)}% · {fmt(shown - first)}
+        </span>
+        <span className="text-[10.5px] text-muted-foreground ml-auto tabular-nums">
+          {data[shownIdx].day}
         </span>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="none">
+
+      <svg
+        ref={ref}
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full h-auto touch-none cursor-crosshair"
+        preserveAspectRatio="none"
+        onMouseMove={(e) => track(e.clientX)}
+        onMouseLeave={() => setI(null)}
+        onTouchStart={(e) => track(e.touches[0].clientX)}
+        onTouchMove={(e) => track(e.touches[0].clientX)}
+        onTouchEnd={() => setI(null)}
+      >
         <path
           d={`${line} L ${X(data.length - 1).toFixed(1)} ${H - P.b} L ${X(0).toFixed(1)} ${H - P.b} Z`}
           fill="hsl(var(--action) / 0.12)"
         />
-        <path d={line} fill="none" stroke="hsl(var(--action))" strokeWidth="1.75" vectorEffect="non-scaling-stroke" />
+        <path d={line} fill="none" stroke="hsl(var(--action))" strokeWidth="1.75"
+              vectorEffect="non-scaling-stroke" />
+        {i !== null && (
+          <g>
+            <line
+              x1={X(i)} x2={X(i)} y1={P.t} y2={H - P.b}
+              stroke="hsl(var(--muted-foreground))" strokeWidth="1"
+              strokeDasharray="3 3" vectorEffect="non-scaling-stroke"
+            />
+            <circle
+              cx={X(i)} cy={Y(ys[i])} r="3.5"
+              fill="hsl(var(--action))" stroke="hsl(var(--card))" strokeWidth="2"
+              vectorEffect="non-scaling-stroke"
+            />
+          </g>
+        )}
       </svg>
       <div className="flex justify-between text-[10px] text-muted-foreground">
         <span>{data[0].day}</span>

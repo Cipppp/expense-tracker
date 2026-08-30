@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { bucharestDay } from "@/lib/supplements";
+import { bucharestDay, type Supplement } from "@/lib/supplements";
 import { SupplementsBoard, type LogRow } from "@/components/supplements/supplements-board";
 
 export const dynamic = "force-dynamic";
@@ -9,10 +9,13 @@ export default async function SupplementsPage() {
   // Last 14 days cover the metrics strip plus a bit of back-navigation.
   const from = bucharestDay(new Date(Date.now() - 13 * 86400000));
 
-  const logs = await db.supplementLog.findMany({
-    where: { day: { gte: from, lte: today } },
-    select: { day: true, person: true, key: true, count: true, updatedAt: true },
-  });
+  const [logs, catalog] = await Promise.all([
+    db.supplementLog.findMany({
+      where: { day: { gte: from, lte: today } },
+      select: { day: true, person: true, key: true, count: true, updatedAt: true },
+    }),
+    db.supplement.findMany({ orderBy: { position: "asc" } }),
+  ]);
 
   const rows: LogRow[] = logs.map((l) => ({
     day: l.day,
@@ -22,5 +25,20 @@ export default async function SupplementsPage() {
     updatedAt: l.updatedAt.toISOString(),
   }));
 
-  return <SupplementsBoard initialLogs={rows} today={today} />;
+  return (
+    <SupplementsBoard
+      initialLogs={rows}
+      today={today}
+      catalog={catalog.map((c) => ({
+        key: c.key, name: c.name, brand: c.brand, short: c.short,
+        benefits: c.benefits, unit: c.unit, target: c.target,
+        timing: c.timing as Supplement["timing"],
+        timingNote: c.timingNote, foodNote: c.foodNote,
+        composition: c.composition, interactions: c.interactions,
+        cautions: c.cautions, daily: c.daily,
+        suggestedFor: (c.suggestedFor ?? undefined) as Supplement["suggestedFor"],
+        contributes: (c.contributes ?? undefined) as Supplement["contributes"],
+      }))}
+    />
+  );
 }

@@ -334,6 +334,25 @@ model Settings {
 // One row per ISO week ("2026-W23") tracking which chores got ticked off.
 // `done` holds keys shaped "set-dayIndex-choreIndex" (e.g. "2-1-0"). Shared,
 // so both partners see the same checkmarks.
+/*
+ * Sarcinile casnice. Erau o constanta in cod; acum se pot adauga si sterge.
+ *
+ * Bifele se tin pe ID-ul sarcinii, nu pe pozitia ei. Cu chei de forma
+ * "set-zi-index", stergerea unei sarcini muta indicii celor de dupa si bifele
+ * ar cadea pe alta sarcina.
+ */
+model Chore {
+  id        String   @id @default(cuid())
+  setId     Int                          // 1 = Randul 1, 2 = Randul 2
+  day       Int                          // 0 = Luni … 6 = Duminica
+  label     String
+  shopping  Boolean  @default(false)     // marcaj Bringo
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([setId, day, position])
+}
+
 model ChoreWeek {
   isoWeek   String   @id
   done      String[] @default([])
@@ -373,6 +392,39 @@ model GratitudeReaction {
 // One row per (day, person, supplement) with how many units were taken that
 // day. `day` is a Bucharest-local "yyyy-mm-dd"; `key` references the static
 // catalog in src/lib/supplements.ts.
+/*
+ * Catalogul de suplimente. Era o constanta in cod; acum se pot adauga si
+ * scoate din interfata.
+ *
+ * `key` ramane identificatorul stabil, pentru ca SupplementLog scrie pe el:
+ * schimbarea numelui unui produs nu trebuie sa piarda istoricul bifelor.
+ * Campurile bogate (compozitie, interactiuni, contributii la doza zilnica) au
+ * sens doar pentru produsele cercetate; ce adaugi tu le lasa goale.
+ */
+model Supplement {
+  id           String   @id @default(cuid())
+  key          String   @unique
+  name         String
+  brand        String   @default("")
+  short        String   @default("")
+  benefits     String[]
+  unit         String   @default("capsulă")
+  target       Int      @default(1)
+  timing       String                       // morning | noon | evening | preworkout
+  timingNote   String   @default("")
+  foodNote     String   @default("")
+  composition  String   @default("")
+  interactions String[]
+  cautions     String[]
+  daily        Boolean  @default(true)
+  suggestedFor String?                      // cip | axy | null = amandoi
+  contributes  Json?
+  position     Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([timing, position])
+}
+
 model SupplementLog {
   id        String   @id @default(cuid())
   day       String
