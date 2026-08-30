@@ -17,6 +17,8 @@ import { ronFromBani, type DisplayCurrency } from "@/lib/format";
 export type MonthlyDatum = {
   /** Taxe chiar platite pentru luna asta, pe fel, in bani RON. */
   taxRon?: Record<string, number>;
+  /** Obligatii fixe estimate pentru lunile inca neplatite, in bani RON. */
+  taxForecastRon?: number;
   label: string;
   earnedUsd: number;     // cents
   spentRon: number;      // bani
@@ -53,6 +55,7 @@ const TAX_COLORS: Record<string, string> = {
   micro: "#a8323f",
   dividende: "#7a4b8c",
   venit: "#2f6f8f",
+  forecast: "#4a4753",
   tva: "#6b7f3a",
   alte: "#6b6875",
 };
@@ -63,6 +66,7 @@ const TAX_LABELS: Record<string, string> = {
   micro: "Impozit micro",
   dividende: "Impozit dividende",
   venit: "Impozit venit",
+  forecast: "De plată (estimat)",
   tva: "TVA",
   alte: "Alte obligații",
 };
@@ -121,14 +125,17 @@ export function UnifiedMonthlyChart({
         for (const k of TAX_ORDER) {
           row[k] = round2(ronToDisplay((m.taxRon?.[k] ?? 0) / 100));
         }
+        row.forecast = round2(ronToDisplay((m.taxForecastRon ?? 0) / 100));
         return row;
       }),
     [slice, displayCurrency, fxRonToUsd],
   );
-  const taxKeysPresent = useMemo(
-    () => TAX_ORDER.filter((k) => slice.some((m) => (m.taxRon?.[k] ?? 0) > 0)),
-    [slice],
-  );
+  const taxKeysPresent = useMemo(() => {
+    const paid = TAX_ORDER.filter((k) => slice.some((m) => (m.taxRon?.[k] ?? 0) > 0));
+    // Estimarea sta ultima in stiva, ca sa se citeasca limpede unde se
+    // termina platit-ul si incepe de-plata.
+    return slice.some((m) => (m.taxForecastRon ?? 0) > 0) ? [...paid, "forecast"] : paid;
+  }, [slice]);
 
   // Categories view — top 8 categories + "Other" bucket.
   const { catData, catKeys, catColorMap } = useMemo(() => {
