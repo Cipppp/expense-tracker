@@ -245,6 +245,7 @@ function ChartTooltip({
   labels,
   excludeFromTotal,
   totalLabel,
+  hideZero,
   fmt,
 }: {
   active?: boolean;
@@ -256,10 +257,16 @@ function ChartTooltip({
   excludeFromTotal?: string[];
   /** Label for the total row. Falsy = no total row. */
   totalLabel?: string;
+  /** Sari peste randurile pe zero. Pe luna mai nu are ce cauta un rand
+   * "De plata (estimat) 0 RON" langa taxele chiar platite. */
+  hideZero?: boolean;
   fmt: (v: number) => string;
 }) {
   if (!active || !payload || payload.length === 0) return null;
-  const rows = payload.filter((p) => typeof p.value === "number");
+  const rows = payload
+    .filter((p) => typeof p.value === "number")
+    .filter((p) => !hideZero || (p.value ?? 0) !== 0);
+  if (rows.length === 0) return null;
   const total = rows
     .filter((p) => !excludeFromTotal?.includes(p.dataKey ?? p.name ?? ""))
     .reduce((a, p) => a + (p.value ?? 0), 0);
@@ -292,7 +299,7 @@ function ChartTooltip({
             </div>
           );
         })}
-        {totalLabel && (
+        {totalLabel && (!hideZero || total > 0) && (
           <>
             <div className="my-1.5 h-px bg-border" />
             <div className="flex items-center justify-between gap-4 text-[11px]">
@@ -344,6 +351,8 @@ function TaxesChart({
               label={label as string}
               labels={TAX_LABELS}
               totalLabel="Total plătit"
+              excludeFromTotal={["forecast"]}
+              hideZero
               fmt={fmt}
             />
           )}

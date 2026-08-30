@@ -268,8 +268,16 @@ export async function getMonthlyAggregates(year: number) {
   }
 
   for (let m = 0; m < 12; m++) {
-    // Luna curenta si cele viitoare: plata pleaca abia luna urmatoare.
-    if (months[m].taxTotalRon === 0 && m >= nowMonth) {
+    /*
+     * Doar luna curenta si cele viitoare. Pe o luna trecuta nu mai are ce sa
+     * fie "de plata": ori s-a platit, ori nu se mai plateste, iar o banda
+     * gri peste martie doar strica citirea.
+     *
+     * Criteriul e lipsa contributiilor salariale, nu totalul lunii pe zero:
+     * o taxa de timbru de 200 RON facea totalul nenul si stergea estimarea
+     * pentru restul obligatiei, care ramanea totusi de platit.
+     */
+    if (m >= nowMonth && !months[m].taxRon.bs_bas) {
       months[m].taxForecastRon = settings.bsBasRon + settings.camRon;
     }
   }
