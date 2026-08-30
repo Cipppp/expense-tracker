@@ -15,6 +15,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ronFromBani, type DisplayCurrency } from "@/lib/format";
 
 export type MonthlyDatum = {
+  /** Taxe chiar platite pentru luna asta, pe fel, in bani RON. */
+  taxRon?: Record<string, number>;
   label: string;
   earnedUsd: number;     // cents
   spentRon: number;      // bani
@@ -41,21 +43,30 @@ const CATEGORY_PALETTE = [
   "#525252", // slate
 ];
 
-const TAX_COLORS = {
-  bsBas: "#c65c2a",
+/*
+ * Felurile de taxa, exact cum apar in extrasul bancar. Cheile sunt cele din
+ * TaxPayment.kind, ca sa nu existe o a doua taxonomie care sa iasa din pas.
+ */
+const TAX_COLORS: Record<string, string> = {
+  bs_bas: "#c65c2a",
   cam: "#9b6b3f",
   micro: "#a8323f",
   dividende: "#7a4b8c",
-  netOwner: "#2f7a5c",
+  venit: "#2f6f8f",
+  tva: "#6b7f3a",
+  alte: "#6b6875",
 };
 
-const TAX_LABELS = {
-  bsBas: "BS + BAS",
+const TAX_LABELS: Record<string, string> = {
+  bs_bas: "BS + BAS",
   cam: "CAM",
-  micro: "Impozit micro (1%)",
-  dividende: "Impozit dividende (16%)",
-  netOwner: "Net to owner",
+  micro: "Impozit micro",
+  dividende: "Impozit dividende",
+  venit: "Impozit venit",
+  tva: "TVA",
+  alte: "Alte obligații",
 };
+const TAX_ORDER = ["bs_bas", "cam", "micro", "venit", "dividende", "tva", "alte"];
 
 export function UnifiedMonthlyChart({
   monthly,
@@ -94,26 +105,30 @@ export function UnifiedMonthlyChart({
   const slice = monthly.slice(startMonth - 1);
   const catSlice = categories.slice(startMonth - 1);
 
-  // Taxes view — stacked breakdown per month.
-  const taxesData = useMemo(() => {
-    const bsBasMonthly = bsBasRon / 100;
-    const camMonthly = camRon / 100;
-    return slice.map((m) => {
-      const revenueRon = m.earnedUsd / 100 / fxRonToUsd;
-      const micro = revenueRon * microPct;
-      const beforeDiv = Math.max(0, revenueRon - bsBasMonthly - camMonthly - micro);
-      const dividende = beforeDiv * dividendePct;
-      const netOwner = Math.max(0, beforeDiv - dividende);
-      return {
-        label: m.label,
-        bsBas: round2(ronToDisplay(bsBasMonthly)),
-        cam: round2(ronToDisplay(camMonthly)),
-        micro: round2(ronToDisplay(micro)),
-        dividende: round2(ronToDisplay(dividende)),
-        netOwner: round2(ronToDisplay(netOwner)),
-      };
-    });
-  }, [slice, fxRonToUsd, bsBasRon, camRon, microPct, dividendePct, displayCurrency]);
+  /*
+   * Taxe — ce s-a platit efectiv, pe luna acoperita, din extrasul firmei.
+   *
+   * Aici era o formula: CAM in fiecare luna, 1% micro in fiecare luna si 16%
+   * dividende pe tot ce ramanea. Toate trei sunt false — CAM se plateste doar
+   * cateva luni pe an, micro-ul e trimestrial, iar impozitul pe dividende se
+   * datoreaza pe dividendele chiar distribuite. Pe iulie formula scotea 10.242
+   * RON in loc de 7.325 cat s-a platit.
+   */
+  const taxesData = useMemo(
+    () =>
+      slice.map((m) => {
+        const row: Record<string, string | number> = { label: m.label };
+        for (const k of TAX_ORDER) {
+          row[k] = round2(ronToDisplay((m.taxRon?.[k] ?? 0) / 100));
+        }
+        return row;
+      }),
+    [slice, displayCurrency, fxRonToUsd],
+  );
+  const taxKeysPresent = useMemo(
+    () => TAX_ORDER.filter((k) => slice.some((m) => (m.taxRon?.[k] ?? 0) > 0)),
+    [slice],
+  );
 
   // Categories view — top 8 categories + "Other" bucket.
   const { catData, catKeys, catColorMap } = useMemo(() => {
@@ -173,7 +188,7 @@ export function UnifiedMonthlyChart({
 
       <div className="h-[300px] sm:h-[380px] w-full">
         {view === "taxes" && (
-          <TaxesChart key="taxes" data={taxesData} fmt={formatMoney} />
+          <TaxesChart key="taxes" data={taxesData} keys={taxKeysPresent} fmt={formatMoney} />
         )}
         {view === "categories" && (
           <CategoriesChart
@@ -290,16 +305,12 @@ function ChartTooltip({
 
 function TaxesChart({
   data,
+  keys,
   fmt,
 }: {
-  data: Array<{
-    label: string;
-    bsBas: number;
-    cam: number;
-    micro: number;
-    dividende: number;
-    netOwner: number;
-  }>;
+  data: Array<Record<string, string | number>>;
+  /** Doar felurile de taxa care apar chiar in anul asta. */
+  keys: string[];
   fmt: (v: number) => string;
 }) {
   return (
@@ -325,8 +336,7 @@ function TaxesChart({
               payload={payload as TooltipPayload[]}
               label={label as string}
               labels={TAX_LABELS}
-              excludeFromTotal={["netOwner"]}
-              totalLabel="Total taxes"
+              totalLabel="Total plătit"
               fmt={fmt}
             />
           )}
@@ -339,11 +349,15 @@ function TaxesChart({
           wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
           formatter={(value) => TAX_LABELS[value as keyof typeof TAX_LABELS] ?? value}
         />
-        <Bar dataKey="bsBas" stackId="t" fill={TAX_COLORS.bsBas} />
-        <Bar dataKey="cam" stackId="t" fill={TAX_COLORS.cam} />
-        <Bar dataKey="micro" stackId="t" fill={TAX_COLORS.micro} />
-        <Bar dataKey="dividende" stackId="t" fill={TAX_COLORS.dividende} />
-        <Bar dataKey="netOwner" stackId="t" fill={TAX_COLORS.netOwner} radius={[4, 4, 0, 0]} />
+        {keys.map((k, i) => (
+          <Bar
+            key={k}
+            dataKey={k}
+            stackId="t"
+            fill={TAX_COLORS[k]}
+            radius={i === keys.length - 1 ? [4, 4, 0, 0] : undefined}
+          />
+        ))}
       </BarChart>
     </ResponsiveContainer>
   );
