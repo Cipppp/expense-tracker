@@ -144,6 +144,8 @@ export type Portfolio = {
   pnlRon: number;
   dayChangeRon: number;
   bySource: Array<{ source: string; valueRon: number; weight: number; count: number }>;
+  /** USD per 1 RON, derivat din cursul BNR de azi. Vezi nota de la returnare. */
+  usdPerRon: number | null;
   /** Valoarea portofoliului ACTUAL la preturile din trecut — vezi mai jos. */
   history: Array<{ day: string; valueRon: number }>;
   fxDate: string;
@@ -288,6 +290,16 @@ export async function getPortfolio(): Promise<Portfolio> {
       .sort((a, b) => b.valueRon - a.valueRon),
     history,
     fxDate: fx.date,
+    /*
+     * Cursul de afisare vine din ACELASI BNR ca evaluarea.
+     *
+     * Settings.fxRonToUsd e o valoare scrisa de mana si ramasa in urma
+     * (0,2255, adica 4,4346 RON/USD, fata de 4,5171 azi). Cand o suma in USD
+     * se converteste in RON cu BNR si inapoi in USD cu setarea, se intoarce
+     * umflata cu 1,86%: 1.643,00 USD ajungea afisat ca 1.673,57 USD. Cu
+     * inversul cursului BNR, dus-intorsul da exact suma initiala.
+     */
+    usdPerRon: fx.rates.USD ? 1 / fx.rates.USD : null,
     warnings: [...new Set(warnings)],
   };
 }
