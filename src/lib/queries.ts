@@ -120,9 +120,28 @@ export async function getYearIncome(year: number) {
         lte: new Date(year, 11, 31, 23, 59, 59),
       },
     },
+    include: { invoice: { select: { status: true } } },
     orderBy: { date: "desc" },
   });
 }
+
+/*
+ * Bani INCASATI vs bani doar facturati.
+ *
+ * Un rand de venit conteaza ca incasat daca:
+ *   - nu are factura (ore nefacturate inca, sau bani veniti prin Upwork, care
+ *     chiar au intrat in cont dar nu au factura in aplicatie), SAU
+ *   - factura lui e marcata platita.
+ * Un rand legat de o factura in draft / issued / void NU conteaza: banii n-au
+ * intrat, iar Earned nu trebuie sa arate bani pe care nu i-ai primit.
+ *
+ * Consecinta de stiut: emiterea unei facturi SCADE Earned pana la incasare.
+ * De-aia dashboard-ul arata si "outstanding" alaturi — altfel scaderea ar
+ * parea o eroare.
+ */
+type IncomeWithInvoice = { invoice?: { status: string } | null };
+export const isCollected = (r: IncomeWithInvoice) =>
+  !r.invoice || r.invoice.status === "paid";
 
 /**
  * Income is stored in the currency it was billed in — NETOP and Aethra
@@ -186,6 +205,7 @@ export async function getMonthlyAggregates(year: number) {
     spentRon: number;
     spentUsd: number;
     earnedUsd: number;
+    outstandingUsd: number;
   }> = [];
   for (let m = 1; m <= 12; m++) {
     months.push({
@@ -194,6 +214,7 @@ export async function getMonthlyAggregates(year: number) {
       spentRon: 0,
       spentUsd: 0,
       earnedUsd: 0,
+      outstandingUsd: 0,
     });
   }
 
@@ -204,7 +225,9 @@ export async function getMonthlyAggregates(year: number) {
   }
   for (const i of income) {
     const m = i.date.getMonth();
-    months[m].earnedUsd += incomeToUsdCents([i], settings);
+    const usd = incomeToUsdCents([i], settings);
+    if (isCollected(i)) months[m].earnedUsd += usd;
+    else months[m].outstandingUsd += usd;
   }
   return months;
 }
@@ -484,8 +507,23 @@ export async function getYtd(year: number) {
   ]);
   const spentRon = expenses.reduce((a, b) => a + b.amountRon, 0);
   const spentUsd = expenses.reduce((a, b) => a + b.amountUsd, 0);
-  const earnedUsd = incomeToUsdCents(income, settings);
-  return { spentRon, spentUsd, earnedUsd, count: expenses.length };
+  const earnedUsd = incomeToUsdCents(income.filter(isCollected), settings);
+  // Facturat, dar neincasat inca.
+  const outstandingUsd = incomeToUsdCents(
+    income.filter((r) => !isCollected(r)),
+    settings,
+  );
+  // Baza pe care se datoreaza impozitul: veniturile FACTURATE, indiferent daca
+  // au fost incasate. Micro-ul nu asteapta plata clientului.
+  const invoicedUsd = incomeToUsdCents(income, settings);
+  return {
+    spentRon,
+    spentUsd,
+    earnedUsd,
+    outstandingUsd,
+    invoicedUsd,
+    count: expenses.length,
+  };
 }
 
 export type MonthTotals = {
@@ -508,14 +546,18 @@ export async function getMonthTotals(
     }),
     db.income.findMany({
       where: { date: { gte: start, lte: end } },
-      select: { amountUsd: true, currency: true },
+      select: {
+        amountUsd: true,
+        currency: true,
+        invoice: { select: { status: true } },
+      },
     }),
     getSettings(),
   ]);
   return {
     spentRon: expenses.reduce((a, b) => a + b.amountRon, 0),
     spentUsd: expenses.reduce((a, b) => a + b.amountUsd, 0),
-    earnedUsd: incomeToUsdCents(income, settings),
+    earnedUsd: incomeToUsdCents(income.filter(isCollected), settings),
   };
 }
 
@@ -554,7 +596,13 @@ export async function getTaxProjection(
 
   // USD cents → RON bani. fxRonToUsd is RON-per-USD-ish, e.g. 0.2255 means
   // 1 RON ≈ $0.2255, so 1 USD ≈ 1 / 0.2255 RON. Cents × (1 / fx) = bani.
-  const earnedRonYtd = ytd.earnedUsd / settings.fxRonToUsd;
+  /*
+   * Proiectia de taxe merge pe venitul FACTURAT, nu pe cel incasat: impozitul
+   * micro se datoreaza cand emiti factura, nu cand iti intra banii. Cardul de
+   * Earned arata incasarile — sunt doua intrebari diferite si e in regula sa
+   * dea cifre diferite, atat timp cat scrie pe ele care e care.
+   */
+  const earnedRonYtd = ytd.invoicedUsd / settings.fxRonToUsd;
   const spentRonYtd = ytd.spentRon;
 
   const scale = 12 / monthsElapsed;

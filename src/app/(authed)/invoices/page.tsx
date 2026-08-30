@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fmtDate, localISODate } from "@/lib/format";
 import { getClientInvoicingSummaries, getSettings } from "@/lib/queries";
 import { ClientSummaryTable } from "@/components/invoices/client-summary-table";
+import { InvoiceStatusPicker } from "@/components/invoices/status-picker";
 import type { WeekEntry } from "@/components/income/week-grid";
 
 export const dynamic = "force-dynamic";
@@ -199,17 +200,11 @@ export default async function InvoicesPage() {
                       </span>
                     </div>
                     <div className="col-span-12 sm:col-span-3 flex sm:justify-end gap-1.5">
-                      {overdue && (
-                        <Badge variant="destructive" className="text-[10px]">
-                          overdue
-                        </Badge>
-                      )}
-                      <Badge
-                        variant={STATUS_VARIANT[inv.status] ?? "outline"}
-                        className="text-[10px]"
-                      >
-                        {inv.status}
-                      </Badge>
+                      <InvoiceStatusPicker
+                        invoiceId={inv.id}
+                        status={inv.status}
+                        overdue={overdue}
+                      />
                     </div>
                   </Link>
                 );

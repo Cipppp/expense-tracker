@@ -5,20 +5,22 @@ import {
   type DisplayCurrency,
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { TaxProjection, TaxPaidSummary } from "@/lib/queries";
+import type { TaxPaidSummary } from "@/lib/queries";
 
 /**
- * "At this run rate, here's where you'll land at the end of the year"
- * card for the Romanian micro-SRL: projected revenue, the taxes that
- * eat into it, and what's actually left as dividend-net for the owner.
+ * Taxele chiar platite in anul curent, din extrasul bancar al firmei.
+ *
+ * Aici a stat si o proiectie de sfarsit de an — extrapolare liniara din ce
+ * s-a incasat pana acum. A fost scoasa: raspundea la o intrebare pe care
+ * nimeni n-o punea, cu o cifra care se schimba la fiecare factura si care nu
+ * era buna de nimic pentru ca nu stia nici sezonalitate, nici one-off-uri.
+ * Ce a ramas e masurat, nu ghicit.
  */
-export function TaxProjectionCard({
-  projection,
+export function TaxPaidCard({
   paid,
   displayCurrency,
   fxRonToUsd,
 }: {
-  projection: TaxProjection;
   /** Ce a plecat efectiv din cont, din extrasul bancar. */
   paid: TaxPaidSummary;
   displayCurrency: DisplayCurrency;
@@ -26,59 +28,11 @@ export function TaxProjectionCard({
 }) {
   const fmt = (bani: number) =>
     fmtDisplay(ronBaniToDisplay(bani, displayCurrency, fxRonToUsd), displayCurrency);
-  const inRed = projection.netToOwnerRon < 0;
   return (
     <Card>
       <CardContent className="p-4 sm:p-5">
-        <div className="flex items-baseline justify-between gap-2 mb-4">
+        {paid.totalRon > 0 ? (
           <div>
-            <div className="eyebrow">
-              EOY tax projection
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              At your current pace ·{" "}
-              <span className="tabular-nums">
-                {projection.monthsElapsed.toFixed(1)}mo elapsed
-              </span>
-            </p>
-          </div>
-          <div
-            className={cn(
-              "metric text-[26px] sm:text-[32px] leading-none",
-              inRed ? "text-destructive" : "text-success",
-            )}
-          >
-            {fmt(projection.netToOwnerRon)}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <Row
-            label="Revenue"
-            value={fmt(projection.earnedRonProjected)}
-            tone="default"
-          />
-          <Row
-            label="Operating"
-            value={`− ${fmt(projection.spentRonProjected)}`}
-            tone="muted"
-          />
-          <Row
-            label="Micro tax + fixed"
-            value={`− ${fmt(
-              projection.microTaxRon + projection.fixedContribRon,
-            )}`}
-            tone="muted"
-          />
-          <Row
-            label="Dividend tax"
-            value={`− ${fmt(projection.dividendTaxRon)}`}
-            tone="muted"
-          />
-        </div>
-
-        {paid.totalRon > 0 && (
-          <div className="mt-5 pt-4 border-t border-border">
             <div className="flex items-baseline justify-between gap-3 mb-3">
               <div>
                 <div className="eyebrow">Paid so far</div>
@@ -127,13 +81,11 @@ export function TaxProjectionCard({
               </p>
             )}
           </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            No tax payments imported yet.
+          </p>
         )}
-
-        <p className="mt-4 text-[10px] text-muted-foreground leading-relaxed">
-          Net to owner = Revenue − operating expenses − micro tax (1%) − BS+BAS
-          + CAM (12 mo) − dividend tax. Linear extrapolation; doesn&apos;t
-          account for seasonality or one-offs.
-        </p>
       </CardContent>
     </Card>
   );
