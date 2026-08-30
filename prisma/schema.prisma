@@ -228,6 +228,48 @@ model TaxPayment {
   @@index([kind])
 }
 
+/*
+ * Investitii si economii — averea personala, in aceeasi aplicatie.
+ *
+ * Impartirea sursele: CE si CAT detii se scrie o data (sau vine din broker),
+ * dar CAT VALOREAZA se recalculeaza din pretul live la fiecare incarcare a
+ * paginii. Asa net worth-ul se misca singur fara sa stocam preturi vechi.
+ */
+model Holding {
+  id        String   @id @default(cuid())
+  symbol    String                        // simbol Yahoo: MSFT, VWCE.DE
+  name      String?
+  quantity  Float
+  avgCost   Float?                        // pret mediu de achizitie, in `currency`
+  currency  String   @default("USD")      // moneda listarii
+  source    String   @default("manual")   // IBKR | XTB | manual
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([symbol, source])
+  @@index([source])
+}
+
+model SavingsAccount {
+  id        String   @id @default(cuid())
+  label     String
+  amountRon Int      @default(0)          // in bani, dupa conversie la salvare
+  amount    Float    @default(0)          // suma in moneda ei
+  currency  String   @default("RON")
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/** Un rand pe zi, pentru graficul de evolutie a averii. */
+model NetWorthSnapshot {
+  day        String   @id                 // "2026-08-30", ziua in Europe/Bucharest
+  stocksRon  Int
+  savingsRon Int
+  totalRon   Int
+  takenAt    DateTime @default(now())
+}
+
 model Settings {
   id              Int    @id @default(1)
   // App-wide display currency. Storage is unchanged (USD cents for income,

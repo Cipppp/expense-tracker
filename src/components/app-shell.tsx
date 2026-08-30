@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Receipt,
   TrendingUp,
+  Clock,
   FileText,
   Upload,
   Settings as SettingsIcon,
@@ -54,8 +55,9 @@ const NAV_GROUPS: readonly NavGroup[] = [
     items: [
       { href: "/", label: "Dashboard", icon: LayoutDashboard },
       { href: "/expenses", label: "Expenses", icon: Receipt },
-      { href: "/income", label: "Income", icon: TrendingUp },
+      { href: "/income", label: "Income", icon: Clock },
       { href: "/invoices", label: "Invoices", icon: FileText },
+      { href: "/investments", label: "Investments", icon: TrendingUp },
       { href: "/import", label: "Import", icon: Upload },
     ],
   },
