@@ -1,8 +1,7 @@
 import { getPortfolio, recordSnapshot } from "@/lib/investments";
 import { getSettings } from "@/lib/queries";
-import { db } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
-import { fmtDisplay, ronBaniToDisplay, type DisplayCurrency } from "@/lib/format";
+import { type DisplayCurrency } from "@/lib/format";
 import { InvestmentsBoard } from "@/components/investments/investments-board";
 
 export const dynamic = "force-dynamic";
@@ -12,22 +11,9 @@ export default async function InvestmentsPage() {
   // Snapshotul zilei se scrie la vizitare — nu exista cron aici, iar un rand
   // pe zi e destul pentru graficul de evolutie.
   await recordSnapshot(portfolio).catch(() => {});
-  const snapshots = await db.netWorthSnapshot.findMany({
-    orderBy: { day: "asc" },
-    take: 120,
-  });
 
   const displayCurrency: DisplayCurrency =
     (settings.displayCurrency as DisplayCurrency) ?? "USD";
-  const fmt = (bani: number) =>
-    fmtDisplay(
-      ronBaniToDisplay(bani, displayCurrency, settings.fxRonToUsd),
-      displayCurrency,
-    );
-
-  const prev = snapshots.length > 1 ? snapshots[snapshots.length - 2] : null;
-  const delta = prev ? portfolio.totalRon - prev.totalRon : null;
-
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -51,54 +37,8 @@ export default async function InvestmentsPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-5 sm:p-6">
-            <div className="eyebrow">Total</div>
-            <div className="mt-3 metric text-[28px] sm:text-[34px] leading-none">
-              {fmt(portfolio.totalRon)}
-            </div>
-            <div className="sub">
-              {delta === null ? (
-                "first snapshot — the trend starts tomorrow"
-              ) : (
-                <span className={delta >= 0 ? "text-success" : "text-destructive"}>
-                  {delta >= 0 ? "+" : ""}
-                  {fmt(delta)} vs {prev!.day}
-                </span>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5 sm:p-6">
-            <div className="eyebrow">Stocks</div>
-            <div className="mt-3 metric text-[28px] sm:text-[34px] leading-none">
-              {fmt(portfolio.stocksRon)}
-            </div>
-            <div className="sub">
-              {portfolio.holdings.length} position
-              {portfolio.holdings.length === 1 ? "" : "s"} · live prices
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5 sm:p-6">
-            <div className="eyebrow">Savings</div>
-            <div className="mt-3 metric text-[28px] sm:text-[34px] leading-none">
-              {fmt(portfolio.savingsRon)}
-            </div>
-            <div className="sub">
-              {portfolio.savings.length} account
-              {portfolio.savings.length === 1 ? "" : "s"}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       <InvestmentsBoard
         portfolio={portfolio}
-        snapshots={snapshots.map((s) => ({ day: s.day, totalRon: s.totalRon }))}
         displayCurrency={displayCurrency}
         fxRonToUsd={settings.fxRonToUsd}
       />
