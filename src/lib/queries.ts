@@ -193,10 +193,11 @@ export async function getTopMerchants(year: number, month: number, limit = 5) {
 
 /** Monthly aggregates for the year — used in the Dashboard chart. */
 export async function getMonthlyAggregates(year: number) {
-  const [expenses, income, settings] = await Promise.all([
+  const [expenses, income, settings, taxes] = await Promise.all([
     getYearExpenses(year),
     getYearIncome(year),
     getSettings(),
+    db.taxPayment.findMany({ where: { forPeriod: { startsWith: String(year) } } }),
   ]);
 
   const months: Array<{
@@ -206,6 +207,9 @@ export async function getMonthlyAggregates(year: number) {
     spentUsd: number;
     earnedUsd: number;
     outstandingUsd: number;
+    /** Taxe chiar platite pentru luna asta, pe fel, in bani RON. */
+    taxRon: Record<string, number>;
+    taxTotalRon: number;
   }> = [];
   for (let m = 1; m <= 12; m++) {
     months.push({
@@ -215,6 +219,8 @@ export async function getMonthlyAggregates(year: number) {
       spentUsd: 0,
       earnedUsd: 0,
       outstandingUsd: 0,
+      taxRon: {},
+      taxTotalRon: 0,
     });
   }
 
@@ -223,6 +229,23 @@ export async function getMonthlyAggregates(year: number) {
     months[m].spentRon += e.amountRon;
     months[m].spentUsd += e.amountUsd;
   }
+  /*
+   * Taxele vin din platile reale, nu dintr-o formula.
+   *
+   * Formula de dinainte punea CAM in fiecare luna, impozit micro in fiecare
+   * luna si 16% dividende pe tot ce ramanea — trei presupuneri false. CAM se
+   * plateste doar cateva luni, micro-ul e trimestrial, iar impozitul pe
+   * dividende se datoreaza pe dividendele chiar distribuite. Pe iulie formula
+   * dadea 10.242 RON fata de 7.325 platiti in realitate.
+   */
+  for (const t of taxes) {
+    if (!t.forPeriod?.startsWith(String(year))) continue;
+    const m = Number(t.forPeriod.slice(5, 7)) - 1;
+    if (m < 0 || m > 11) continue;
+    months[m].taxRon[t.kind] = (months[m].taxRon[t.kind] ?? 0) + t.amountRon;
+    months[m].taxTotalRon += t.amountRon;
+  }
+
   for (const i of income) {
     const m = i.date.getMonth();
     const usd = incomeToUsdCents([i], settings);
