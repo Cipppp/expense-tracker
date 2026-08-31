@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { oblioConfigured, oblioPreflight } from "@/lib/oblio";
 import { getSettings } from "@/lib/queries";
+import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +16,19 @@ export const dynamic = "force-dynamic";
  * si numele cotelor de TVA. Alea trei sunt exact lucrurile care fac prima
  * factura reala sa fie respinsa.
  */
-export async function GET() {
+export async function GET(req: Request) {
+  /*
+   * Acelasi Bearer ca /api/timelog. Ruta e scoasa din sesiunea de browser ca
+   * sa poata fi verificata si din afara (curl, cron), dar citeste date de
+   * cont, deci nu e publica.
+   */
+  const auth = req.headers.get("authorization") ?? "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  const s = await db.settings.findUnique({ where: { id: 1 }, select: { timelogToken: true } });
+  if (!s?.timelogToken || token !== s.timelogToken) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   if (!oblioConfigured()) {
     return NextResponse.json(
       {
