@@ -93,6 +93,25 @@ function vatName(vatRate: number, country: string | null | undefined) {
   return VAT_NAME.exempt;
 }
 
+/*
+ * Judetul si orasul, asa cum le vrea Oblio.
+ *
+ * Pentru o parte romaneasca, XML-ul CIUS_RO cere BT-52 (oras) si BT-54
+ * (judet), iar pentru Bucuresti orasul trebuie sa fie sectorul. Aplicatia
+ * tine o singura linie de adresa, deci le derivam din ea. Daca nu se pot
+ * deriva, le lasam goale si le completeaza el in Oblio — mai bine gol decat
+ * gresit, pentru ca ANAF respinge documentul, nu il corecteaza.
+ */
+function roAddressParts(address: string | null): { state: string; city: string } {
+  const a = address ?? "";
+  const sector = a.match(/sector\s*(\d)/i);
+  if (sector) return { state: "Bucuresti", city: `Sector ${sector[1]}` };
+  if (/bucure[sș]ti/i.test(a)) return { state: "Bucuresti", city: "Bucuresti" };
+  const parts = a.split(",").map((x) => x.trim()).filter(Boolean);
+  const last = parts.length > 1 ? parts[parts.length - 1] : "";
+  return { state: last, city: last };
+}
+
 export async function createOblioInvoice(input: {
   issuerCif: string;
   seriesName: string;
@@ -120,6 +139,7 @@ export async function createOblioInvoice(input: {
   const t = await token();
   const iso = (d: Date) => d.toISOString().slice(0, 10);
   const foreign = input.currency !== "RON";
+  const isRo = (input.client.country ?? "").trim().toUpperCase() === "RO";
 
   const payload: Record<string, unknown> = {
     cif: input.issuerCif,
@@ -128,12 +148,18 @@ export async function createOblioInvoice(input: {
       cif: input.client.cif ?? "",
       rc: input.client.rc ?? "",
       address: input.client.address ?? "",
-      country: input.client.country ?? "Romania",
+      ...(isRo ? roAddressParts(input.client.address) : {}),
+      country: input.client.country ?? "",
       email: input.client.email ?? "",
-      // Clientul strain nu e platitor de TVA in Romania; contorul de TVA al
-      // facturii vine oricum din `vatName` de pe fiecare linie.
-      vatPayer: input.vatRate > 0 ? 1 : 0,
-      save: 1,
+      /*
+       * `save: 0` — nu scriem in agenda de clienti a contului.
+       *
+       * Aplicatia tine o singura linie de adresa si nu stie daca respectivul
+       * client e platitor de TVA, deci ar suprascrie fise corecte cu date
+       * incomplete. Documentul primeste oricum datele inline; agenda ramane
+       * a lui.
+       */
+      save: 0,
     },
     issueDate: iso(input.issuedAt),
     dueDate: input.dueAt ? iso(input.dueAt) : "",
@@ -163,6 +189,11 @@ export async function createOblioInvoice(input: {
     sendEmail: 0,
   };
 
+  /*
+   * Timeout explicit. Fara el, o cerere care atarna e taiata de platforma, iar
+   * rezultatul ramane necunoscut: documentul poate exista la Oblio fara ca
+   * aplicatia sa stie, si al doilea clic ar emite un duplicat.
+   */
   const res = await fetch(`${BASE}/docs/invoice`, {
     method: "POST",
     headers: {
@@ -171,8 +202,11 @@ export async function createOblioInvoice(input: {
     },
     body: JSON.stringify(payload),
     cache: "no-store",
+    signal: AbortSignal.timeout(25_000),
   });
   const body = await res.json().catch(() => null);
+  // Un token rotit lasa altfel o ora de 401-uri identice pe instanta calda.
+  if (res.status === 401) cached = null;
   if (!res.ok || (body?.status && body.status !== 200)) {
     throw new Error(
       `Oblio rejected the invoice (${res.status}): ${
@@ -230,8 +264,13 @@ export async function oblioPreflight(want: {
     readNomenclature(t, `vat_rates?cif=${cifParam}`),
   ]);
 
-  const seriesNames = (Array.isArray(series.sample) ? series.sample : [])
-    .map((s: Record<string, unknown>) => String(s.name ?? ""));
+  const seriesRows = (Array.isArray(series.sample) ? series.sample : []) as Array<
+    Record<string, unknown>
+  >;
+  const seriesNames = seriesRows.map((s) => String(s.name ?? ""));
+  const nextNumber = String(
+    seriesRows.find((s) => String(s.name ?? "") === want.series)?.next ?? "",
+  );
   const vatNames = (Array.isArray(vat.sample) ? vat.sample : [])
     .map((v: Record<string, unknown>) => String(v.name ?? ""));
 
@@ -267,7 +306,7 @@ export async function oblioPreflight(want: {
     rawVatRates: vat.sample ?? null,
     rawSeries: series.sample ?? null,
     account: { companies: cifs, cifMatches },
-    series: { available: seriesNames, using: want.series },
+    series: { available: seriesNames, using: want.series, next: nextNumber },
     vatRates: { available: vatNames, needed: needVat, missing: missingVat },
     issuerVatIntra: want.issuerVatIntra || null,
     raw: { companies: companies.status, series: series.status, vat: vat.status },

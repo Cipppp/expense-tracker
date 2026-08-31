@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { createOblioInvoice, oblioConfigured } from "@/lib/oblio";
+import { createOblioInvoice, oblioConfigured, oblioPreflight } from "@/lib/oblio";
 import { getSettings } from "@/lib/queries";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Apelul catre Oblio are timeout de 25s; lasam functiei loc sa-l raporteze.
+export const maxDuration = 60;
 
 /*
  * Impinge o factura deja emisa in aplicatie si catre Oblio.
@@ -60,20 +62,48 @@ export async function POST(
   const settings = await getSettings();
 
   /*
-   * Pe facturile catre UE merge codul art. 317, nu CIF-ul firmei. Aceeasi
-   * regula ca in PDF si in XML-ul de e-Factura.
+   * Numai facturi noi, si numai daca cele doua numerotari sunt in pas.
+   *
+   * Butonul apare pe orice factura din istoric, iar Oblio nu ia numarul de pe
+   * document: consuma urmatorul din seria LUI. Un clic pe CP0021 ar fi creat
+   * la Oblio documentul CP0029, datat in iunie, cu 21% TVA de la o firma care
+   * intre timp nu mai e platitoare — si l-ar fi trimis la SPV a doua zi. Aia
+   * se repara doar cu stornare.
+   *
+   * Comparatia cu `next` din seria Oblio prinde si cazul in care contorul a
+   * fost mutat din alta parte (o factura emisa direct in interfata).
    */
-  const country = (invoice.clientCountry ?? "").trim().toUpperCase();
-  const euReverse =
-    invoice.vatRate === 0 && country !== "" && country !== "RO";
-  const issuerCif =
-    euReverse && settings.issuerVatIntra
-      ? settings.issuerVatIntra
-      : settings.issuerCif;
+  try {
+    const pre = await oblioPreflight({
+      series: settings.invoiceSeries,
+      issuerCif: settings.issuerCif,
+      issuerVatIntra: settings.issuerVatIntra,
+    });
+    if (pre.series.next && pre.series.next !== invoice.number) {
+      return NextResponse.json(
+        {
+          error: `Oblio is at ${invoice.series} ${pre.series.next}, this invoice is ${invoice.series} ${invoice.number}. Only the next invoice in the series can be issued through the API.`,
+        },
+        { status: 409 },
+      );
+    }
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Oblio preflight failed" },
+      { status: 502 },
+    );
+  }
 
+  /*
+   * `cif` selecteaza firma emitenta din contul Oblio — nu e un cod care se
+   * tipareste. Trimiterea codului art. 317 in locul CIF-ului intorcea
+   * "The company with cif RO55415170 does not exist" (verificat pe contul
+   * real), deci ar fi picat FIECARE factura externa. Codul intracomunitar isi
+   * are locul pe document, unde PDF-ul si XML-ul il pun deja corect.
+   */
   try {
     const result = await createOblioInvoice({
-      issuerCif,
+      issuerCif: settings.issuerCif,
       seriesName: invoice.series,
       issuedAt: invoice.issuedAt,
       dueAt: invoice.dueAt,
@@ -97,12 +127,28 @@ export async function POST(
       })),
     });
 
-    const saved = await db.invoice.update({
-      where: { id },
-      data: { oblioNumber: `${result.seriesName} ${result.number}`.trim(), oblioLink: result.link },
-      select: { oblioNumber: true, oblioLink: true },
-    });
-    return NextResponse.json({ ...saved, already: false });
+    const oblioNumber = `${result.seriesName} ${result.number}`.trim();
+    try {
+      await db.invoice.update({
+        where: { id },
+        data: { oblioNumber, oblioLink: result.link },
+      });
+    } catch {
+      // Documentul EXISTA la Oblio. Daca inghitim eroarea de scriere si
+      // raportam esec, urmatorul clic emite un duplicat pe care Oblio nu-l
+      // mai poate sterge.
+      return NextResponse.json(
+        {
+          oblioNumber,
+          oblioLink: result.link,
+          already: false,
+          warning:
+            "Issued in Oblio but the local record could not be updated. Do not press again.",
+        },
+        { status: 200 },
+      );
+    }
+    return NextResponse.json({ oblioNumber, oblioLink: result.link, already: false });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Oblio call failed" },
