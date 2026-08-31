@@ -165,3 +165,86 @@ export async function createOblioInvoice(input: {
     link: body?.data?.link ?? null,
   };
 }
+
+/* ------------------------------------------------------------------ preflight */
+
+type Nomen = { path: string; status: number; count: number | null; sample: unknown };
+
+async function readNomenclature(t: string, path: string): Promise<Nomen> {
+  const res = await fetch(`${BASE}/nomenclature/${path}`, {
+    headers: { Authorization: `Bearer ${t}` },
+    cache: "no-store",
+  });
+  const body = await res.json().catch(() => null);
+  const data = body?.data;
+  return {
+    path,
+    status: res.status,
+    count: Array.isArray(data) ? data.length : data ? 1 : 0,
+    sample: data ?? body?.statusMessage ?? null,
+  };
+}
+
+/**
+ * Citeste contul si compara ce are cu ce trimite `createOblioInvoice`.
+ * Strict GET — nu emite si nu modifica nimic.
+ */
+export async function oblioPreflight(want: {
+  series: string;
+  issuerCif: string;
+  issuerVatIntra: string;
+}) {
+  const t = await token();
+
+  const companies = await readNomenclature(t, "companies");
+  const list = Array.isArray(companies.sample) ? (companies.sample as Array<Record<string, unknown>>) : [];
+  const cifs = list.map((c) => String(c.cif ?? "").replace(/^RO/i, ""));
+  const bare = want.issuerCif.replace(/^RO/i, "");
+  const cifMatches = cifs.includes(bare);
+  // Oblio filtreaza seriile si cotele pe firma, deci are nevoie de CIF.
+  const cifParam = encodeURIComponent(list[0]?.cif ? String(list[0].cif) : want.issuerCif);
+
+  const [series, vat] = await Promise.all([
+    readNomenclature(t, `series?cif=${cifParam}`),
+    readNomenclature(t, `vat_rates?cif=${cifParam}`),
+  ]);
+
+  const seriesNames = (Array.isArray(series.sample) ? series.sample : [])
+    .map((s: Record<string, unknown>) => String(s.name ?? ""));
+  const vatNames = (Array.isArray(vat.sample) ? vat.sample : [])
+    .map((v: Record<string, unknown>) => String(v.name ?? ""));
+
+  /*
+   * Numele cotelor pe care le poate produce `vatName()`. Daca vreunul nu
+   * exista in cont, factura care are nevoie de el va fi respinsa — si nu vrei
+   * sa afli asta la prima factura reala catre NETOP.
+   */
+  const needVat = ["Normala 21%", "Taxare inversa", "Scutit fara drept de deducere"];
+  const missingVat = needVat.filter((n) => !vatNames.includes(n));
+
+  const problems: string[] = [];
+  if (!cifMatches) {
+    problems.push(
+      `Settings.issuerCif is ${want.issuerCif} but the Oblio account holds ${cifs.join(", ") || "no company"}.`,
+    );
+  }
+  if (seriesNames.length && !seriesNames.includes(want.series)) {
+    problems.push(
+      `Invoice series "${want.series}" does not exist in Oblio (found: ${seriesNames.join(", ") || "none"}).`,
+    );
+  }
+  if (missingVat.length) {
+    problems.push(`VAT names missing from the account: ${missingVat.join(", ")}.`);
+  }
+
+  return {
+    configured: true,
+    authenticated: true,
+    account: { companies: cifs, cifMatches },
+    series: { available: seriesNames, using: want.series },
+    vatRates: { available: vatNames, needed: needVat, missing: missingVat },
+    issuerVatIntra: want.issuerVatIntra || null,
+    raw: { companies: companies.status, series: series.status, vat: vat.status },
+    problems,
+  };
+}
