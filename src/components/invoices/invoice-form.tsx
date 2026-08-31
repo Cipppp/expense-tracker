@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { fmtCurrency, fmtDuration } from "@/lib/format";
+import { fmtCurrency, fmtDuration, localISODate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { deriveVat } from "@/lib/vat";
 import {
@@ -81,7 +81,12 @@ export function InvoiceForm({
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
-  const today = new Date().toISOString().slice(0, 10);
+  /*
+   * Ziua din calendarul LOCAL, nu din UTC. Cu `toISOString()`, intre miezul
+   * noptii si ora 3 dimineata data emiterii se pre-completa cu ziua de ieri —
+   * exact intervalul in care se emit facturile aici.
+   */
+  const today = localISODate(new Date());
 
   const [jobId, setJobId] = useState<string>(preselectJobId ?? jobs[0]?.id ?? "");
   const selectedJob = useMemo(
