@@ -42,6 +42,17 @@ type Line = {
   unitPrice: string;
 };
 
+/** Termenul de plata implicit, in zile de la emitere. */
+const DEFAULT_DUE_DAYS = 5;
+
+/** yyyy-mm-dd + n zile, prin UTC ca sa nu sara o zi la schimbarea de ora. */
+function addDays(iso: string, n: number) {
+  const d = new Date(`${iso}T12:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) return "";
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 const emptyLine = (): Line => ({
   description: "",
   unit: "buc",
@@ -94,9 +105,22 @@ export function InvoiceForm({
   const companyAddress = selectedJob?.companyAddress ?? "";
   const companyCountry = selectedJob?.companyCountry ?? "RO";
 
+  /*
+   * Scadenta implicita: emitere + 5 zile.
+   *
+   * `dueAtTouched` retine daca ai scris tu o data. Cat timp nu ai scris,
+   * scadenta urmeaza data emiterii; din clipa in care ai schimbat-o manual,
+   * ramane cum ai pus-o. Fara asta, mutarea datei de emitere ti-ar rescrie
+   * pe tacute termenul convenit cu clientul.
+   */
   const [issuedAt, setIssuedAt] = useState(today);
-  const [dueAt, setDueAt] = useState("");
+  const [dueAt, setDueAt] = useState(() => addDays(today, DEFAULT_DUE_DAYS));
+  const [dueAtTouched, setDueAtTouched] = useState(false);
   const [toOblio, setToOblio] = useState(oblioReady);
+
+  useEffect(() => {
+    if (!dueAtTouched) setDueAt(addDays(issuedAt, DEFAULT_DUE_DAYS));
+  }, [issuedAt, dueAtTouched]);
   const [invoiceCurrency, setInvoiceCurrency] = useState<"RON" | "USD" | "EUR">(
     (selectedJob?.defaultCurrency as "RON" | "USD" | "EUR") ?? "RON",
   );
@@ -472,12 +496,15 @@ export function InvoiceForm({
             onChange={(e) => setIssuedAt(e.target.value)}
           />
         </Field>
-        <Field label="Due at (optional)">
+        <Field label="Due at">
           <Input
             type="date"
             value={dueAt}
             min={issuedAt}
-            onChange={(e) => setDueAt(e.target.value)}
+            onChange={(e) => {
+              setDueAtTouched(true);
+              setDueAt(e.target.value);
+            }}
           />
         </Field>
         {needsBnrRate && (
