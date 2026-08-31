@@ -240,6 +240,11 @@ export async function oblioPreflight(want: {
   return {
     configured: true,
     authenticated: true,
+    // Inregistrarile brute: numele singur nu spune ce cota si ce tratament e
+    // in spate, iar alegerea gresita se vede abia pe factura la ANAF.
+    rawCompany: list[0] ?? null,
+    rawVatRates: vat.sample ?? null,
+    rawSeries: series.sample ?? null,
     account: { companies: cifs, cifMatches },
     series: { available: seriesNames, using: want.series },
     vatRates: { available: vatNames, needed: needVat, missing: missingVat },
