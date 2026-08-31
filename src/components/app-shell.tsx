@@ -126,7 +126,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <DesktopSidebar collapsed={collapsed} onToggle={toggleCollapsed} />
       <main className="flex-1 min-w-0 flex flex-col">
         <MobileHeader />
-        <div className="px-4 md:px-10 py-6 md:py-8 max-w-[1400px] animate-fade-in flex-1">
+        {/*
+          Latimea se opreste la 1680px si se centreaza in ce ramane dupa
+          sidebar. Fara `mx-auto` continutul statea lipit de stanga si pe un
+          monitor de 2560 ramaneau 920px goi doar in dreapta — nu arata a
+          margine, arata a pagina neterminata.
+        */}
+        <div className="w-full max-w-[1680px] mx-auto px-4 md:px-10 2xl:px-14 py-6 md:py-8 animate-fade-in flex-1">
           {children}
         </div>
       </main>

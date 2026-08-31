@@ -133,238 +133,244 @@ export function InvestmentsBoard({
         </CardContent>
       </Card>
 
+      {/*
+        Doua coloane care curg independent, nu doua randuri. Cu randuri,
+        inaltimea era data de cardul cel mai inalt din rand: pe lat, sub
+        lista de pozitii (4 randuri) ramanea un gol cat alocarea de langa ea.
+      */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 items-start">
-        {/* ---- pozitii --------------------------------------------------- */}
-        <Card className="xl:col-span-2 overflow-hidden">
-          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] font-semibold">Positions</span>
-              <span className="text-[11px] text-muted-foreground">
-                {portfolio.holdings.length} · live
-              </span>
+        <div className="xl:col-span-2 min-w-0 space-y-3">
+          {/* ---- pozitii --------------------------------------------------- */}
+          <Card className="overflow-hidden">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
+              <div className="flex items-center gap-2">
+                <span className="text-[13px] font-semibold">Positions</span>
+                <span className="text-[11px] text-muted-foreground">
+                  {portfolio.holdings.length} · live
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as SortKey)}
+                  className="h-7 rounded-md border border-border bg-background px-2 text-[11px]"
+                >
+                  <option value="value">Sort: value</option>
+                  <option value="weight">Sort: weight</option>
+                  <option value="today">Sort: today</option>
+                  <option value="pnl">Sort: P&amp;L</option>
+                  <option value="symbol">Sort: symbol</option>
+                </select>
+                <Button
+                  variant="outline" size="sm" className="h-7 px-2.5 text-[11px]"
+                  onClick={() => setEditing(editing === "holdings" ? null : "holdings")}
+                >
+                  {editing === "holdings" ? "Cancel" : "Edit"}
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as SortKey)}
-                className="h-7 rounded-md border border-border bg-background px-2 text-[11px]"
-              >
-                <option value="value">Sort: value</option>
-                <option value="weight">Sort: weight</option>
-                <option value="today">Sort: today</option>
-                <option value="pnl">Sort: P&amp;L</option>
-                <option value="symbol">Sort: symbol</option>
-              </select>
-              <Button
-                variant="outline" size="sm" className="h-7 px-2.5 text-[11px]"
-                onClick={() => setEditing(editing === "holdings" ? null : "holdings")}
-              >
-                {editing === "holdings" ? "Cancel" : "Edit"}
-              </Button>
-            </div>
-          </div>
 
-          {editing === "holdings" ? (
-            <Editor
-              rows={holdings} onChange={setHoldings} pending={pending}
-              onSave={() => save("holdings")}
-              blank={{ symbol: "", name: "", quantity: "0", avgCost: "", currency: "USD", source: "manual" }}
-              columns={[
-                { key: "symbol", label: "Symbol", placeholder: "MSFT", w: "w-28" },
-                { key: "source", label: "Where", placeholder: "IBKR", w: "w-24" },
-                { key: "quantity", label: "Qty", type: "number", w: "w-28" },
-                { key: "avgCost", label: "Avg cost", type: "number", w: "w-28" },
-                { key: "currency", label: "Cur", w: "w-[70px]" },
-              ]}
-            />
-          ) : sorted.length === 0 ? (
-            <p className="p-5 text-muted-foreground">No positions yet — hit Edit.</p>
-          ) : (
-            <div>
-              {sorted.map((h) => {
-                const isOpen = open === h.id;
-                return (
-                  <div
-                    key={h.id}
-                    onMouseEnter={() => setHover(h.id)}
-                    onMouseLeave={() => setHover(null)}
-                    className={cn(
-                      "border-b border-border last:border-0 transition-colors",
-                      hover === h.id && "bg-secondary/40",
-                    )}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setOpen(isOpen ? null : h.id)}
-                      className="w-full grid grid-cols-12 items-center gap-2 px-4 py-2.5 text-left"
-                    >
-                      <div className="col-span-4 sm:col-span-3 flex items-center gap-2 min-w-0">
-                        <span
-                          className="h-6 w-1 rounded-full shrink-0"
-                          style={{ background: colorOf(h.id) }}
-                        />
-                        <div className="min-w-0">
-                          <div className="font-semibold leading-tight">
-                            {h.symbol}
-                            <span className="ml-1.5 text-[10px] font-medium text-muted-foreground">
-                              {h.source}
-                            </span>
-                          </div>
-                          <div className="text-[10.5px] text-muted-foreground truncate">
-                            {h.name ?? h.exchange ?? ""}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-span-2 hidden sm:block">
-                        <Spark data={h.series} up={(h.changePct ?? 0) >= 0} />
-                      </div>
-                      <div className="col-span-3 sm:col-span-2 text-right tabular-nums">
-                        <div>{num(h.price)}</div>
-                        <div className={cn("text-[10.5px]", tone(h.changePct))}>
-                          {pct(h.changePct)}
-                        </div>
-                      </div>
-                      <div className="col-span-3 sm:col-span-2 text-right tabular-nums">
-                        <div>{fmt(h.valueRon)}</div>
-                        <div className="text-[10.5px] text-muted-foreground">
-                          {num(h.quantity, h.quantity % 1 ? 4 : 0)} @ {num(h.avgCost)}
-                        </div>
-                      </div>
-                      <div className="col-span-2 text-right tabular-nums hidden sm:block">
-                        <div className={tone(h.pnl)}>
-                          {h.pnl === null ? "—" : `${h.pnl >= 0 ? "+" : ""}${num(h.pnl)}`}
-                        </div>
-                        <div className={cn("text-[10.5px]", tone(h.pnlPct))}>{pct(h.pnlPct)}</div>
-                      </div>
-                      <div className="col-span-2 sm:col-span-1 flex items-center justify-end gap-1">
-                        <span className="text-[10.5px] text-muted-foreground tabular-nums">
-                          {(h.weight * 100).toFixed(1)}%
-                        </span>
-                        <ChevronDown
-                          className={cn(
-                            "h-3 w-3 text-muted-foreground transition-transform duration-300 ease-expo",
-                            isOpen && "rotate-180",
-                          )}
-                        />
-                      </div>
-                    </button>
-
+            {editing === "holdings" ? (
+              <Editor
+                rows={holdings} onChange={setHoldings} pending={pending}
+                onSave={() => save("holdings")}
+                blank={{ symbol: "", name: "", quantity: "0", avgCost: "", currency: "USD", source: "manual" }}
+                columns={[
+                  { key: "symbol", label: "Symbol", placeholder: "MSFT", w: "w-28" },
+                  { key: "source", label: "Where", placeholder: "IBKR", w: "w-24" },
+                  { key: "quantity", label: "Qty", type: "number", w: "w-28" },
+                  { key: "avgCost", label: "Avg cost", type: "number", w: "w-28" },
+                  { key: "currency", label: "Cur", w: "w-[70px]" },
+                ]}
+              />
+            ) : sorted.length === 0 ? (
+              <p className="p-5 text-muted-foreground">No positions yet — hit Edit.</p>
+            ) : (
+              <div>
+                {sorted.map((h) => {
+                  const isOpen = open === h.id;
+                  return (
                     <div
+                      key={h.id}
+                      onMouseEnter={() => setHover(h.id)}
+                      onMouseLeave={() => setHover(null)}
                       className={cn(
-                        "grid transition-[grid-template-rows,opacity] duration-300 ease-expo",
-                        isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+                        "border-b border-border last:border-0 transition-colors",
+                        hover === h.id && "bg-secondary/40",
                       )}
                     >
-                      <div className="overflow-hidden">
-                        <div className="px-4 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
-                          <Range
-                            label="Day range" low={h.dayLow} high={h.dayHigh}
-                            at={h.price} currency={h.currency} num={num}
+                      <button
+                        type="button"
+                        onClick={() => setOpen(isOpen ? null : h.id)}
+                        className="w-full grid grid-cols-12 items-center gap-2 px-4 py-2.5 text-left"
+                      >
+                        <div className="col-span-4 sm:col-span-3 flex items-center gap-2 min-w-0">
+                          <span
+                            className="h-6 w-1 rounded-full shrink-0"
+                            style={{ background: colorOf(h.id) }}
                           />
-                          <Range
-                            label="52-week range" low={h.weekLow52} high={h.weekHigh52}
-                            at={h.price} currency={h.currency} num={num}
+                          <div className="min-w-0">
+                            <div className="font-semibold leading-tight">
+                              {h.symbol}
+                              <span className="ml-1.5 text-[10px] font-medium text-muted-foreground">
+                                {h.source}
+                              </span>
+                            </div>
+                            <div className="text-[10.5px] text-muted-foreground truncate">
+                              {h.name ?? h.exchange ?? ""}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-span-2 hidden sm:block">
+                          <Spark data={h.series} up={(h.changePct ?? 0) >= 0} />
+                        </div>
+                        <div className="col-span-3 sm:col-span-2 text-right tabular-nums">
+                          <div>{num(h.price)}</div>
+                          <div className={cn("text-[10.5px]", tone(h.changePct))}>
+                            {pct(h.changePct)}
+                          </div>
+                        </div>
+                        <div className="col-span-3 sm:col-span-2 text-right tabular-nums">
+                          <div>{fmt(h.valueRon)}</div>
+                          <div className="text-[10.5px] text-muted-foreground">
+                            {num(h.quantity, h.quantity % 1 ? 4 : 0)} @ {num(h.avgCost)}
+                          </div>
+                        </div>
+                        <div className="col-span-2 text-right tabular-nums hidden sm:block">
+                          <div className={tone(h.pnl)}>
+                            {h.pnl === null ? "—" : `${h.pnl >= 0 ? "+" : ""}${num(h.pnl)}`}
+                          </div>
+                          <div className={cn("text-[10.5px]", tone(h.pnlPct))}>{pct(h.pnlPct)}</div>
+                        </div>
+                        <div className="col-span-2 sm:col-span-1 flex items-center justify-end gap-1">
+                          <span className="text-[10.5px] text-muted-foreground tabular-nums">
+                            {(h.weight * 100).toFixed(1)}%
+                          </span>
+                          <ChevronDown
+                            className={cn(
+                              "h-3 w-3 text-muted-foreground transition-transform duration-300 ease-expo",
+                              isOpen && "rotate-180",
+                            )}
                           />
-                          <Detail label="Market value" value={fmt(h.valueRon)} />
-                          <Detail label="Cost basis" value={fmt(h.costRon)} />
-                          <Detail
-                            label="Today"
-                            value={h.dayChange === null ? "—" : `${h.dayChange >= 0 ? "+" : ""}${num(h.dayChange)} ${h.currency}`}
-                            className={tone(h.dayChange)}
-                          />
-                          <Detail label="Listed on" value={h.exchange ?? "—"} />
+                        </div>
+                      </button>
+
+                      <div
+                        className={cn(
+                          "grid transition-[grid-template-rows,opacity] duration-300 ease-expo",
+                          isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+                        )}
+                      >
+                        <div className="overflow-hidden">
+                          <div className="px-4 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+                            <Range
+                              label="Day range" low={h.dayLow} high={h.dayHigh}
+                              at={h.price} currency={h.currency} num={num}
+                            />
+                            <Range
+                              label="52-week range" low={h.weekLow52} high={h.weekHigh52}
+                              at={h.price} currency={h.currency} num={num}
+                            />
+                            <Detail label="Market value" value={fmt(h.valueRon)} />
+                            <Detail label="Cost basis" value={fmt(h.costRon)} />
+                            <Detail
+                              label="Today"
+                              value={h.dayChange === null ? "—" : `${h.dayChange >= 0 ? "+" : ""}${num(h.dayChange)} ${h.currency}`}
+                              className={tone(h.dayChange)}
+                            />
+                            <Detail label="Listed on" value={h.exchange ?? "—"} />
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Card>
-
-        {/* ---- alocare -------------------------------------------------- */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-[13px] font-semibold mb-1">Allocation</div>
-            <p className="text-[10.5px] text-muted-foreground mb-3">
-              Hover a slice for the detail.
-            </p>
-            {alloc.length === 0 ? (
-              <p className="text-muted-foreground">Nothing yet.</p>
-            ) : (
-              <Donut
-                items={alloc.map((h) => ({
-                  id: h.id, label: `${h.symbol} · ${h.source}`,
-                  value: h.valueRon ?? 0, color: colorOf(h.id),
-                  qty: h.quantity, price: h.price, currency: h.currency,
-                  changePct: h.changePct, pnlPct: h.pnlPct,
-                }))}
-                total={portfolio.stocksRon}
-                hover={hover}
-                onHover={setHover}
-                fmt={fmt}
-                num={num}
-                pct={pct}
-              />
+                  );
+                })}
+              </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </Card>
 
-      {/* ---- evolutie + economii ---------------------------------------- */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
-        <Card className="xl:col-span-2">
-          <CardContent className="p-4">
-            <div className="flex items-baseline justify-between mb-1">
-              <span className="text-[13px] font-semibold">Last month</span>
-              <span className="text-[10.5px] text-muted-foreground">
-                today&apos;s holdings valued at past prices
-              </span>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-baseline justify-between mb-1">
+                <span className="text-[13px] font-semibold">Last month</span>
+                <span className="text-[10.5px] text-muted-foreground">
+                  today&apos;s holdings valued at past prices
+                </span>
+              </div>
+              <History data={portfolio.history} fmt={fmt} />
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="min-w-0 space-y-3">
+          {/* ---- alocare -------------------------------------------------- */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-[13px] font-semibold mb-1">Allocation</div>
+              <p className="text-[10.5px] text-muted-foreground mb-3">
+                Hover a slice for the detail.
+              </p>
+              {alloc.length === 0 ? (
+                <p className="text-muted-foreground">Nothing yet.</p>
+              ) : (
+                <Donut
+                  items={alloc.map((h) => ({
+                    id: h.id, label: `${h.symbol} · ${h.source}`,
+                    value: h.valueRon ?? 0, color: colorOf(h.id),
+                    qty: h.quantity, price: h.price, currency: h.currency,
+                    changePct: h.changePct, pnlPct: h.pnlPct,
+                  }))}
+                  total={portfolio.stocksRon}
+                  hover={hover}
+                  onHover={setHover}
+                  fmt={fmt}
+                  num={num}
+                  pct={pct}
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden">
+            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
+              <span className="text-[13px] font-semibold">Savings</span>
+              <Button
+                variant="outline" size="sm" className="h-7 px-2.5 text-[11px]"
+                onClick={() => setEditing(editing === "savings" ? null : "savings")}
+              >
+                {editing === "savings" ? "Cancel" : "Edit"}
+              </Button>
             </div>
-            <History data={portfolio.history} fmt={fmt} />
-          </CardContent>
-        </Card>
-
-        <Card className="overflow-hidden">
-          <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
-            <span className="text-[13px] font-semibold">Savings</span>
-            <Button
-              variant="outline" size="sm" className="h-7 px-2.5 text-[11px]"
-              onClick={() => setEditing(editing === "savings" ? null : "savings")}
-            >
-              {editing === "savings" ? "Cancel" : "Edit"}
-            </Button>
-          </div>
-          {editing === "savings" ? (
-            <Editor
-              rows={savings} onChange={setSavings} pending={pending}
-              onSave={() => save("savings")}
-              blank={{ label: "", amount: "0", currency: "RON" }}
-              columns={[
-                { key: "label", label: "Account", placeholder: "ING deposit", w: "flex-1 min-w-[120px]" },
-                { key: "amount", label: "Amount", type: "number", w: "w-28" },
-                { key: "currency", label: "Cur", w: "w-[70px]" },
-              ]}
-            />
-          ) : portfolio.savings.length === 0 ? (
-            <p className="p-5 text-muted-foreground">No accounts yet.</p>
-          ) : (
-            <div>
-              {portfolio.savings.map((s) => (
-                <div key={s.id} className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-border last:border-0">
-                  <span className="truncate">{s.label}</span>
-                  <span className="text-right shrink-0">
-                    <span className="tabular-nums">{fmt(s.valueRon)}</span>
-                    <span className="block text-[10.5px] text-muted-foreground tabular-nums">
-                      {num(s.amount)} {s.currency}
+            {editing === "savings" ? (
+              <Editor
+                rows={savings} onChange={setSavings} pending={pending}
+                onSave={() => save("savings")}
+                blank={{ label: "", amount: "0", currency: "RON" }}
+                columns={[
+                  { key: "label", label: "Account", placeholder: "ING deposit", w: "flex-1 min-w-[120px]" },
+                  { key: "amount", label: "Amount", type: "number", w: "w-28" },
+                  { key: "currency", label: "Cur", w: "w-[70px]" },
+                ]}
+              />
+            ) : portfolio.savings.length === 0 ? (
+              <p className="p-5 text-muted-foreground">No accounts yet.</p>
+            ) : (
+              <div>
+                {portfolio.savings.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-border last:border-0">
+                    <span className="truncate">{s.label}</span>
+                    <span className="text-right shrink-0">
+                      <span className="tabular-nums">{fmt(s.valueRon)}</span>
+                      <span className="block text-[10.5px] text-muted-foreground tabular-nums">
+                        {num(s.amount)} {s.currency}
+                      </span>
                     </span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
       </div>
     </div>
   );

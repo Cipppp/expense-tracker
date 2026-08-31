@@ -7,12 +7,28 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fmtDate, localISODate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { getClientInvoicingSummaries, getSettings } from "@/lib/queries";
 import { ClientSummaryTable } from "@/components/invoices/client-summary-table";
 import { InvoiceStatusPicker } from "@/components/invoices/status-picker";
 import type { WeekEntry } from "@/components/income/week-grid";
 
 export const dynamic = "force-dynamic";
+
+/*
+ * Coloanele randului de factura. Sub xl raman cele 12 coloane de pe telefon;
+ * de la xl devine tabel, iar de la 2xl se adauga descrierea primei linii,
+ * care ia spatiul ramas pe ecrane late.
+ *
+ * Pragurile sunt mai sus decat par necesare pentru ca sidebar-ul ia 240px:
+ * la 1280 latimea reala a randului e 910px, iar cele sapte coloane cer 892 —
+ * coloana `1fr` ieseau 0px si descrierea se scria peste data emiterii.
+ */
+const ROW_GRID = cn(
+  "grid grid-cols-12",
+  "xl:grid-cols-[96px_minmax(0,1fr)_104px_104px_150px_112px]",
+  "2xl:grid-cols-[96px_minmax(200px,300px)_minmax(0,1fr)_104px_104px_150px_112px]",
+);
 
 const STATUS_VARIANT: Record<
   string,
@@ -134,14 +150,14 @@ export default async function InvoicesPage() {
         </TabsList>
         <TabsContent value="list" className="mt-6">
           <Card>
-        <CardHeader className="flex flex-row items-baseline justify-between">
-          <CardTitle className="text-lg">
-            {total} {total === 1 ? "invoice" : "invoices"} ·{" "}
-            <span className="text-muted-foreground">{paid} paid</span>
-          </CardTitle>
-        </CardHeader>
-        <Separator />
-        <CardContent className="p-0">
+            <CardHeader className="flex flex-row items-baseline justify-between">
+              <CardTitle className="text-lg">
+                {total} {total === 1 ? "invoice" : "invoices"} ·{" "}
+                <span className="text-muted-foreground">{paid} paid</span>
+              </CardTitle>
+            </CardHeader>
+            <Separator />
+            <CardContent className="p-0">
           {invoices.length === 0 ? (
             <div className="px-6 py-16 text-center text-sm text-muted-foreground">
               No invoices yet.{" "}
@@ -155,6 +171,27 @@ export default async function InvoicesPage() {
             </div>
           ) : (
             <div className="divide-y divide-border/60">
+              {/*
+                Peste lg lista devine tabel. Pe un ecran lat, un rand cu doar
+                numar / client / suma se intinde cu goluri la mijloc; datele
+                si descrierea primei linii umplu spatiul cu informatie, nu cu
+                aer, si scapa data scadenta de sub numele clientului.
+              */}
+              <div
+                className={cn(
+                  ROW_GRID,
+                  "hidden xl:grid px-4 md:px-6 py-2.5",
+                  "text-[10px] uppercase tracking-[0.08em] text-muted-foreground",
+                )}
+              >
+                <div>Invoice</div>
+                <div>Client</div>
+                <div className="hidden 2xl:block truncate">For</div>
+                <div>Issued</div>
+                <div>Due</div>
+                <div className="text-right">Amount</div>
+                <div className="text-right">Status</div>
+              </div>
               {invoices.map((inv) => {
                 const total = inv.lines.reduce((a, l) => a + l.amount, 0);
                 const overdue = isOverdue(inv);
@@ -162,19 +199,23 @@ export default async function InvoicesPage() {
                   <Link
                     key={inv.id}
                     href={`/invoices/${inv.id}`}
-                    className="grid grid-cols-12 gap-3 items-center px-4 md:px-6 py-3 hover:bg-secondary/40 transition-colors"
+                    className={cn(
+                      ROW_GRID,
+                      "grid gap-3 items-center px-4 md:px-6 py-3",
+                      "hover:bg-secondary/40 transition-colors",
+                    )}
                   >
-                    <div className="col-span-3 sm:col-span-2 flex items-center gap-2 min-w-0">
+                    <div className="col-span-3 xl:col-span-1 flex items-center gap-2 min-w-0">
                       <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <span className="font-medium font-mono text-xs">
                         {inv.series} {inv.number}
                       </span>
                     </div>
-                    <div className="col-span-6 sm:col-span-5 min-w-0">
+                    <div className="col-span-6 xl:col-span-1 min-w-0">
                       <div className="text-sm font-medium truncate">
                         {inv.clientCompany}
                       </div>
-                      <div className="text-[11px] text-muted-foreground truncate">
+                      <div className="xl:hidden text-[11px] text-muted-foreground truncate">
                         {fmtDate(inv.issuedAt)}
                         {inv.dueAt && (
                           <>
@@ -190,7 +231,23 @@ export default async function InvoicesPage() {
                         )}
                       </div>
                     </div>
-                    <div className="col-span-3 sm:col-span-2 text-right tabular-nums text-sm">
+                    <div className="hidden 2xl:block min-w-0 text-[12px] text-muted-foreground truncate">
+                      {inv.lines[0]?.description ?? "—"}
+                    </div>
+                    <div className="hidden xl:block text-[12px] text-muted-foreground tabular-nums">
+                      {fmtDate(inv.issuedAt)}
+                    </div>
+                    <div
+                      className={cn(
+                        "hidden xl:block text-[12px] tabular-nums",
+                        overdue
+                          ? "text-destructive font-medium"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {inv.dueAt ? fmtDate(inv.dueAt) : "—"}
+                    </div>
+                    <div className="col-span-3 xl:col-span-1 text-right tabular-nums text-sm">
                       {total.toLocaleString("ro-RO", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
@@ -199,7 +256,7 @@ export default async function InvoicesPage() {
                         {inv.invoiceCurrency}
                       </span>
                     </div>
-                    <div className="col-span-12 sm:col-span-3 flex sm:justify-end gap-1.5">
+                    <div className="col-span-12 xl:col-span-1 flex xl:justify-end gap-1.5">
                       <InvoiceStatusPicker
                         invoiceId={inv.id}
                         status={inv.status}

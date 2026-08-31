@@ -131,8 +131,12 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      {/* Row 2: merchants + quick actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/*
+        Row 2: merchants + quick actions. `items-start` ca sa nu se intinda
+        cardul de actiuni pana la inaltimea celui de merchants — cinci linkuri
+        urmate de 200px de gol arata a card neterminat, mai ales pe lat.
+      */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Top merchants</CardTitle>

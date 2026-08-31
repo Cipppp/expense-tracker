@@ -102,18 +102,22 @@ export default async function ExpensesPage(props: {
 
   return (
     <div className="space-y-8">
-      <header>
-        <div className="text-xs uppercase tracking-[0.07em] text-muted-foreground">
-          Expenses
+      {/*
+        Titlul si totalurile stau pe acelasi rand, ca pe Dashboard. Erau doua
+        randuri separate, iar pe lat navigatia de luna ramanea singura in
+        stanga cu 700px pana la totaluri — doua lucruri care pluteau, nu un cap
+        de pagina.
+      */}
+      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+        <div className="min-w-0">
+          <div className="text-xs uppercase tracking-[0.07em] text-muted-foreground">
+            Expenses
+          </div>
+          <h1 className="mt-1.5 text-[30px] sm:text-[44px] leading-[1.02]">
+            {fmtMonth(year, month)}
+          </h1>
         </div>
-        <h1 className="mt-1.5 text-[30px] sm:text-[44px] leading-[1.02]">
-          {fmtMonth(year, month)}
-        </h1>
-      </header>
-
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <MonthFilter year={year} month={month} />
-        <div className="flex items-center gap-6 text-sm">
+        <div className="flex items-end gap-8 text-sm">
           <div>
             <div className="text-xs uppercase tracking-wider text-muted-foreground">
               {isFiltered ? "Filtered total" : "Month total"}
@@ -137,7 +141,9 @@ export default async function ExpensesPage(props: {
             </div>
           </div>
         </div>
-      </div>
+      </header>
+
+      <MonthFilter year={year} month={month} />
 
       <Card>
         <CardHeader className="space-y-4 pb-4">
