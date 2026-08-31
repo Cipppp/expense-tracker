@@ -1,4 +1,5 @@
 import "server-only";
+import { EU_MEMBER_STATES } from "@/lib/vat";
 
 /*
  * Oblio — emiterea facturii si in contul de facturare, nu doar in aplicatie.
@@ -64,12 +65,32 @@ async function token(): Promise<string> {
   return cached.token;
 }
 
-/** Numele cotei asa cum il asteapta Oblio in `vatName`. */
+/*
+ * Numele cotei, exact cum e scris in nomenclatorul contului Oblio.
+ *
+ * Nu sunt inventate: contul are "Normala" (21%), "Redusa", "Scutita",
+ * "SFDD", "SDD", "TVA Inclus", "Taxare inversa", "Veche". Procentul merge
+ * separat, in `vatPercentage` — de aceea numele e "Normala", nu "Normala 21%".
+ * Un nume care nu exista in cont face factura sa fie respinsa la emitere.
+ * `oblioPreflight` verifica potrivirea fara sa emita nimic.
+ *
+ * SFDD = scutit fara drept de deducere, adica exact regimul art. 310 sub care
+ * e firma. Se foloseste si pentru serviciile catre clienti din afara UE:
+ * acelea sunt neimpozabile in Romania (art. 278), iar Oblio n-are un nume
+ * pentru "neimpozabil". Nu are consecinta — suma e 0 in ambele cazuri, iar
+ * facturile externe nu intra in RO e-Factura.
+ */
+const VAT_NAME = {
+  standard: "Normala",
+  reverseCharge: "Taxare inversa",
+  exempt: "SFDD",
+} as const;
+
 function vatName(vatRate: number, country: string | null | undefined) {
   const c = (country ?? "").trim().toUpperCase();
-  if (vatRate > 0) return `Normala ${Math.round(vatRate * 100)}%`;
-  if (c && c !== "RO") return "Taxare inversa";
-  return "Scutit fara drept de deducere";
+  if (vatRate > 0) return VAT_NAME.standard;
+  if (c && c !== "RO" && EU_MEMBER_STATES.has(c)) return VAT_NAME.reverseCharge;
+  return VAT_NAME.exempt;
 }
 
 export async function createOblioInvoice(input: {
@@ -219,7 +240,7 @@ export async function oblioPreflight(want: {
    * exista in cont, factura care are nevoie de el va fi respinsa — si nu vrei
    * sa afli asta la prima factura reala catre NETOP.
    */
-  const needVat = ["Normala 21%", "Taxare inversa", "Scutit fara drept de deducere"];
+  const needVat = Object.values(VAT_NAME);
   const missingVat = needVat.filter((n) => !vatNames.includes(n));
 
   const problems: string[] = [];
