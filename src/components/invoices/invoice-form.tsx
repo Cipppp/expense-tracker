@@ -16,6 +16,12 @@ import {
 } from "@/components/ui/select";
 import { fmtCurrency, fmtDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { deriveVat } from "@/lib/vat";
+import {
+  InvoicePreview,
+  type PreviewIssuer,
+} from "@/components/invoices/invoice-preview";
+import Link from "next/link";
 
 type JobOption = {
   id: string;
@@ -46,9 +52,21 @@ const emptyLine = (): Line => ({
 export function InvoiceForm({
   jobs,
   preselectJobId,
+  issuer,
+  series,
+  nextNumber,
+  roVatRate,
+  oblioReady,
 }: {
   jobs: JobOption[];
   preselectJobId: string | null;
+  issuer: PreviewIssuer;
+  series: string;
+  nextNumber: string;
+  /** Cota standard din setari; se aplica doar clientilor din RO. */
+  roVatRate: number;
+  /** OBLIO_EMAIL + OBLIO_SECRET sunt setate pe server. */
+  oblioReady: boolean;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -60,20 +78,25 @@ export function InvoiceForm({
     [jobId, jobs],
   );
 
-  // Client snapshot fields — pre-filled from the selected job but editable
-  // for one-off overrides without changing the client record.
-  const [clientName, setClientName] = useState(selectedJob?.name ?? "");
-  const [companyName, setCompanyName] = useState(selectedJob?.companyName ?? "");
-  const [companyCui, setCompanyCui] = useState(selectedJob?.companyCui ?? "");
-  const [companyReg, setCompanyReg] = useState(selectedJob?.companyReg ?? "");
-  const [companyAddress, setCompanyAddress] = useState(
-    selectedJob?.companyAddress ?? "",
-  );
-  const [companyCountry, setCompanyCountry] = useState(
-    selectedJob?.companyCountry ?? "RO",
-  );
+  /*
+   * Datele clientului se CITESC din fisa lui, nu se editeaza aici.
+   *
+   * Erau campuri libere pre-completate, ca sa poti face o exceptie punctuala.
+   * In practica singurul lucru care se intampla era sa modifici din greseala
+   * CIF-ul sau adresa pe o factura, fara ca fisa clientului sa se schimbe —
+   * adica exact tipul de eroare pe care nu-l prinzi decat la contabilitate.
+   * Se schimba din Setari > Clienti, unde se schimba pentru toate facturile.
+   */
+  const clientName = selectedJob?.name ?? "";
+  const companyName = selectedJob?.companyName ?? "";
+  const companyCui = selectedJob?.companyCui ?? "";
+  const companyReg = selectedJob?.companyReg ?? "";
+  const companyAddress = selectedJob?.companyAddress ?? "";
+  const companyCountry = selectedJob?.companyCountry ?? "RO";
 
   const [issuedAt, setIssuedAt] = useState(today);
+  const [dueAt, setDueAt] = useState("");
+  const [toOblio, setToOblio] = useState(oblioReady);
   const [invoiceCurrency, setInvoiceCurrency] = useState<"RON" | "USD" | "EUR">(
     (selectedJob?.defaultCurrency as "RON" | "USD" | "EUR") ?? "RON",
   );
@@ -108,12 +131,6 @@ export function InvoiceForm({
     setLinkedIncomeIds([]);
     const j = jobs.find((x) => x.id === id);
     if (!j) return;
-    setClientName(j.name);
-    setCompanyName(j.companyName);
-    setCompanyCui(j.companyCui);
-    setCompanyReg(j.companyReg);
-    setCompanyAddress(j.companyAddress);
-    setCompanyCountry(j.companyCountry);
     setInvoiceCurrency(
       (j.defaultCurrency as "RON" | "USD" | "EUR") ?? "RON",
     );
@@ -226,6 +243,24 @@ export function InvoiceForm({
     issuedAtRef.current = issuedAt;
   }, [invoiceCurrency, issuedAt]);
 
+  /*
+   * Aceeasi regula ca in ruta POST (`deriveVat`), ca previzualizarea sa arate
+   * exact ce se salveaza. Diferenta dintre "scutit art. 310" si "taxare
+   * inversa" nu e cosmetica — e ce scrie pe factura la ANAF.
+   */
+  const { vatRate, kind: vatKind } = useMemo(
+    () => deriveVat(companyCountry, roVatRate, issuer.vatRegistered),
+    [companyCountry, roVatRate, issuer.vatRegistered],
+  );
+  const vatLabel =
+    vatKind === "eu_reverse"
+      ? "Reverse charge (art. 196)"
+      : vatKind === "export"
+        ? "Out of scope (art. 278)"
+        : vatKind === "exempt_310"
+          ? "Exempt (art. 310)"
+          : `${Math.round(vatRate * 100)}% VAT`;
+
   const needsBnrRate = invoiceCurrency !== "RON";
   const bnrRateNum = Number(bnrRate) || 0;
   const legalTotal = needsBnrRate && bnrRateNum > 0 ? subtotal * bnrRateNum : subtotal;
@@ -298,6 +333,7 @@ export function InvoiceForm({
         clientAddress: companyAddress || null,
         clientCountry: companyCountry || null,
         issuedAt,
+        dueAt: dueAt || null,
         invoiceCurrency,
         bnrRate: needsBnrRate ? bnrRateNum : null,
         footerNote: footerNote || null,
@@ -321,7 +357,37 @@ export function InvoiceForm({
       return;
     }
     const data = await res.json();
-    toast.success(`Invoice ${data.invoice.series} ${data.invoice.number} created`);
+    const label = `${data.invoice.series} ${data.invoice.number}`;
+
+    /*
+     * Oblio dupa, nu inainte: daca al doilea pas cade, factura din aplicatie
+     * ramane buna si butonul de pe pagina ei o poate trimite mai tarziu.
+     * Invers, o factura in Oblio fara pereche in aplicatie nu se poate repara
+     * decat cu o stornare.
+     */
+    if (toOblio && oblioReady) {
+      try {
+        const o = await fetch(`/api/invoices/${data.invoice.id}/oblio`, {
+          method: "POST",
+        });
+        const ob = await o.json().catch(() => ({}));
+        if (!o.ok) {
+          toast.warning(`${label} created — but Oblio refused it`, {
+            description: typeof ob?.error === "string" ? ob.error : undefined,
+          });
+        } else {
+          toast.success(`${label} created · Oblio ${ob.oblioNumber ?? "ok"}`, {
+            description: "Oblio forwards it to SPV.",
+          });
+        }
+      } catch (err) {
+        toast.warning(`${label} created — Oblio could not be reached`, {
+          description: err instanceof Error ? err.message : undefined,
+        });
+      }
+    } else {
+      toast.success(`Invoice ${label} created`);
+    }
     router.push(`/invoices/${data.invoice.id}`);
   }
 
@@ -331,8 +397,37 @@ export function InvoiceForm({
     lines.some((l) => l.description.trim() && Number(l.unitPrice) > 0) &&
     (!needsBnrRate || bnrRateNum > 0);
 
+  const previewInvoice = {
+    series,
+    number: nextNumber,
+    issuedAt,
+    dueAt: dueAt || null,
+    clientCompany: companyName || clientName,
+    clientCui: companyCui,
+    clientReg: companyReg,
+    clientAddress: companyAddress,
+    clientCountry: companyCountry,
+    invoiceCurrency,
+    bnrRate: needsBnrRate ? bnrRateNum : null,
+    vatRate,
+    footerNote: footerNote || null,
+    lines: lines.map((l) => ({
+      description: l.description,
+      unit: l.unit || "buc",
+      quantity: Number(l.quantity) || 0,
+      unitPrice: Number(l.unitPrice) || 0,
+    })),
+  };
+
   return (
-    <div className="space-y-6">
+    /*
+     * Formular in stanga, factura in dreapta. Pe ecran lat coloana din dreapta
+     * statea goala, iar singurul mod de a vedea ce iese era sa salvezi mai
+     * intai. Sub xl previzualizarea trece dedesubt, in ordinea fireasca de
+     * citire pe telefon.
+     */
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-6 xl:gap-8 items-start">
+      <div className="space-y-6 min-w-0">
       {/* Client picker */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Field label="Client" className="md:col-span-2">
@@ -377,6 +472,14 @@ export function InvoiceForm({
             onChange={(e) => setIssuedAt(e.target.value)}
           />
         </Field>
+        <Field label="Due at (optional)">
+          <Input
+            type="date"
+            value={dueAt}
+            min={issuedAt}
+            onChange={(e) => setDueAt(e.target.value)}
+          />
+        </Field>
         {needsBnrRate && (
           <Field label={`BNR rate ${invoiceCurrency}/RON`}>
             <div className="flex gap-1.5">
@@ -414,51 +517,34 @@ export function InvoiceForm({
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <Field label="Client display name">
-          <Input
-            value={clientName}
-            onChange={(e) => setClientName(e.target.value)}
-            placeholder="Display name"
-          />
-        </Field>
-        <Field label="Company (legal entity)">
-          <Input
-            value={companyName}
-            onChange={(e) => setCompanyName(e.target.value)}
-            placeholder="e.g. FUSECON S.R.L."
-          />
-        </Field>
-        <Field label="CIF / VAT ID">
-          <Input
-            value={companyCui}
-            onChange={(e) => setCompanyCui(e.target.value)}
-            placeholder="e.g. RO38855898"
-          />
-        </Field>
-        <Field label="Reg.com / CVR">
-          <Input
-            value={companyReg}
-            onChange={(e) => setCompanyReg(e.target.value)}
-            placeholder="e.g. J20180020021404"
-          />
-        </Field>
-        <Field label="Address" className="md:col-span-2">
-          <Input
-            value={companyAddress}
-            onChange={(e) => setCompanyAddress(e.target.value)}
-            placeholder="Address line"
-          />
-        </Field>
-        <Field label="Country (ISO)">
-          <Input
-            value={companyCountry}
-            onChange={(e) => setCompanyCountry(e.target.value.toUpperCase())}
-            placeholder="RO"
-            maxLength={2}
-          />
-        </Field>
-      </div>
+      {/* Fisa clientului — se vede, nu se editeaza. */}
+      {selectedJob ? (
+        <div className="rounded-md border border-border bg-secondary/30 px-4 py-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              Billed to
+            </Label>
+            <Link
+              href="/settings"
+              className="text-[11px] text-accent underline-offset-4 hover:underline"
+            >
+              Edit in settings
+            </Link>
+          </div>
+          <div className="mt-2 text-sm font-medium">{companyName || clientName}</div>
+          <dl className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-[11.5px]">
+            <Ro label="CIF / VAT ID" value={companyCui} />
+            <Ro label="Reg.com / CVR" value={companyReg} />
+            <Ro label="Address" value={companyAddress} className="sm:col-span-2" />
+            <Ro label="Country" value={companyCountry} />
+            <Ro label="VAT treatment" value={vatLabel} />
+          </dl>
+        </div>
+      ) : (
+        <p className="rounded-md border border-border bg-secondary/30 px-4 py-3 text-xs text-muted-foreground">
+          Pick a client to fill the company block.
+        </p>
+      )}
 
       {/* Unbilled hours picker — pull periods straight from the time
           tracker. Each picked month becomes a "Consulting services — Apr
@@ -640,15 +726,73 @@ export function InvoiceForm({
         )}
       </div>
 
-      <div className="flex justify-end gap-2">
-        <Button
-          variant="accent"
-          onClick={submit}
-          disabled={pending || !valid}
-        >
-          {pending ? "Creating…" : "Create invoice"}
-        </Button>
       </div>
+
+      <div className="min-w-0 xl:sticky xl:top-6 space-y-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+            Preview · {series} {nextNumber}
+          </Label>
+          <span className="text-[11px] text-muted-foreground">
+            {vatLabel}
+          </span>
+        </div>
+
+        <InvoicePreview issuer={issuer} invoice={previewInvoice} />
+
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-1">
+          <div className="min-w-0">
+            {oblioReady ? (
+              <label className="flex items-center gap-2 text-[11px] cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={toOblio}
+                  onChange={(e) => setToOblio(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-[hsl(var(--accent))]"
+                />
+                <span>
+                  Also issue in Oblio
+                  <span className="text-muted-foreground">
+                    {" "}
+                    — it forwards to SPV
+                  </span>
+                </span>
+              </label>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                {valid
+                  ? "The PDF is rendered server-side on save and will match this."
+                  : "Pick a client and add at least one priced line."}
+              </p>
+            )}
+          </div>
+          <Button
+            variant="accent"
+            onClick={submit}
+            disabled={pending || !valid}
+            className="w-full sm:w-auto"
+          >
+            {pending ? "Creating…" : "Create invoice"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Ro({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex items-baseline gap-2 min-w-0", className)}>
+      <dt className="text-muted-foreground shrink-0">{label}</dt>
+      <dd className="truncate">{value || "—"}</dd>
     </div>
   );
 }

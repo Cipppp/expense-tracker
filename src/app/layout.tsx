@@ -76,14 +76,28 @@ export default function RootLayout({
       <body className="min-h-[100dvh] bg-background antialiased">
         <ThemeProvider>
           {children}
+          {/*
+            `richColors` a fost scos intentionat: aducea paleta proprie a
+            librariei peste tema calda a aplicatiei. Culoarea tipului sta acum
+            in bara din stanga, definita in globals.css.
+          */}
           <Toaster
             position="top-right"
             closeButton
-            richColors
+            gap={10}
+            offset={18}
+            duration={4500}
             toastOptions={{
               classNames: {
-                toast:
-                  "font-sans border border-border shadow-sm bg-card text-card-foreground",
+                toast: "et-toast",
+                title: "et-toast-title",
+                description: "et-toast-desc",
+                icon: "et-toast-icon",
+                closeButton: "et-toast-close",
+                success: "et-toast-success",
+                error: "et-toast-error",
+                warning: "et-toast-warning",
+                info: "et-toast-info",
               },
             }}
           />

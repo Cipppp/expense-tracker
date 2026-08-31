@@ -34,10 +34,17 @@ export function InvoiceStatusPicker({
   invoiceId,
   status,
   overdue = false,
+  label,
+  client,
+  amount,
 }: {
   invoiceId: string;
   status: string;
   overdue?: boolean;
+  /** "CP 0027" — ca notificarea sa spuna despre CE factura vorbeste. */
+  label?: string;
+  client?: string;
+  amount?: string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -60,12 +67,20 @@ export function InvoiceStatusPicker({
       if (!res.ok) {
         setOptimistic(null);
         const err = await res.json().catch(() => ({}));
-        toast.error("Couldn't change the status", {
-          description: typeof err?.error === "string" ? err.error : undefined,
-        });
+        toast.error(
+          label ? `${label} — couldn't change the status` : "Couldn't change the status",
+          { description: typeof err?.error === "string" ? err.error : undefined },
+        );
         return;
       }
-      toast.success(`Marked ${next}`);
+      /*
+       * Notificarea spune care factura, nu doar ca s-a intamplat ceva. Din
+       * lista se schimba statusul la orice rand, deci un simplu "Marked paid"
+       * nu confirma nimic: nu stii daca ai apasat pe randul pe care voiai.
+       */
+      toast.success(label ? `${label} · marked ${next}` : `Marked ${next}`, {
+        description: [client, amount].filter(Boolean).join(" · ") || undefined,
+      });
       router.refresh();
       setOptimistic(null);
     });

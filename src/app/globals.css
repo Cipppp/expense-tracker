@@ -288,3 +288,115 @@
     animation: none;
   }
 }
+
+/*
+ * Toast — sonner, imbracat in limbajul aplicatiei.
+ *
+ * `richColors` aducea propria paleta peste un card cald si propriul easing
+ * `ease`, asa ca notificarile aratau ca dintr-o alta aplicatie. Aici raman
+ * doar tokenii de tema si acelasi expo-out ca restul miscarilor.
+ *
+ * Miscarea de intrare nu se face din `transform`: sonner scrie el
+ * `transform: var(--y)` ca sa stivuiasca toasturile, iar o animatie peste el
+ * s-ar bate cap in cap cu stiva. Se anima in schimb bara din stanga si
+ * iconita, care nu tin de asezare.
+ */
+[data-sonner-toaster] {
+  --width: 380px;
+}
+
+.et-toast {
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid hsl(var(--border));
+  border-left-width: 3px;
+  border-left-color: hsl(var(--muted-foreground));
+  border-radius: calc(var(--radius) - 2px);
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  box-shadow:
+    0 1px 2px hsl(var(--foreground) / 0.04),
+    0 8px 24px -8px hsl(var(--foreground) / 0.12);
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition-duration: 340ms !important;
+}
+
+.et-toast-title {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+.et-toast-desc {
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: hsl(var(--muted-foreground)) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.et-toast-icon {
+  margin: 1px 0 0 0;
+  width: 15px;
+  height: 15px;
+  animation: toast-icon-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.et-toast-close {
+  border-color: hsl(var(--border)) !important;
+  background: hsl(var(--card)) !important;
+  color: hsl(var(--muted-foreground)) !important;
+  transition: color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.et-toast-close:hover {
+  color: hsl(var(--foreground)) !important;
+  border-color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Bara din stanga poarta tipul; textul ramane in culoarea cardului, ca sa se
+   citeasca la fel de bine pe amandoua temele. */
+.et-toast-success {
+  border-left-color: hsl(var(--success));
+}
+.et-toast-success .et-toast-icon {
+  color: hsl(var(--success));
+}
+.et-toast-error {
+  border-left-color: hsl(var(--destructive));
+}
+.et-toast-error .et-toast-icon {
+  color: hsl(var(--destructive));
+}
+.et-toast-warning {
+  border-left-color: hsl(var(--accent));
+}
+.et-toast-warning .et-toast-icon {
+  color: hsl(var(--accent));
+}
+.et-toast-info {
+  border-left-color: hsl(var(--accent));
+}
+.et-toast-info .et-toast-icon {
+  color: hsl(var(--accent));
+}
+
+@keyframes toast-icon-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .et-toast-icon {
+    animation: none;
+  }
+}
