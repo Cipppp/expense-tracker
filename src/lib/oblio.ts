@@ -252,6 +252,18 @@ async function readNomenclature(t: string, path: string): Promise<Nomen> {
   };
 }
 
+/** Seriile din cont, pe tip de document. Strict GET. */
+export async function oblioSeries(issuerCif: string) {
+  const t = await token();
+  const r = await readNomenclature(t, `series?cif=${encodeURIComponent(issuerCif)}`);
+  const rows = (Array.isArray(r.sample) ? r.sample : []) as Array<Record<string, unknown>>;
+  return rows.map((x) => ({
+    type: String(x.type ?? ""),
+    name: String(x.name ?? ""),
+    next: String(x.next ?? ""),
+  }));
+}
+
 /**
  * Citeste contul si compara ce are cu ce trimite `createOblioInvoice`.
  * Strict GET — nu emite si nu modifica nimic.

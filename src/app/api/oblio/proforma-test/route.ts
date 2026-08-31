@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { createOblioInvoice, oblioConfigured } from "@/lib/oblio";
+import { createOblioInvoice, oblioConfigured, oblioSeries } from "@/lib/oblio";
 import { getSettings } from "@/lib/queries";
 
 export const runtime = "nodejs";
@@ -54,11 +54,32 @@ export async function POST(req: Request) {
   if (!invoice) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const settings = await getSettings();
+
+  /*
+   * Proforma are seria ei. Contul poate sa n-aiba niciuna — atunci nu e o
+   * problema de payload, ci de configurare, si merita spus asa ca sa nu para
+   * ca integrarea e stricata.
+   */
+  const all = await oblioSeries(settings.issuerCif);
+  const proforma = all.find((x) => /proform/i.test(x.type));
+  if (!proforma) {
+    return NextResponse.json(
+      {
+        ok: false,
+        inconclusive: true,
+        error:
+          "The Oblio account has no Proforma series, so the payload could not be tested. Add one in Oblio: Setari > Serii documente > Proforma. Nothing is wrong with the integration.",
+        seriesInAccount: all,
+      },
+      { status: 409 },
+    );
+  }
+
   try {
     const result = await createOblioInvoice({
       docType: "proforma",
       issuerCif: settings.issuerCif,
-      seriesName: invoice.series,
+      seriesName: proforma.name,
       issuedAt: invoice.issuedAt,
       dueAt: invoice.dueAt,
       currency: invoice.invoiceCurrency,
@@ -83,6 +104,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       shapeFrom: `${invoice.series} ${invoice.number}`,
+      proformaSeries: proforma.name,
       client: invoice.clientCompany,
       country: invoice.clientCountry,
       currency: invoice.invoiceCurrency,
