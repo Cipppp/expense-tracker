@@ -102,6 +102,17 @@ model Job {
   // Where to email invoices for this client. When set, the invoice page can
   // send the PDF + activity report straight to the client.
   email           String?
+  /*
+   * Textul liniei de factura, asa cum il asteapta clientul.
+   *
+   * Fiecare client are formularea lui si ea nu se schimba de la o luna la
+   * alta: NETOP vrea trimiterea la contract, BLNG vrea perioada de serviciu.
+   * Generatorul scotea "Consulting services — August 2026" pentru toti, ceea
+   * ce nu semana cu nicio factura emisa vreodata.
+   *
+   * Sabloane: {month} {monthShort} {year} {lastDay} {period}
+   */
+  invoiceDescription String?
 
   entries   Income[]
   invoices  Invoice[]

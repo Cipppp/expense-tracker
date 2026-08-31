@@ -44,6 +44,7 @@ export default async function NewInvoicePage(props: {
           companyAddress: j.companyAddress ?? "",
           companyCountry: j.companyCountry ?? "RO",
           defaultCurrency: j.defaultCurrency,
+          invoiceDescription: j.invoiceDescription ?? "",
         }))}
         preselectJobId={params.jobId ?? null}
         series={settings.invoiceSeries}

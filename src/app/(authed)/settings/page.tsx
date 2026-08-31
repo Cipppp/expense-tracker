@@ -56,6 +56,7 @@ export default async function SettingsPage() {
               companyCountry: c.companyCountry ?? "",
               defaultCurrency: c.defaultCurrency,
               email: c.email ?? "",
+              invoiceDescription: c.invoiceDescription ?? "",
             }))}
         />
       </CollapsibleCard>

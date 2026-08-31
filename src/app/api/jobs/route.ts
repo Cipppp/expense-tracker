@@ -15,6 +15,7 @@ const Create = z.object({
   companyAddress: z.string().optional().nullable(),
   companyCountry: z.string().optional().nullable(),
   email: z.string().email().optional().nullable().or(z.literal("")),
+  invoiceDescription: z.string().optional().nullable(),
 });
 
 export async function GET() {

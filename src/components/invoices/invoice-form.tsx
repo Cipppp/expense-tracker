@@ -33,6 +33,7 @@ type JobOption = {
   companyAddress: string;
   companyCountry: string;
   defaultCurrency: string;
+  invoiceDescription: string;
 };
 
 type Line = {
@@ -195,11 +196,27 @@ export function InvoiceForm({
    */
   function addPickedToLines(nextPicked: Set<string>) {
     if (!unbilled || !selectedJob) return;
-    const monthName = (ym: string) =>
-      new Date(`${ym}-15T12:00:00Z`).toLocaleDateString("en-US", {
-        month: "long",
-        year: "numeric",
-      });
+    /*
+     * Descrierea liniei vine din fisa clientului, nu dintr-un sablon comun.
+     * Fiecare client are formularea lui si ea nu se schimba de la o luna la
+     * alta — NETOP cere trimiterea la contract, BLNG cere perioada de
+     * serviciu. Un "Consulting services — August 2026" pentru toti nu semana
+     * cu nicio factura emisa vreodata.
+     */
+    const lineFor = (ym: string) => {
+      const [y, m] = ym.split("-").map(Number);
+      const d = new Date(Date.UTC(y, m - 1, 15));
+      const tpl = selectedJob.invoiceDescription?.trim();
+      const vals: Record<string, string> = {
+        month: d.toLocaleDateString("en-US", { month: "long", timeZone: "UTC" }),
+        monthShort: d.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }),
+        year: String(y),
+        lastDay: String(new Date(Date.UTC(y, m, 0)).getUTCDate()),
+        period: `${d.toLocaleDateString("en-US", { month: "long", timeZone: "UTC" })} ${y}`,
+      };
+      if (!tpl) return `Consulting services — ${vals.month} ${vals.year}`;
+      return tpl.replace(/\{(\w+)\}/g, (all, k) => vals[k] ?? all);
+    };
     const ids: string[] = [];
     const generated: Line[] = [];
     for (const g of unbilled) {
@@ -213,7 +230,7 @@ export function InvoiceForm({
        */
       const effective = g.hours > 0 ? g.amount / 100 / g.hours : selectedJob.rateUsd;
       generated.push({
-        description: `Consulting services — ${monthName(g.month)}`,
+        description: lineFor(g.month),
         unit: "h",
         quantity: String(g.hours),
         unitPrice: String(Math.round(effective * 100) / 100),
@@ -222,8 +239,15 @@ export function InvoiceForm({
     // Keep manual (non-generated) lines around; replace the previous batch
     // of auto lines. We use a marker on the description prefix.
     setLines((prev) => {
+      const generatedNow = new Set(generated.map((g) => g.description));
+      const prevGenerated = new Set(
+        (unbilled ?? []).map((g) => lineFor(g.month)),
+      );
       const manual = prev.filter(
-        (l) => !l.description.startsWith("Consulting services — "),
+        (l) =>
+          !prevGenerated.has(l.description) &&
+          !generatedNow.has(l.description) &&
+          !l.description.startsWith("Consulting services — "),
       );
       // If everything's been removed manually but the user picks months
       // again, drop the empty placeholder.

@@ -45,6 +45,7 @@ export type ClientRow = {
   companyCountry: string;
   defaultCurrency: string;
   email: string;
+  invoiceDescription: string;
 };
 
 const PRESET_COLORS = [
@@ -133,6 +134,7 @@ function ClientRowEditor({
   const [companyCui, setCompanyCui] = useState(client.companyCui);
   const [companyReg, setCompanyReg] = useState(client.companyReg);
   const [companyAddress, setCompanyAddress] = useState(client.companyAddress);
+  const [invoiceDescription, setInvoiceDescription] = useState(client.invoiceDescription);
   const [companyCountry, setCompanyCountry] = useState(client.companyCountry);
   const [email, setEmail] = useState(client.email ?? "");
   const [defaultCurrency, setDefaultCurrency] = useState(
@@ -152,6 +154,7 @@ function ClientRowEditor({
         companyCui: companyCui || null,
         companyReg: companyReg || null,
         companyAddress: companyAddress || null,
+        invoiceDescription: invoiceDescription || null,
         companyCountry: companyCountry || null,
         defaultCurrency,
         email: email.trim() || null,
@@ -327,6 +330,20 @@ function ClientRowEditor({
             </div>
             <div className="col-span-12 space-y-1">
               <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Invoice line
+              </Label>
+              <Input
+                value={invoiceDescription}
+                onChange={(e) => setInvoiceDescription(e.target.value)}
+                placeholder="e.g. IT consulting services as per service agreement"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Ce scrie pe linia de factura cand tragi orele din tracker.
+                Sabloane: {"{month}"} {"{monthShort}"} {"{year}"} {"{lastDay}"}
+              </p>
+            </div>
+            <div className="col-span-12 space-y-1">
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Email (for sending invoices)
               </Label>
               <Input
@@ -365,6 +382,7 @@ function ClientRowEditor({
                 setCompanyCui(client.companyCui);
                 setCompanyReg(client.companyReg);
                 setCompanyAddress(client.companyAddress);
+                setInvoiceDescription(client.invoiceDescription);
                 setCompanyCountry(client.companyCountry);
                 setEmail(client.email ?? "");
                 setDefaultCurrency(client.defaultCurrency || "USD");
@@ -490,6 +508,7 @@ function NewClientForm({
   const [companyCui, setCompanyCui] = useState("");
   const [companyReg, setCompanyReg] = useState("");
   const [companyAddress, setCompanyAddress] = useState("");
+  const [invoiceDescription, setInvoiceDescription] = useState("");
   const [companyCountry, setCompanyCountry] = useState("RO");
   const [pending, setPending] = useState(false);
 
@@ -507,6 +526,7 @@ function NewClientForm({
         companyCui: companyCui || null,
         companyReg: companyReg || null,
         companyAddress: companyAddress || null,
+        invoiceDescription: invoiceDescription || null,
         companyCountry: companyCountry || null,
       }),
     });
@@ -633,6 +653,16 @@ function NewClientForm({
               value={companyAddress}
               onChange={(e) => setCompanyAddress(e.target.value)}
               placeholder="Address line"
+            />
+          </div>
+          <div className="col-span-12 space-y-1">
+            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Invoice line
+            </Label>
+            <Input
+              value={invoiceDescription}
+              onChange={(e) => setInvoiceDescription(e.target.value)}
+              placeholder="e.g. IT consulting services as per service agreement"
             />
           </div>
         </div>
