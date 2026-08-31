@@ -11,6 +11,8 @@ import {
   Pencil,
   ChevronDown,
   Building2,
+  EyeOff,
+  Eye,
 } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,7 +77,9 @@ export function ClientsManager({ initial }: { initial: ClientRow[] }) {
             No clients yet. Add one to start tracking time and issuing invoices.
           </p>
         )}
-        {initial.map((c) => (
+        {[...initial]
+          .sort((a, b) => Number(b.active) - Number(a.active))
+          .map((c) => (
           <ClientRowEditor
             key={c.id}
             client={c}
@@ -83,7 +87,7 @@ export function ClientsManager({ initial }: { initial: ClientRow[] }) {
             disabled={pending}
             setPending={setPending}
           />
-        ))}
+          ))}
       </div>
 
       {adding ? (
@@ -161,6 +165,36 @@ function ClientRowEditor({
     }
     toast.success("Client updated");
     setEditing(false);
+    onChanged();
+  }
+
+  /*
+   * Arhivare, nu stergere. `active` exista de la inceput in schema si e deja
+   * filtrul dupa care merg selectorul de client de pe factura si time
+   * tracker-ul — doar ca nu avea niciun buton, deci un client cu care nu mai
+   * lucrezi ramanea pe veci in ambele liste.
+   */
+  async function toggleActive() {
+    setPending(true);
+    const next = !client.active;
+    const res = await fetch(`/api/jobs/${client.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active: next }),
+    });
+    setPending(false);
+    if (!res.ok) {
+      toast.error(`Couldn't ${next ? "restore" : "archive"} ${client.name}`);
+      return;
+    }
+    toast.success(
+      next ? `${client.name} is back` : `${client.name} archived`,
+      {
+        description: next
+          ? undefined
+          : "Hidden from the time tracker and new invoices. History is kept.",
+      },
+    );
     onChanged();
   }
 
@@ -357,7 +391,14 @@ function ClientRowEditor({
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-3 hover:border-border/80">
+    <div
+      className={cn(
+        "flex items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-3 hover:border-border/80",
+        // Arhivat: ramane vizibil si lizibil, dar retras. Nu se sterge —
+        // istoricul de ore si facturile lui trebuie sa ramana intacte.
+        !client.active && "opacity-55 border-dashed",
+      )}
+    >
       <div className="flex items-center gap-3 min-w-0">
         <span
           className="h-3 w-3 rounded-full shrink-0"
@@ -366,6 +407,11 @@ function ClientRowEditor({
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="text-sm font-medium truncate">{client.name}</span>
+            {!client.active && (
+              <span className="shrink-0 rounded-full border border-border px-1.5 py-px text-[9px] uppercase tracking-wider text-muted-foreground">
+                archived
+              </span>
+            )}
             {client.companyName && (
               <span className="text-[10px] text-muted-foreground inline-flex items-center gap-0.5">
                 <Building2 className="h-2.5 w-2.5" />
@@ -392,15 +438,38 @@ function ClientRowEditor({
           </div>
         </div>
       </div>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setEditing(true)}
-        className="text-muted-foreground hover:text-foreground"
-      >
-        <Pencil className="h-3.5 w-3.5" />
-        Edit
-      </Button>
+      <div className="flex items-center gap-1 shrink-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={disabled}
+          onClick={() => toggleActive()}
+          className="text-muted-foreground hover:text-foreground"
+          title={
+            client.active
+              ? "Archive — hides it from the time tracker and the invoice picker"
+              : "Bring it back"
+          }
+        >
+          {client.active ? (
+            <EyeOff className="h-3.5 w-3.5" />
+          ) : (
+            <Eye className="h-3.5 w-3.5" />
+          )}
+          <span className="hidden sm:inline">
+            {client.active ? "Archive" : "Restore"}
+          </span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setEditing(true)}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+          Edit
+        </Button>
+      </div>
     </div>
   );
 }

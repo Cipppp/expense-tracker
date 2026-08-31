@@ -36,8 +36,13 @@ export default async function SettingsPage() {
         defaultOpen={true}
       >
         <ClientsManager
+          /*
+            Fara filtru pe `active`: un client arhivat trebuie sa ramana vizibil
+            exact aici, altfel dispare din singurul loc din care l-ai putea
+            aduce inapoi. Ascuns e doar in time tracker si in selectorul de pe
+            factura.
+          */
           initial={clients
-            .filter((c) => c.active)
             .map((c) => ({
               id: c.id,
               name: c.name,
