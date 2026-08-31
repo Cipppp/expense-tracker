@@ -261,6 +261,12 @@ export default async function InvoicesPage() {
                         invoiceId={inv.id}
                         status={inv.status}
                         overdue={overdue}
+                        label={`${inv.series} ${inv.number}`}
+                        client={inv.clientCompany}
+                        amount={`${total.toLocaleString("ro-RO", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })} ${inv.invoiceCurrency}`}
                       />
                     </div>
                   </Link>

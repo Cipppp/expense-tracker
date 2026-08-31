@@ -11,6 +11,7 @@ import { InvoiceActions } from "@/components/invoices/invoice-actions";
 import { InvoiceSend } from "@/components/invoices/invoice-send";
 import { vatKindForInvoice } from "@/lib/vat";
 import { pickIssuerIban } from "@/lib/invoice";
+import { oblioConfigured } from "@/lib/oblio";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +116,9 @@ export default async function InvoicePage(props: {
             id={inv.id}
             status={inv.status}
             overdue={isOverdue}
+            oblioReady={oblioConfigured()}
+            oblioNumber={inv.oblioNumber}
+            oblioLink={inv.oblioLink}
             reminderContext={{
               series: inv.series,
               number: inv.number,

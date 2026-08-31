@@ -144,6 +144,11 @@ model Invoice {
 
   footerNote   String?
   status       String   @default("draft")     // draft | issued | paid | void
+
+  // Documentul din Oblio, cand factura a fost impinsa si acolo. Oblio duce
+  // mai departe la SPV; aplicatia asta nu are certificat si nu poate semna.
+  oblioNumber  String?
+  oblioLink    String?
   paidAt       DateTime?
   paidIncomeId String?  @unique               // linked Income row created on mark-paid
 

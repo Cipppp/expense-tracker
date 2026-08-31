@@ -3,19 +3,26 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Check, Send, RotateCcw, Trash2 } from "@/lib/icons";
+import { Check, Send, RotateCcw, Trash2, Upload } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { fmtDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export function InvoiceActions({
   id,
   status,
   overdue,
   reminderContext,
+  oblioReady = false,
+  oblioNumber = null,
+  oblioLink = null,
 }: {
   id: string;
   status: string;
   overdue?: boolean;
+  oblioReady?: boolean;
+  oblioNumber?: string | null;
+  oblioLink?: string | null;
   reminderContext?: {
     series: string;
     number: string;
@@ -28,6 +35,16 @@ export function InvoiceActions({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [pendingDel, startDel] = useTransition();
+  // Notificarea spune despre ce factura e vorba, nu doar ca s-a intamplat ceva.
+  const label = reminderContext
+    ? `${reminderContext.series} ${reminderContext.number}`
+    : null;
+  const sub = reminderContext
+    ? `${reminderContext.clientCompany} · ${reminderContext.total.toLocaleString("ro-RO", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })} ${reminderContext.currency}`
+    : undefined;
 
   async function setStatus(next: string, paidAt?: string | null) {
     setPending(true);
@@ -38,15 +55,56 @@ export function InvoiceActions({
     });
     setPending(false);
     if (!res.ok) {
-      toast.error("Failed to update");
+      toast.error(label ? `${label} — failed to update` : "Failed to update");
       return;
     }
     toast.success(
       next === "paid"
-        ? "Marked paid — Income entry created"
-        : `Status → ${next}`,
+        ? `${label ?? "Invoice"} · marked paid`
+        : `${label ?? "Invoice"} · status → ${next}`,
+      {
+        description:
+          next === "paid"
+            ? [sub, "Income entry created"].filter(Boolean).join(" · ")
+            : sub,
+      },
     );
     router.refresh();
+  }
+
+  const [oblio, setOblio] = useState<{ number: string; link: string | null } | null>(
+    oblioNumber ? { number: oblioNumber, link: oblioLink } : null,
+  );
+  const [oblioPending, setOblioPending] = useState(false);
+
+  /*
+   * Emite factura si in Oblio. De acolo pleaca la SPV — automat daca e bifat
+   * "Trimite automat e-Factura la SPV" in preferintele contului, altfel din
+   * butonul lor. Aplicatia asta nu are certificat digital, deci nu poate
+   * incarca ea la ANAF.
+   */
+  async function sendToOblio() {
+    setOblioPending(true);
+    try {
+      const res = await fetch(`/api/invoices/${id}/oblio`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(label ? `${label} — Oblio refused it` : "Oblio refused it", {
+          description: typeof data?.error === "string" ? data.error : undefined,
+        });
+        return;
+      }
+      setOblio({ number: data.oblioNumber, link: data.oblioLink ?? null });
+      toast.success(
+        data.already
+          ? `Already in Oblio as ${data.oblioNumber}`
+          : `${label ?? "Invoice"} issued in Oblio as ${data.oblioNumber}`,
+        { description: data.already ? undefined : "Oblio forwards it to SPV." },
+      );
+      router.refresh();
+    } finally {
+      setOblioPending(false);
+    }
   }
 
   async function remove() {
@@ -54,10 +112,12 @@ export function InvoiceActions({
     startDel(async () => {
       const res = await fetch(`/api/invoices/${id}`, { method: "DELETE" });
       if (!res.ok) {
-        toast.error("Failed to delete");
+        toast.error(label ? `${label} — failed to delete` : "Failed to delete");
         return;
       }
-      toast.success("Invoice deleted");
+      toast.success(label ? `${label} deleted` : "Invoice deleted", {
+        description: sub,
+      });
       router.push("/invoices");
     });
   }
@@ -122,6 +182,26 @@ export function InvoiceActions({
           Unmark paid
         </Button>
       )}
+      {oblio ? (
+        oblio.link ? (
+          <Button variant="outline" asChild>
+            <a href={oblio.link} target="_blank" rel="noreferrer">
+              <Upload className="h-3.5 w-3.5" />
+              Oblio · {oblio.number}
+            </a>
+          </Button>
+        ) : (
+          <Button variant="outline" disabled>
+            <Upload className="h-3.5 w-3.5" />
+            Oblio · {oblio.number}
+          </Button>
+        )
+      ) : oblioReady ? (
+        <Button variant="outline" disabled={oblioPending} onClick={sendToOblio}>
+          <Upload className={cn("h-3.5 w-3.5", oblioPending && "animate-pulse")} />
+          {oblioPending ? "Sending…" : "Issue in Oblio"}
+        </Button>
+      ) : null}
       <Button
         variant="ghost"
         disabled={pendingDel}
