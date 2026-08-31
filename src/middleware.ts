@@ -12,6 +12,10 @@ const PUBLIC_PATHS = new Set<string>([
   // External time-log API — authenticated by its own Bearer token, not the
   // browser session, so agents (Conductor) can POST hours without a cookie.
   "/api/timelog",
+  // Verificarea legaturii cu Oblio — autentificata cu acelasi Bearer ca
+  // /api/timelog. E strict GET si nu emite nimic, dar citeste date de cont,
+  // deci nu ramane deschisa: fara token corect intoarce 401.
+  "/api/oblio/health",
   // PWA assets — must be public so iPhone can install
   "/manifest.webmanifest",
   // Service worker path — kept public so the self-unregistering stub (push
