@@ -16,6 +16,8 @@ const PUBLIC_PATHS = new Set<string>([
   // /api/timelog. E strict GET si nu emite nimic, dar citeste date de cont,
   // deci nu ramane deschisa: fara token corect intoarce 401.
   "/api/oblio/health",
+  // Proba cu proforma — acelasi Bearer. Emite doar proforme, niciodata facturi.
+  "/api/oblio/proforma-test",
   // PWA assets — must be public so iPhone can install
   "/manifest.webmanifest",
   // Service worker path — kept public so the self-unregistering stub (push

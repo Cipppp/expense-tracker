@@ -112,7 +112,10 @@ function roAddressParts(address: string | null): { state: string; city: string }
   return { state: last, city: last };
 }
 
+export type OblioDocType = "invoice" | "proforma";
+
 export async function createOblioInvoice(input: {
+  docType?: OblioDocType;
   issuerCif: string;
   seriesName: string;
   issuedAt: Date;
@@ -194,7 +197,16 @@ export async function createOblioInvoice(input: {
    * rezultatul ramane necunoscut: documentul poate exista la Oblio fara ca
    * aplicatia sa stie, si al doilea clic ar emite un duplicat.
    */
-  const res = await fetch(`${BASE}/docs/invoice`, {
+  /*
+   * `proforma` foloseste acelasi constructor de payload ca `invoice`: aceeasi
+   * autentificare, acelasi `cif`, aceeasi fisa de client, aceleasi nume de
+   * cote. Daca trece ca proforma, payload-ul e valid si ca factura — dar
+   * proforma nu e document fiscal, nu intra in SPV si se sterge din interfata.
+   * E singurul mod de a proba tot lantul fara sa produci ceva ce se repara cu
+   * o stornare.
+   */
+  const docType = input.docType ?? "invoice";
+  const res = await fetch(`${BASE}/docs/${docType}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${t}`,
@@ -209,7 +221,7 @@ export async function createOblioInvoice(input: {
   if (res.status === 401) cached = null;
   if (!res.ok || (body?.status && body.status !== 200)) {
     throw new Error(
-      `Oblio rejected the invoice (${res.status}): ${
+      `Oblio rejected the ${docType} (${res.status}): ${
         body?.statusMessage ?? JSON.stringify(body ?? {}).slice(0, 300)
       }`,
     );
