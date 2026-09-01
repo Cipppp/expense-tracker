@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Pencil } from "@/lib/icons";
+import { Eye, EyeOff } from "@/lib/icons";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { fmtRon, fmtUsd } from "@/lib/format";
@@ -41,35 +41,6 @@ export function ExpenseRow({ row }: { row: ExpenseRowData }) {
   const router = useRouter();
   const [optimisticExcluded, setOptimisticExcluded] = useState(row.excluded);
   const [pending, startTransition] = useTransition();
-  /*
-   * Nota se editeaza pe loc. Descrierea vine din extras si e ce a scris banca;
-   * nota e singurul loc unde incape de ce ai cheltuit, iar peste sase luni aia
-   * e tot ce mai conteaza.
-   */
-  const [notes, setNotes] = useState(row.notes ?? "");
-  const [editingNote, setEditingNote] = useState(false);
-  const [savedNote, setSavedNote] = useState(row.notes ?? "");
-
-  async function saveNote() {
-    setEditingNote(false);
-    const next = notes.trim();
-    if (next === savedNote) return;
-    const prev = savedNote;
-    setSavedNote(next);
-    const res = await fetch(`/api/expenses/${row.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ notes: next }),
-    });
-    if (!res.ok) {
-      setSavedNote(prev);
-      setNotes(prev);
-      toast.error("Couldn't save the note");
-      return;
-    }
-    startTransition(() => router.refresh());
-  }
-
   async function toggle() {
     const next = !optimisticExcluded;
     setOptimisticExcluded(next);
@@ -109,39 +80,15 @@ export function ExpenseRow({ row }: { row: ExpenseRowData }) {
         >
           {row.description}
         </span>
-        {editingNote ? (
-          <input
-            autoFocus
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            onBlur={saveNote}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") saveNote();
-              if (e.key === "Escape") {
-                setNotes(savedNote);
-                setEditingNote(false);
-              }
-            }}
-            placeholder="Add a note…"
-            className="mt-0.5 block w-full max-w-md bg-transparent border-b border-border focus:border-accent outline-none text-[11.5px] text-muted-foreground py-0.5"
-          />
-        ) : savedNote ? (
-          <button
-            type="button"
-            onClick={() => setEditingNote(true)}
-            className="mt-0.5 block text-left text-[11.5px] text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {savedNote}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setEditingNote(true)}
-            className="mt-0.5 hidden md:inline-flex items-center gap-1 text-[10.5px] text-muted-foreground/60 opacity-0 group-hover/row:opacity-100 hover:text-foreground transition-all duration-200 ease-expo"
-          >
-            <Pencil className="h-2.5 w-2.5" />
-            note
-          </button>
+        {row.notes && (
+          /*
+           * Nota vine din linia `Reference:` a extrasului Revolut, nu se scrie
+           * de mana — CSV-ul n-o contine deloc, doar PDF-ul. Se afiseaza, nu
+           * se editeaza: ar diverge de sursa.
+           */
+          <div className="mt-0.5 text-[11.5px] text-muted-foreground">
+            {row.notes}
+          </div>
         )}
       </td>
       <td className="px-4 py-2">
