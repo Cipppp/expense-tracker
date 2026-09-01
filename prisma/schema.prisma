@@ -35,6 +35,13 @@ model Expense {
   // out of every aggregate / chart / total. Useful for own-account transfers,
   // refunds, or anything that shouldn't count as spending.
   excluded    Boolean  @default(false)
+  /*
+   * Nota ta pe tranzactie. Descrierea vine din extras si e ce a scris banca —
+   * "Glovo*28AUG BUWTPGR4G" nu spune pentru cine a fost comanda. Nota e
+   * singurul loc unde incape contextul care face un rand de peste sase luni
+   * sa mai insemne ceva.
+   */
+  notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

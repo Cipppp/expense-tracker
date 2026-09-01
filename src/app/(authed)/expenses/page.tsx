@@ -245,6 +245,7 @@ export default async function ExpensesPage(props: {
                           amountRon: e.amountRon,
                           amountUsd: e.amountUsd,
                           excluded: e.excluded,
+                          notes: e.notes,
                           isHotDay,
                         }}
                       />

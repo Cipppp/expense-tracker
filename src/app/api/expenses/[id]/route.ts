@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 const Update = z.object({
   excluded: z.boolean().optional(),
   category: z.string().min(1).optional(),
+  // Sirul gol sterge nota; `null` face acelasi lucru explicit.
+  notes: z.string().optional().nullable(),
 });
 
 export async function PATCH(
@@ -17,9 +19,10 @@ export async function PATCH(
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
+  const { notes, ...rest } = parsed.data;
   const expense = await db.expense.update({
     where: { id },
-    data: parsed.data,
+    data: { ...rest, ...(notes !== undefined ? { notes: notes?.trim() || null } : {}) },
   });
   return NextResponse.json({ ok: true, expense });
 }
