@@ -311,7 +311,12 @@ export async function getDailyExpenseSummary(year: number, month: number) {
     day: number;
     ron: number;
     count: number;
-    top: Array<{ description: string; amountRon: number; category: string }>;
+    top: Array<{
+      description: string;
+      amountRon: number;
+      category: string;
+      notes: string | null;
+    }>;
   };
   const out: DayCell[] = [];
   for (let d = 1; d <= days; d++)
@@ -325,6 +330,7 @@ export async function getDailyExpenseSummary(year: number, month: number) {
       description: e.description,
       amountRon: e.amountRon,
       category: e.category,
+      notes: e.notes,
     });
   }
   for (const cell of out) {
@@ -338,7 +344,12 @@ export type DailyHeatmapCell = {
   date: string; // YYYY-MM-DD
   ron: number;
   count: number;
-  top: Array<{ description: string; amountRon: number; category: string }>;
+  top: Array<{
+    description: string;
+    amountRon: number;
+    category: string;
+    notes: string | null;
+  }>;
 };
 
 /**

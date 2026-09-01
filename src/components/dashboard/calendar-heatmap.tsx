@@ -15,7 +15,12 @@ type DailyTotal = {
   date: string;
   ron: number;
   count: number;
-  top: Array<{ description: string; amountRon: number; category: string }>;
+  top: Array<{
+    description: string;
+    amountRon: number;
+    category: string;
+    notes: string | null;
+  }>;
 };
 
 const monthKey = (year: number, month: number) =>
@@ -377,15 +382,25 @@ function DayDetail({
           </span>
         </div>
       </div>
-      <ul className="divide-y divide-border/60 max-h-[200px] overflow-y-auto">
+      <ul className="divide-y divide-border/60 max-h-[260px] overflow-y-auto">
         {data.top.map((t, i) => (
           <li
             key={i}
-            className="flex items-center justify-between gap-2 px-4 py-2 text-xs"
+            className="flex items-start justify-between gap-2 px-4 py-2 text-xs"
           >
             <div className="min-w-0">
               <div className="font-medium truncate">{t.description}</div>
+              {/*
+                Nota sta sub categorie si nu se trunchiaza: descrierea din
+                extras spune ce a scris banca, nota spune de ce ai cheltuit —
+                iar aia e tot ce mai conteaza peste sase luni.
+              */}
               <div className="text-[10px] text-muted-foreground">{t.category}</div>
+              {t.notes && (
+                <div className="mt-0.5 text-[10.5px] text-foreground/80 leading-snug">
+                  {t.notes}
+                </div>
+              )}
             </div>
             <span className="tabular-nums font-semibold shrink-0">
               {fmtMoney(t.amountRon)}
