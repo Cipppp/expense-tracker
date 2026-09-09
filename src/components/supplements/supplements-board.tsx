@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { PEOPLE, type PersonKey } from "@/lib/chores";
+import { PEOPLE, resolvePeople, type People, type PersonKey } from "@/lib/chores";
 import {
   SUPP_BY_KEY,
   TIMINGS,
@@ -70,10 +70,13 @@ export function SupplementsBoard({
   initialLogs,
   today,
   catalog: initialCatalog,
+  people = PEOPLE,
 }: {
   initialLogs: LogRow[];
   today: string;
   catalog: Supplement[];
+  /** Numele si culorile celor doi, din Settings. */
+  people?: People;
 }) {
   const [catalog, setCatalog] = useState<Supplement[]>(initialCatalog);
   const [editing, setEditing] = useState(false);
@@ -213,7 +216,7 @@ export function SupplementsBoard({
     // Personal items are hard-assigned: the other person can't START a tick.
     // A leftover tick (from before the split) is clearable with one tap.
     if (otherOwned && cur === 0) {
-      toast.error(`${s.name} e în planul lui ${PEOPLE[s.suggestedFor!].name}.`);
+      toast.error(`${s.name} e în planul lui ${people[s.suggestedFor!].name}.`);
       return;
     }
     const next = otherOwned ? 0 : cur >= s.target ? 0 : cur + 1;
@@ -301,7 +304,14 @@ export function SupplementsBoard({
   const sections: TimingKey[] = ["morning", "noon", "evening", "preworkout"];
 
   return (
-    <div className="space-y-5 max-w-2xl">
+    /*
+     * Pe ecran lat, bifatul sta in stanga si cifrele in dreapta, lipite sus.
+     * Inainte era o singura coloana ingusta cu totalurile impinse sub fold:
+     * jumatate de ecran gol, iar tocmai partea pe care o citesti („cat zinc am
+     * luat azi") ajungea sa ceara scroll.
+     */
+    <div className="space-y-5 xl:grid xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start xl:gap-6 xl:space-y-0">
+      <div className="space-y-5 min-w-0 max-w-2xl xl:max-w-none">
       <header>
         <div className="flex items-center gap-2 text-xs uppercase tracking-[0.07em] text-muted-foreground">
           <Pill className="h-3.5 w-3.5" />
@@ -543,11 +553,11 @@ export function SupplementsBoard({
                             <span
                               className="ml-1.5 rounded-full px-1.5 py-px text-[9px] font-medium align-middle"
                               style={{
-                                backgroundColor: PEOPLE[s.suggestedFor].soft,
-                                color: PEOPLE[s.suggestedFor].color,
+                                backgroundColor: people[s.suggestedFor].soft,
+                                color: people[s.suggestedFor].color,
                               }}
                             >
-                              {PEOPLE[s.suggestedFor].name}
+                              {people[s.suggestedFor].name}
                             </span>
                           )}
                         </div>
@@ -690,12 +700,15 @@ export function SupplementsBoard({
         </div>
       </section>
 
+      </div>
+
+      <aside className="space-y-4 xl:sticky xl:top-6">
       {/* Daily totals */}
       <section className="rounded-xl border border-border bg-card px-4 py-3">
         <h3 className="text-xs font-medium uppercase tracking-[0.07em] text-muted-foreground">
-          Totaluri azi · {PEOPLE[person].name}
+          Totaluri azi · {people[person].name}
         </h3>
-        <div className="mt-3 grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-3">
+        <div className="mt-3 grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-3 xl:grid-cols-2">
           <Total label="Vitamina D" value={totals.vitaminD_IU} unit="UI" max={4000} />
           <Total label="Zinc" value={totals.zinc_mg} unit="mg" max={40} />
           <Total label="Magneziu" value={totals.magnesium_mg} unit="mg" max={350} />
@@ -751,6 +764,8 @@ export function SupplementsBoard({
         producători, NIH, examine.com) și nu înlocuiesc sfatul medicului.
       </p>
 
+      </aside>
+
       {/* Info sheet — bottom sheet on mobile, centered modal on desktop */}
       {info && (
         <div
@@ -799,11 +814,11 @@ export function SupplementsBoard({
                   <span
                     className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium"
                     style={{
-                      backgroundColor: PEOPLE[info.suggestedFor].soft,
-                      color: PEOPLE[info.suggestedFor].color,
+                      backgroundColor: people[info.suggestedFor].soft,
+                      color: people[info.suggestedFor].color,
                     }}
                   >
-                    de obicei {PEOPLE[info.suggestedFor].name}
+                    de obicei {people[info.suggestedFor].name}
                   </span>
                 )}
               </div>

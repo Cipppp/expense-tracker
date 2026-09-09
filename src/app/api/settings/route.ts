@@ -1,3 +1,4 @@
+import { getSettings, requireUserId } from "@/lib/queries";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -16,14 +17,29 @@ const Body = z.object({
   invoiceStartNumber: z.coerce.number().int().min(1).optional(),
   issuerIban: z.string().trim().min(1).optional(),
   issuerIbanEur: z.string().trim().optional(),  // may be empty (no EUR account)
+  issuerIbanUsd: z.string().trim().optional(),  // may be empty (no USD account)
   issuerSwift: z.string().trim().optional(),
+  /*
+   * Identitatea firmei. Erau valori implicite in schema, deci o instalare
+   * noua emitea facturi pe alta firma fara sa aiba de unde sa afle. Acum sunt
+   * campuri normale, editabile din Settings.
+   */
+  issuerName: z.string().trim().optional(),
+  issuerCif: z.string().trim().optional(),
+  issuerReg: z.string().trim().optional(),
+  issuerAddress: z.string().trim().optional(),
+  issuerBank: z.string().trim().optional(),
+  issuerCapital: z.string().trim().optional(),
+  issuerSigner: z.string().trim().optional(),
+  issuerVatIntra: z.string().trim().optional(),
+  invoiceSeries: z.string().trim().max(8).optional(),
 });
 
 /** Lightweight body for one-off display preferences (used by the
  * currency dropdown on the Dashboard, which doesn't need the rest of
  * the form). All fields optional — pass the subset you want to change. */
 const PartialBody = z.object({
-  displayCurrency: z.enum(["USD", "RON"]).optional(),
+  displayCurrency: z.enum(["EUR", "USD", "RON"]).optional(),
   // Time-log API token management. "generate" mints a new token; "revoke"
   // clears it (disables the external API).
   timelogTokenAction: z.enum(["generate", "revoke"]).optional(),
@@ -37,9 +53,9 @@ export async function PATCH(req: Request) {
   const partial = PartialBody.safeParse(json);
   if (partial.success && keys.length === 1 && partial.data.displayCurrency) {
     await db.settings.upsert({
-      where: { id: 1 },
+      where: { userId: await requireUserId() },
       update: { displayCurrency: partial.data.displayCurrency },
-      create: { id: 1, displayCurrency: partial.data.displayCurrency },
+      create: { userId: await requireUserId(), displayCurrency: partial.data.displayCurrency },
     });
     return NextResponse.json({ ok: true });
   }
@@ -49,9 +65,9 @@ export async function PATCH(req: Request) {
         ? `tl_${crypto.randomUUID().replace(/-/g, "")}${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`
         : null;
     await db.settings.upsert({
-      where: { id: 1 },
+      where: { userId: await requireUserId() },
       update: { timelogToken: token },
-      create: { id: 1, timelogToken: token },
+      create: { userId: await requireUserId(), timelogToken: token },
     });
     return NextResponse.json({ ok: true, token });
   }
@@ -62,7 +78,7 @@ export async function PATCH(req: Request) {
   }
   const v = parsed.data;
   await db.settings.upsert({
-    where: { id: 1 },
+    where: { userId: await requireUserId() },
     update: {
       fxRonToUsd: v.fxRonToUsd,
       fxEurToUsd: v.fxEurToUsd,
@@ -76,10 +92,11 @@ export async function PATCH(req: Request) {
       ...(v.invoiceStartNumber !== undefined ? { invoiceStartNumber: v.invoiceStartNumber } : {}),
       ...(v.issuerIban !== undefined ? { issuerIban: v.issuerIban } : {}),
       ...(v.issuerIbanEur !== undefined ? { issuerIbanEur: v.issuerIbanEur } : {}),
+      ...(v.issuerIbanUsd !== undefined ? { issuerIbanUsd: v.issuerIbanUsd } : {}),
       ...(v.issuerSwift !== undefined ? { issuerSwift: v.issuerSwift } : {}),
     },
     create: {
-      id: 1,
+      userId: await requireUserId(),
       fxRonToUsd: v.fxRonToUsd,
       fxEurToUsd: v.fxEurToUsd,
       bsBasRon: baniFromRon(v.bsBasRon),
@@ -92,6 +109,7 @@ export async function PATCH(req: Request) {
       invoiceStartNumber: v.invoiceStartNumber ?? 1,
       ...(v.issuerIban !== undefined ? { issuerIban: v.issuerIban } : {}),
       ...(v.issuerIbanEur !== undefined ? { issuerIbanEur: v.issuerIbanEur } : {}),
+      ...(v.issuerIbanUsd !== undefined ? { issuerIbanUsd: v.issuerIbanUsd } : {}),
       ...(v.issuerSwift !== undefined ? { issuerSwift: v.issuerSwift } : {}),
     },
   });

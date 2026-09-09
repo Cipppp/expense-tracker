@@ -1,3 +1,4 @@
+import { requireUserId } from "@/lib/queries";
 import { NextResponse } from "next/server";
 import { verifyRegistrationResponse } from "@simplewebauthn/server";
 import type { RegistrationResponseJSON } from "@simplewebauthn/server";
@@ -59,6 +60,7 @@ export async function POST(req: Request) {
 
   const passkey = await db.passkey.create({
     data: {
+      userId: await requireUserId(),
       label: parsed.data.label,
       credentialId: credential.id,
       publicKey: Buffer.from(credential.publicKey),

@@ -1,3 +1,4 @@
+import { requireUserId } from "@/lib/queries";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -40,6 +41,7 @@ const Body = z.discriminatedUnion("kind", [Holding, Savings]);
  */
 export async function PUT(req: Request) {
   const json = await req.json().catch(() => null);
+  const userId = await requireUserId();
   const parsed = Body.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -62,6 +64,7 @@ export async function PUT(req: Request) {
       db.holding.deleteMany({}),
       db.holding.createMany({
         data: clean.map((r) => ({
+          userId,
           symbol: r.symbol,
           name: r.name?.trim() || null,
           quantity: r.quantity,
@@ -79,6 +82,7 @@ export async function PUT(req: Request) {
     db.savingsAccount.deleteMany({}),
     db.savingsAccount.createMany({
       data: rows.map((r, i) => ({
+        userId,
         label: r.label.trim(),
         amount: r.amount,
         amountRon: 0, // valoarea in RON se calculeaza la afisare, cu cursul zilei

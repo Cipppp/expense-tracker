@@ -1,10 +1,13 @@
+import { requireUserId } from "@/lib/queries";
 import { db } from "@/lib/db";
+import { getSettings } from "@/lib/queries";
 import {
   assignment,
   isoWeekKey,
   isoWeekParts,
   weekDates,
   weekdayIndex,
+  resolvePeople,
 } from "@/lib/chores";
 import { ChoresBoard } from "@/components/chores/chores-board";
 
@@ -16,8 +19,8 @@ export default async function ChoresPage() {
   const { week } = isoWeekParts(now);
 
   const [settings, choreWeek, chores] = await Promise.all([
-    db.settings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
-    db.choreWeek.findUnique({ where: { isoWeek: weekKey } }),
+    getSettings(),
+    db.choreWeek.findUnique({ where: { userId_isoWeek: { userId: await requireUserId(), isoWeek: weekKey } } }),
     db.chore.findMany({ orderBy: [{ setId: "asc" }, { day: "asc" }, { position: "asc" }] }),
   ]);
 
@@ -35,6 +38,7 @@ export default async function ChoresPage() {
 
   return (
     <ChoresBoard
+      people={resolvePeople(await getSettings())}
       weekKey={weekKey}
       weekRange={fmtRange()}
       assignmentThis={assignment(week, flip)}

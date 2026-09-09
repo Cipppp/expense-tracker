@@ -1,3 +1,4 @@
+import { requireUserId } from "@/lib/queries";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -59,6 +60,7 @@ export async function POST(req: Request) {
     const amountUsd = centsFromUsd(hours * job.rateUsd);
     const row = await db.income.create({
       data: {
+      userId: await requireUserId(),
         date: dateAtNoonUTC(v.date),
         description: v.description?.trim() || `${hours.toFixed(2)}h · ${job.name}`,
         source: job.name,
@@ -80,6 +82,7 @@ export async function POST(req: Request) {
 
   const row = await db.income.create({
     data: {
+      userId: await requireUserId(),
       date: dateAtNoonUTC(v.date),
       description: v.description,
       source: v.source,

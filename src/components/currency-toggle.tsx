@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import type { DisplayCurrency } from "@/lib/format";
 
 /**
- * Segmented control that flips the app's display currency between USD and
+ * Segmented control that flips the app's display currency between EUR, USD and
  * RON. Persists to /api/settings (a partial PATCH that only writes the one
  * field), then router.refresh()es so server-rendered pages re-fetch with
  * the new preference.
@@ -14,9 +14,11 @@ import type { DisplayCurrency } from "@/lib/format";
 export function CurrencyToggle({
   value,
   fxRonToUsd,
+  fxEurToUsd,
 }: {
   value: DisplayCurrency;
   fxRonToUsd: number;
+  fxEurToUsd: number;
 }) {
   const router = useRouter();
   const [optimistic, setOptimistic] = useState<DisplayCurrency>(value);
@@ -52,7 +54,7 @@ export function CurrencyToggle({
         role="group"
         aria-label="Display currency"
       >
-        {(["USD", "RON"] as const).map((c) => {
+        {(["EUR", "USD", "RON"] as const).map((c) => {
           const active = optimistic === c;
           return (
             <button
@@ -72,8 +74,13 @@ export function CurrencyToggle({
           );
         })}
       </div>
+      {/* Cursul afisat e cel al monedei alese, nu mereu dolarul. */}
       <div className="text-[10px] font-mono text-muted-foreground/70 tabular-nums">
-        1 RON ≈ ${fxRonToUsd.toFixed(4)}
+        {optimistic === "EUR"
+          ? `1 EUR ≈ ${(fxEurToUsd / fxRonToUsd).toFixed(2)} RON`
+          : optimistic === "USD"
+            ? `1 RON ≈ $${fxRonToUsd.toFixed(4)}`
+            : `1 EUR ≈ ${(fxEurToUsd / fxRonToUsd).toFixed(2)} RON`}
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import { getSettings } from "@/lib/queries";
 import "server-only";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { db } from "@/lib/db";
@@ -34,11 +35,7 @@ export async function renderInvoicePdf(
     };
   }
 
-  const settings = await db.settings.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { id: 1 },
-  });
+  const settings = await getSettings();
 
   const buffer = await renderToBuffer(
     InvoicePdf({
@@ -66,6 +63,7 @@ export async function renderInvoicePdf(
         clientReg: invoice.clientReg,
         clientAddress: invoice.clientAddress,
         clientCountry: invoice.clientCountry,
+        clientCounty: invoice.clientCounty,
         invoiceCurrency: invoice.invoiceCurrency,
         legalCurrency: invoice.legalCurrency,
         bnrRate: invoice.bnrRate,
@@ -102,11 +100,7 @@ export async function renderActivityReport(
   });
   if (!invoice) return null;
 
-  const settings = await db.settings.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { id: 1 },
-  });
+  const settings = await getSettings();
 
   let rows = invoice.billedEntries.filter(
     (e) => e.startMinutes != null && e.endMinutes != null,

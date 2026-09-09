@@ -4,11 +4,23 @@ import { DEFAULT_RULES } from "../src/lib/categorizer";
 const db = new PrismaClient();
 
 async function main() {
+  /*
+   * Seed-ul nu mai poate presupune ca exista "aplicatia": datele apartin unui
+   * cont. Daca nu exista niciunul, nu inventam unul cu parola — se creeaza din
+   * interfata, la /signup. Seed-ul umple doar contul existent.
+   */
+  const user = await db.user.findFirst({ orderBy: { createdAt: "asc" } });
+  if (!user) {
+    console.log("Niciun cont inca. Creeaza-l din aplicatie (/signup), apoi ruleaza iar seed-ul.");
+    return;
+  }
+  const userId = user.id;
+
   await db.settings.upsert({
-    where: { id: 1 },
+    where: { userId },
     update: {},
     create: {
-      id: 1,
+      userId,
       fxRonToUsd: 0.2255,
       bsBasRon: 141500,
       camRon: 8400,
@@ -27,17 +39,17 @@ async function main() {
   ];
   for (const c of starterClients) {
     await db.job.upsert({
-      where: { name: c.name },
+      where: { userId_name: { userId, name: c.name } },
       update: {},
-      create: c,
+      create: { ...c, userId },
     });
   }
 
   for (const r of DEFAULT_RULES) {
     await db.categoryRule.upsert({
-      where: { keyword: r.keyword },
+      where: { userId_keyword: { userId, keyword: r.keyword } },
       update: { category: r.category, priority: r.priority },
-      create: r,
+      create: { ...r, userId },
     });
   }
 

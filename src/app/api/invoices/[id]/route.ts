@@ -1,7 +1,9 @@
+import { getSettings, requireUserId } from "@/lib/queries";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { centsFromUsd, dateAtNoonUTC } from "@/lib/format";
+import { deletionBlocked } from "@/lib/anaf/send";
 
 const Update = z.object({
   status: z.enum(["draft", "issued", "paid", "void"]).optional(),
@@ -75,11 +77,7 @@ export async function PATCH(
     existing.billedEntries.length === 0
   ) {
     const total = existing.lines.reduce((a, l) => a + l.amount, 0);
-    const settings = await db.settings.upsert({
-      where: { id: 1 },
-      update: {},
-      create: { id: 1 },
-    });
+    const settings = await getSettings();
 
     let amountUsdCents = 0;
     if (existing.invoiceCurrency === "USD") {
@@ -95,6 +93,7 @@ export async function PATCH(
 
     const income = await db.income.create({
       data: {
+      userId: await requireUserId(),
         date: data.paidAt ?? new Date(),
         description: `Invoice ${existing.series} ${existing.number} — ${existing.clientCompany}`,
         source: existing.clientCompany,
@@ -137,6 +136,18 @@ export async function DELETE(
 ) {
   const { id } = await ctx.params;
   const existing = await db.invoice.findUnique({ where: { id } });
+  /*
+   * O factura depusa la ANAF (prod) nu se sterge: stergerea ar lua cu ea, prin
+   * cascade, originalul sigilat de MF (arhiva legala, 5 ani) si indexul cu
+   * care s-ar mai putea descarca in fereastra de 60 de zile. Se anuleaza
+   * (void) si se storneaza.
+   */
+  if (await deletionBlocked(id)) {
+    return NextResponse.json(
+      { error: "This invoice was submitted to ANAF e-Factura (PROD). Void it instead of deleting it." },
+      { status: 409 },
+    );
+  }
   if (existing?.paidIncomeId) {
     await db.income.deleteMany({ where: { id: existing.paidIncomeId } });
   }

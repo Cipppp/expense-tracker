@@ -17,7 +17,7 @@ import {
   Search,
 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import { PEOPLE, type PersonKey } from "@/lib/chores";
+import { PEOPLE, type People, type PersonKey } from "@/lib/chores";
 import type {
   GratitudeFeed,
   Group,
@@ -48,7 +48,11 @@ export function GratitudeList({
   streak: initialStreak,
   memory: initialMemory,
   recap: initialRecap,
-}: GratitudeFeed) {
+  people = PEOPLE,
+}: GratitudeFeed & {
+  /** Numele si culorile celor doi, din Settings. */
+  people?: People;
+}) {
   const [groups, setGroups] = useState<Group[]>(initialGroups);
   const [total, setTotal] = useState(initialTotal);
   const [streak, setStreak] = useState(initialStreak);
@@ -391,7 +395,7 @@ export function GratitudeList({
   // Plain render function (NOT a component) so editing inputs keep focus
   // across re-renders.
   function renderEntry(it: Item) {
-    const p = it.author ? PEOPLE[it.author] : null;
+    const p = it.author ? people[it.author] : null;
     const accent = p ? p.color : "hsl(var(--accent))";
     const soft = p ? p.soft : "hsl(var(--accent) / 0.10)";
     const editing = editingId === it.id;
@@ -622,7 +626,7 @@ export function GratitudeList({
           </div>
           <p className="mt-1 font-display text-[15px] leading-snug">“{memory.text}”</p>
           {memory.author && (
-            <p className="mt-0.5 text-[11px] text-muted-foreground">— {PEOPLE[memory.author].name}</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">— {people[memory.author].name}</p>
           )}
         </div>
       )}
@@ -713,7 +717,7 @@ export function GratitudeList({
                   filterPerson === f ? "border-transparent bg-foreground text-background" : "border-border text-muted-foreground hover:bg-secondary",
                 )}
               >
-                {f === "all" ? "Toți" : PEOPLE[f].name}
+                {f === "all" ? "Toți" : people[f].name}
               </button>
             ))}
           </div>
@@ -771,7 +775,7 @@ export function GratitudeList({
           >
             <div className="mb-2 flex items-center justify-between px-1">
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Reacționează {author ? `· ${PEOPLE[author].name}` : ""}
+                Reacționează {author ? `· ${people[author].name}` : ""}
               </span>
               <button type="button" onClick={() => setReactingId(null)} aria-label="Închide">
                 <X className="h-4 w-4 text-muted-foreground" />
@@ -834,7 +838,10 @@ function ActionBtn({
   disabled,
   danger,
   children,
+  people = PEOPLE,
 }: {
+  /** Numele si culorile celor doi, din Settings. */
+  people?: People;
   label: string;
   onClick: () => void;
   disabled?: boolean;

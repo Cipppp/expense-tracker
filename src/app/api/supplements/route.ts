@@ -1,3 +1,4 @@
+import { requireUserId } from "@/lib/queries";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -39,13 +40,23 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
   const { day, person, key, count } = parsed.data;
-  if (!SUPP_BY_KEY[key]) {
-    return NextResponse.json({ error: "Unknown supplement" }, { status: 400 });
+  /*
+   * Validarea merge pe catalogul din baza de date, nu pe cel scris in cod.
+   * Inainte, un supliment adaugat de tine trecea de formular, ajungea in DB,
+   * aparea in lista — si la prima bifa primea 400 „Unknown supplement",
+   * pentru ca lista din cod nu-l stia. Catalogul din cod ramane doar ca
+   * material de pornire pentru o instalare noua.
+   */
+  const known =
+    Boolean(SUPP_BY_KEY[key]) ||
+    (await db.supplement.count({ where: { key } })) > 0;
+  if (!known) {
+    return NextResponse.json({ error: "Supliment necunoscut" }, { status: 400 });
   }
   await db.supplementLog.upsert({
-    where: { day_person_key: { day, person, key } },
+    where: { userId_day_person_key: { userId: await requireUserId(), day, person, key } },
     update: { count },
-    create: { day, person, key, count },
+    create: { userId: await requireUserId(), day, person, key, count },
   });
   return NextResponse.json({ ok: true });
 }
@@ -86,12 +97,13 @@ export async function PUT(req: Request) {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "") || "supliment";
     let key = base;
-    for (let i = 2; await db.supplement.findUnique({ where: { key } }); i++) {
+    for (let i = 2; await db.supplement.findUnique({ where: { userId_key: { userId: await requireUserId(), key } } }); i++) {
       key = `${base}-${i}`;
     }
     const last = await db.supplement.findFirst({ orderBy: { position: "desc" } });
     const row = await db.supplement.create({
       data: {
+      userId: await requireUserId(),
         key,
         name: v.name.trim(),
         short: v.short ?? "",
@@ -111,6 +123,8 @@ export async function PUT(req: Request) {
 
   // Bifele raman: sunt un fapt istoric ("am luat asta pe 12 august"), iar
   // stergerea produsului din catalog nu il face neluat.
-  await db.supplement.delete({ where: { key: v.key } });
+  await db.supplement.delete({
+    where: { userId_key: { userId: await requireUserId(), key: v.key } },
+  });
   return NextResponse.json({ ok: true });
 }

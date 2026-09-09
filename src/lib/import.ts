@@ -1,3 +1,4 @@
+import { getSettings, requireUserId } from "@/lib/queries";
 /**
  * Import pipeline: parse → filter → dedup → categorize → write.
  *
@@ -38,6 +39,9 @@ export type ImportSummary = {
   rowsRead: number;
   rowsInserted: number;
   rowsSkipped: number;
+  /** Randuri sarite pentru ca nu sunt in RON, si ce monede erau. */
+  skippedOtherCurrency?: number;
+  skippedCurrencies?: string[];
   insertedExamples: Array<{ date: string; description: string; amountRon: number }>;
 };
 
@@ -50,6 +54,7 @@ export async function importRevolutCsv(
   filename: string,
   text: string,
 ): Promise<ImportSummary> {
+  const userId = await requireUserId();
   const all = parseRevolutCsv(text);
   const eligible: RevolutRow[] = all.filter(
     (r) =>
@@ -58,11 +63,25 @@ export async function importRevolutCsv(
       r.amount < 0, // only expenses
   );
 
-  const settings = await db.settings.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { id: 1 },
-  });
+  /*
+   * Cate randuri au fost aruncate pentru ca sunt in alta moneda.
+   *
+   * Inainte disparaeu tacut: un extras de card in euro se importa cu
+   * "read 340 · inserted 0" si nimic care sa spuna de ce. Nu le convertim
+   * automat — cursul din ziua tranzactiei nu e in fisier — dar macar se
+   * vede ca exista si ca nu s-au pierdut dintr-un bug.
+   */
+  const otherCurrency = all.filter(
+    (r) =>
+      r.state.toUpperCase() === "COMPLETED" &&
+      r.amount < 0 &&
+      r.currency.toUpperCase() !== "RON",
+  );
+  const skippedCurrencies = [
+    ...new Set(otherCurrency.map((r) => r.currency.toUpperCase())),
+  ].sort();
+
+  const settings = await getSettings();
 
   const rulesRaw = await db.categoryRule.findMany();
   const rules: Rule[] =
@@ -155,7 +174,9 @@ export async function importRevolutCsv(
   // amounts; this is a placeholder for future inclusion of inflows.
 
   if (toInsert.length > 0) {
-    await db.expense.createMany({ data: toInsert });
+    await db.expense.createMany({
+      data: toInsert.map((r) => ({ ...r, userId })),
+    });
   }
 
   const summary: ImportSummary = {
@@ -163,6 +184,8 @@ export async function importRevolutCsv(
     rowsRead: all.length,
     rowsInserted: toInsert.length,
     rowsSkipped: eligible.length - toInsert.length,
+    skippedOtherCurrency: otherCurrency.length,
+    skippedCurrencies,
     insertedExamples: toInsert.slice(0, 5).map((r) => ({
       date: r.date.toISOString().slice(0, 10),
       description: r.description,
@@ -172,6 +195,7 @@ export async function importRevolutCsv(
 
   await db.importBatch.create({
     data: {
+      userId: await requireUserId(),
       filename,
       rowsRead: summary.rowsRead,
       rowsInsert: summary.rowsInserted,

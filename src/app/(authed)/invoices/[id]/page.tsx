@@ -1,3 +1,4 @@
+import { getSettings } from "@/lib/queries";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Download, FileText, FileSpreadsheet } from "@/lib/icons";
@@ -12,6 +13,10 @@ import { InvoiceSend } from "@/components/invoices/invoice-send";
 import { vatKindForInvoice } from "@/lib/vat";
 import { pickIssuerIban } from "@/lib/invoice";
 import { oblioConfigured } from "@/lib/oblio";
+import { anafLive } from "@/lib/anaf";
+import { efacturaStatus } from "@/lib/anaf/status";
+import { deletionBlocked } from "@/lib/anaf/send";
+import { EfacturaPanel } from "@/components/invoices/efactura-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -35,11 +40,13 @@ export default async function InvoicePage(props: {
   });
   if (!inv) notFound();
 
-  const settings = await db.settings.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { id: 1 },
-  });
+  const [settings, efactura, deleteBlocked] = await Promise.all([
+    getSettings(),
+    // Fara apel la ANAF la randare; panoul intreaba singur daca e pe drum.
+    efacturaStatus(id),
+    // Acelasi predicat ca ruta DELETE: butonul nu promite ce ruta refuza.
+    deletionBlocked(id),
+  ]);
 
   const total = inv.lines.reduce((a, l) => a + l.amount, 0);
 
@@ -117,6 +124,8 @@ export default async function InvoicePage(props: {
             status={inv.status}
             overdue={isOverdue}
             oblioReady={oblioConfigured()}
+            anafReady={anafLive()}
+            prodFiled={deleteBlocked}
             oblioNumber={inv.oblioNumber}
             oblioLink={inv.oblioLink}
             reminderContext={{
@@ -131,9 +140,21 @@ export default async function InvoicePage(props: {
         </div>
       </header>
 
+      {efactura && inv.status !== "void" && (
+        <Card>
+          <CardContent className="pt-5 pb-5">
+            <EfacturaPanel
+              invoiceId={inv.id}
+              label={`${inv.series} ${inv.number}`}
+              initial={efactura}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Issued to</CardTitle>
+          <CardTitle className="text-lg">Emisă către</CardTitle>
         </CardHeader>
         <Separator />
         <CardContent className="pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -184,7 +205,7 @@ export default async function InvoicePage(props: {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Lines</CardTitle>
+          <CardTitle className="text-lg">Linii</CardTitle>
         </CardHeader>
         <Separator />
         <CardContent className="p-0">
@@ -253,9 +274,15 @@ export default async function InvoicePage(props: {
             // everyone else in their contract currency.
             const present = inv.clientCountry === "RO" ? "RON" : inv.invoiceCurrency;
             const factor = present === inv.invoiceCurrency ? 1 : (inv.bnrRate ?? 1);
-            const net = total * factor;
-            const vat = net * inv.vatRate;
-            const gross = net + vat;
+            // Aceeasi regula ca PDF-ul si XML-ul: rotunjire pe linie, apoi
+            // suma. Altfel doua linii de 10,03 x 21% dadeau 4,21 aici si 4,22
+            // pe documentele trimise.
+            const round2 = (n: number) => Math.round(n * 100) / 100;
+            const net = round2(inv.lines.reduce((a, l) => a + round2(l.amount * factor), 0));
+            const vat = reverse
+              ? 0
+              : round2(inv.lines.reduce((a, l) => a + round2(round2(l.amount * factor) * inv.vatRate), 0));
+            const gross = round2(net + vat);
             // The "other" currency equivalent of the gross.
             const showEq = !(present === "RON" && inv.invoiceCurrency === "RON");
             const eqCur = present === "RON" ? inv.invoiceCurrency : "RON";

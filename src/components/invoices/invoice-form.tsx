@@ -32,6 +32,8 @@ type JobOption = {
   companyReg: string;
   companyAddress: string;
   companyCountry: string;
+  /** ISO 3166-2:RO al clientului (RO-B, RO-CJ); gol pentru straini. */
+  companyCounty: string;
   defaultCurrency: string;
   invoiceDescription: string;
 };
@@ -69,6 +71,7 @@ export function InvoiceForm({
   nextNumber,
   roVatRate,
   oblioReady,
+  anafReady = false,
 }: {
   jobs: JobOption[];
   preselectJobId: string | null;
@@ -79,6 +82,8 @@ export function InvoiceForm({
   roVatRate: number;
   /** OBLIO_EMAIL + OBLIO_SECRET sunt setate pe server. */
   oblioReady: boolean;
+  /** ANAF e conectat direct (OAuth). Inlocuieste Oblio cand e true. */
+  anafReady?: boolean;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -110,6 +115,7 @@ export function InvoiceForm({
   const companyReg = selectedJob?.companyReg ?? "";
   const companyAddress = selectedJob?.companyAddress ?? "";
   const companyCountry = selectedJob?.companyCountry ?? "RO";
+  const companyCounty = selectedJob?.companyCounty ?? "";
 
   /*
    * Scadenta implicita: emitere + 5 zile.
@@ -122,7 +128,17 @@ export function InvoiceForm({
   const [issuedAt, setIssuedAt] = useState(today);
   const [dueAt, setDueAt] = useState(() => addDays(today, DEFAULT_DUE_DAYS));
   const [dueAtTouched, setDueAtTouched] = useState(false);
-  const [toOblio, setToOblio] = useState(oblioReady);
+  const [toOblio, setToOblio] = useState(oblioReady && !anafReady);
+  /*
+   * e-Factura la creare. Bifat implicit cand legea o cere (client din RO sau
+   * cu cod de TVA RO); pentru clientii straini e optional si porneste debifat.
+   * Odata atins de mana, ramane cum l-ai pus si daca schimbi clientul.
+   */
+  const anafRequired =
+    companyCountry.trim().toUpperCase() === "RO" ||
+    /^RO\d{2,10}$/i.test(companyCui.replace(/\s+/g, ""));
+  const [toAnafManual, setToAnafManual] = useState<boolean | null>(null);
+  const toAnaf = toAnafManual ?? (anafReady && anafRequired);
 
   useEffect(() => {
     if (!dueAtTouched) setDueAt(addDays(issuedAt, DEFAULT_DUE_DAYS));
@@ -385,6 +401,10 @@ export function InvoiceForm({
         clientReg: companyReg || null,
         clientAddress: companyAddress || null,
         clientCountry: companyCountry || null,
+        // Snapshot, ca si restul datelor clientului: judetul de la emitere
+        // ramane pe factura si daca fisa clientului se schimba.
+        clientCounty:
+          companyCountry.trim().toUpperCase() === "RO" ? companyCounty || null : null,
         issuedAt,
         dueAt: dueAt || null,
         invoiceCurrency,
@@ -413,12 +433,47 @@ export function InvoiceForm({
     const label = `${data.invoice.series} ${data.invoice.number}`;
 
     /*
-     * Oblio dupa, nu inainte: daca al doilea pas cade, factura din aplicatie
-     * ramane buna si butonul de pe pagina ei o poate trimite mai tarziu.
-     * Invers, o factura in Oblio fara pereche in aplicatie nu se poate repara
-     * decat cu o stornare.
+     * ANAF / Oblio dupa, nu inainte: daca al doilea pas cade, factura din
+     * aplicatie ramane buna si panoul de pe pagina ei o poate trimite mai
+     * tarziu. Invers, o factura la ANAF fara pereche in aplicatie nu se poate
+     * repara decat cu o stornare.
      */
-    if (toOblio && oblioReady) {
+    if (toAnaf && anafReady) {
+      try {
+        const r = await fetch(`/api/invoices/${data.invoice.id}/efactura/send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ force: !anafRequired }),
+        });
+        const out = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          toast.warning(`${label} created — ANAF did not take it`, {
+            description:
+              Array.isArray(out?.details) && out.details.length
+                ? out.details[0]
+                : typeof out?.error === "string"
+                  ? out.error
+                  : undefined,
+          });
+        } else {
+          const st = out?.submission?.state as string | undefined;
+          toast.success(`${label} created · sent to ANAF`, {
+            description:
+              st === "ok"
+                ? "Validated by ANAF."
+                : st === "nok"
+                  ? "Rejected by ANAF — see the invoice page."
+                  : out?.submission?.indexIncarcare
+                    ? `index_incarcare ${out.submission.indexIncarcare} · in prelucrare`
+                    : undefined,
+          });
+        }
+      } catch (err) {
+        toast.warning(`${label} created — ANAF could not be reached`, {
+          description: err instanceof Error ? err.message : undefined,
+        });
+      }
+    } else if (toOblio && oblioReady && !anafReady) {
       try {
         const o = await fetch(`/api/invoices/${data.invoice.id}/oblio`, {
           method: "POST",
@@ -798,7 +853,25 @@ export function InvoiceForm({
 
         <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-1">
           <div className="min-w-0">
-            {oblioReady ? (
+            {anafReady ? (
+              <label className="flex items-center gap-2 text-[11px] cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={toAnaf}
+                  onChange={(e) => setToAnafManual(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-[hsl(var(--accent))]"
+                />
+                <span>
+                  Send to ANAF e-Factura on create
+                  <span className="text-muted-foreground">
+                    {" "}
+                    {anafRequired
+                      ? "— mandatory, 5 working days"
+                      : "— optional for this client (extern=DA)"}
+                  </span>
+                </span>
+              </label>
+            ) : oblioReady ? (
               <label className="flex items-center gap-2 text-[11px] cursor-pointer select-none">
                 <input
                   type="checkbox"

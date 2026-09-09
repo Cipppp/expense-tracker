@@ -3,6 +3,7 @@ import { InvoiceForm } from "@/components/invoices/invoice-form";
 import { getNextInvoiceNumber } from "@/lib/invoice";
 import { getSettings } from "@/lib/queries";
 import { oblioConfigured } from "@/lib/oblio";
+import { anafLive } from "@/lib/anaf";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,7 @@ export default async function NewInvoicePage(props: {
           companyReg: j.companyReg ?? "",
           companyAddress: j.companyAddress ?? "",
           companyCountry: j.companyCountry ?? "RO",
+          companyCounty: j.companyCounty ?? "",
           defaultCurrency: j.defaultCurrency,
           invoiceDescription: j.invoiceDescription ?? "",
         }))}
@@ -51,6 +53,7 @@ export default async function NewInvoicePage(props: {
         nextNumber={number}
         roVatRate={settings.vatRate}
         oblioReady={oblioConfigured()}
+        anafReady={anafLive()}
         issuer={{
           name: settings.issuerName,
           cif: settings.issuerCif,

@@ -1,3 +1,4 @@
+import { getSettings, requireUserId } from "@/lib/queries";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -18,13 +19,13 @@ export async function PATCH(req: Request) {
   const swap = SwapBody.safeParse(json);
   if (swap.success) {
     const s = await db.settings.upsert({
-      where: { id: 1 },
+      where: { userId: await requireUserId() },
       update: {},
-      create: { id: 1 },
+      create: { userId: await requireUserId() },
       select: { choresFlip: true },
     });
     const updated = await db.settings.update({
-      where: { id: 1 },
+      where: { userId: await requireUserId() },
       data: { choresFlip: !s.choresFlip },
       select: { choresFlip: true },
     });
@@ -42,9 +43,9 @@ export async function PATCH(req: Request) {
      * asigura existenta randului, iar modificarea o face baza.
      */
     await db.choreWeek.upsert({
-      where: { isoWeek },
+      where: { userId_isoWeek: { userId: await requireUserId(), isoWeek } },
       update: {},
-      create: { isoWeek, done: [] },
+      create: { userId: await requireUserId(), isoWeek, done: [] },
     });
     if (done) {
       await db.$executeRaw`
@@ -58,7 +59,7 @@ export async function PATCH(req: Request) {
         WHERE "isoWeek" = ${isoWeek}`;
     }
     const updatedRow = await db.choreWeek.findUnique({
-      where: { isoWeek },
+      where: { userId_isoWeek: { userId: await requireUserId(), isoWeek } },
     });
     return NextResponse.json({ ok: true, done: updatedRow?.done ?? [] });
   }
@@ -93,6 +94,7 @@ export async function POST(req: Request) {
     });
     const chore = await db.chore.create({
       data: {
+      userId: await requireUserId(),
         setId: v.setId,
         day: v.day,
         label: v.label.trim(),
@@ -115,7 +117,7 @@ export async function POST(req: Request) {
   for (const w of weeks) {
     if (w.done.includes(v.id)) {
       await db.choreWeek.update({
-        where: { isoWeek: w.isoWeek },
+        where: { userId_isoWeek: { userId: await requireUserId(), isoWeek: w.isoWeek } },
         data: { done: w.done.filter((d) => d !== v.id) },
       });
     }

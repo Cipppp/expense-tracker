@@ -1,3 +1,4 @@
+import { getSettings, requireUserId } from "@/lib/queries";
 import "server-only";
 import { db } from "@/lib/db";
 
@@ -13,7 +14,7 @@ export async function getNextInvoiceNumber(series: string) {
       orderBy: { seriesNumber: "desc" },
       select: { seriesNumber: true },
     }),
-    db.settings.findUnique({ where: { id: 1 }, select: { invoiceStartNumber: true } }),
+    getSettings(),
   ]);
   // Continue from whichever is higher: the last number in the DB, or the
   // configured floor (so the series can pick up after an external tool).
@@ -46,18 +47,22 @@ export function presentationCurrency(
 
 /**
  * Pick the issuer IBAN that matches the currency the client pays in: the EUR
- * account for EUR invoices (when one is configured), otherwise the default RON
- * account. Keeps a netop EUR invoice from quoting the RON IBAN (which would
- * force an FX conversion on arrival).
+ * account for EUR invoices, the USD account for USD invoices (when configured),
+ * otherwise the default RON account. Keeps a netop EUR invoice or a BLNG USD
+ * invoice from quoting the RON IBAN, which would force an FX conversion on
+ * arrival.
  */
 export function pickIssuerIban(
-  settings: { issuerIban: string; issuerIbanEur: string },
+  settings: { issuerIban: string; issuerIbanEur: string; issuerIbanUsd?: string },
   clientCountry: string | null | undefined,
   invoiceCurrency: string,
 ): string {
   const present = presentationCurrency(clientCountry, invoiceCurrency);
   if (present === "EUR" && settings.issuerIbanEur.trim()) {
     return settings.issuerIbanEur.trim();
+  }
+  if (present === "USD" && settings.issuerIbanUsd?.trim()) {
+    return settings.issuerIbanUsd.trim();
   }
   return settings.issuerIban;
 }

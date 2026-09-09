@@ -91,13 +91,22 @@ export async function getMonthlyCategoryBreakdown(year: number) {
       categories: {},
     });
   }
+  /*
+   * Cheltuielile de pe firma stau intr-o galeata proprie, nu imprastiate prin
+   * categoriile personale. Sunt tot cheltuieli si intra tot in "spent", dar
+   * intrebarea "cat am dat luna asta pe mancare" nu are acelasi raspuns daca
+   * inauntru sta si abonamentul de la Anthropic platit de SRL.
+   */
   for (const e of expenses) {
     const m = e.date.getMonth();
-    months[m].categories[e.category] =
-      (months[m].categories[e.category] ?? 0) + e.amountRon;
+    const key = e.source === "ing" ? COMPANY_CATEGORY : e.category;
+    months[m].categories[key] = (months[m].categories[key] ?? 0) + e.amountRon;
   }
   return months;
 }
+
+/** Eticheta rezervata cheltuielilor platite din contul firmei. */
+export const COMPANY_CATEGORY = "Firmă";
 
 /** Year's expenses, EXCLUDING rows the user explicitly excluded. */
 export async function getYearExpenses(year: number) {
@@ -126,22 +135,30 @@ export async function getYearIncome(year: number) {
 }
 
 /*
- * Bani INCASATI vs bani doar facturati.
+ * Bani INCASATI vs ore din calendar.
  *
- * Un rand de venit conteaza ca incasat daca:
- *   - nu are factura (ore nefacturate inca, sau bani veniti prin Upwork, care
- *     chiar au intrat in cont dar nu au factura in aplicatie), SAU
- *   - factura lui e marcata platita.
- * Un rand legat de o factura in draft / issued / void NU conteaza: banii n-au
- * intrat, iar Earned nu trebuie sa arate bani pe care nu i-ai primit.
+ * Orele din tracker (`hours` setat) nu sunt bani: devin bani abia cand sunt
+ * facturate SI factura e marcata platita. Pana atunci sunt "unbilled" sau
+ * "outstanding", nu Earned. Inainte, orele nefacturate se numarau ca
+ * incasate si Earned crestea cu fiecare zi logata — cu 600 $ de la Marc in
+ * august, cand nu intrase niciun ban.
  *
- * Consecinta de stiut: emiterea unei facturi SCADE Earned pana la incasare.
- * De-aia dashboard-ul arata si "outstanding" alaturi — altfel scaderea ar
- * parea o eroare.
+ * Sumele fixe (`hours` gol) sunt bani care chiar au intrat fara o factura in
+ * aplicatie — platile Upwork, sau randul-oglinda creat la "Mark paid" pe o
+ * factura scrisa de mana — si conteaza imediat. La fel orele cu `paidVia`
+ * (contract orar Upwork, platit saptamanal, fara factura de-a noastra).
  */
-type IncomeWithInvoice = { invoice?: { status: string } | null };
+type IncomeWithInvoice = {
+  hours?: number | null;
+  paidVia?: string | null;
+  invoice?: { status: string } | null;
+};
 export const isCollected = (r: IncomeWithInvoice) =>
-  !r.invoice || r.invoice.status === "paid";
+  r.hours == null
+    ? !r.invoice || r.invoice.status === "paid"
+    : r.invoice?.status === "paid" || Boolean(r.paidVia);
+/** Ore din calendar fara nicio factura si fara alta plata inca. */
+export const isUnbilled = (r: IncomeWithInvoice) => r.hours != null && !r.invoice && !r.paidVia;
 
 /**
  * Income is stored in the currency it was billed in — NETOP and Aethra
@@ -162,12 +179,28 @@ export function incomeToUsdCents(
   return Math.round(total);
 }
 
+/**
+ * Setarile contului curent.
+ *
+ * Erau un singur rand, `id = 1`, cerut in ~20 de locuri. Acum sunt ale
+ * utilizatorului: `upsert` creeaza randul la prima cerere, ca un cont nou sa
+ * nu inceapa cu o eroare pe o pagina care cere cursuri inexistente.
+ */
 export async function getSettings() {
+  const userId = await requireUserId();
   return db.settings.upsert({
-    where: { id: 1 },
+    where: { userId },
     update: {},
-    create: { id: 1 },
+    create: { userId },
   });
+}
+
+/** Utilizatorul curent, sau o eroare limpede daca nu exista sesiune. */
+export async function requireUserId(): Promise<string> {
+  const { currentUserId } = await import("@/lib/session");
+  const id = await currentUserId();
+  if (!id) throw new Error("Nicio sesiune — nu stiu al cui e randul asta.");
+  return id;
 }
 
 /** TOP 5 merchants for a month — excluded rows skipped. */
@@ -193,11 +226,12 @@ export async function getTopMerchants(year: number, month: number, limit = 5) {
 
 /** Monthly aggregates for the year — used in the Dashboard chart. */
 export async function getMonthlyAggregates(year: number) {
-  const [expenses, income, settings, taxes] = await Promise.all([
+  const [expenses, income, settings, taxes, payouts] = await Promise.all([
     getYearExpenses(year),
     getYearIncome(year),
     getSettings(),
     db.taxPayment.findMany({ where: { forPeriod: { startsWith: String(year) } } }),
+    db.companyPayout.findMany({ where: { forPeriod: { startsWith: String(year) } } }),
   ]);
 
   const months: Array<{
@@ -205,6 +239,8 @@ export async function getMonthlyAggregates(year: number) {
     label: string;
     spentRon: number;
     spentUsd: number;
+    /** Din `spentUsd`, cat a fost platit din contul firmei. */
+    spentCompanyUsd: number;
     earnedUsd: number;
     outstandingUsd: number;
     /** Taxe chiar platite pentru luna asta, pe fel, in bani RON. */
@@ -212,6 +248,17 @@ export async function getMonthlyAggregates(year: number) {
     taxTotalRon: number;
     /** Obligatii fixe estimate, pentru lunile inca neplatite. */
     taxForecastRon: number;
+    /** Tot ce se datoreaza pentru luna asta: platit daca s-a platit, altfel estimat. */
+    taxOwedRon: number;
+    /** Dividende scoase in luna asta, din extrasul ING. */
+    dividendsRon: number;
+    /** Cat din ele n-aveau eticheta in banca si le-am presupus dividende. */
+    dividendsPresumedRon: number;
+    /**
+     * Banii ramasi din luna trecuta dupa taxele ei — cat ai de cheltuit in
+     * luna asta. Se pune pe luna URMATOARE celei din care provin.
+     */
+    availableUsd: number;
   }> = [];
   for (let m = 1; m <= 12; m++) {
     months.push({
@@ -219,11 +266,16 @@ export async function getMonthlyAggregates(year: number) {
       label: new Date(year, m - 1, 1).toLocaleDateString("en-US", { month: "short" }),
       spentRon: 0,
       spentUsd: 0,
+      spentCompanyUsd: 0,
       earnedUsd: 0,
       outstandingUsd: 0,
       taxRon: {},
       taxTotalRon: 0,
       taxForecastRon: 0,
+      taxOwedRon: 0,
+      dividendsRon: 0,
+      dividendsPresumedRon: 0,
+      availableUsd: 0,
     });
   }
 
@@ -231,6 +283,7 @@ export async function getMonthlyAggregates(year: number) {
     const m = e.date.getMonth();
     months[m].spentRon += e.amountRon;
     months[m].spentUsd += e.amountUsd;
+    if (e.source === "ing") months[m].spentCompanyUsd += e.amountUsd;
   }
   /*
    * Taxele vin din platile reale, nu dintr-o formula.
@@ -249,8 +302,14 @@ export async function getMonthlyAggregates(year: number) {
    * e trimestrial, iar cel pe dividende depinde de cat distribui — alea NU se
    * estimeaza, pentru ca exact asta facea graficul vechi gresit.
    */
+  /*
+   * Prima luna pentru care mai are rost o estimare. Pe anul curent e luna
+   * TRECUTA: taxele ei se platesc pana pe 25 luna asta, deci lipsa unei plati
+   * nu inseamna ca nu se datoreaza. Pe un an inchis nu estimam nimic — de aia
+   * 13, si nu 12: cu 12, `m >= nowMonth - 1` ar fi prins decembrie.
+   */
   const nowMonth =
-    year === new Date().getFullYear() ? new Date().getMonth() : 12;
+    year === new Date().getFullYear() ? new Date().getMonth() : 13;
 
   for (const t of taxes) {
     if (!t.forPeriod?.startsWith(String(year))) continue;
@@ -260,26 +319,77 @@ export async function getMonthlyAggregates(year: number) {
     months[m].taxTotalRon += t.amountRon;
   }
 
+  // Baza pentru impozitul micro: ce s-a FACTURAT in luna aia, incasat sau nu.
+  const invoicedUsd = new Array(12).fill(0);
   for (const i of income) {
     const m = i.date.getMonth();
     const usd = incomeToUsdCents([i], settings);
     if (isCollected(i)) months[m].earnedUsd += usd;
     else months[m].outstandingUsd += usd;
+    if (!isUnbilled(i)) invoicedUsd[m] += usd;
+  }
+
+  for (const p of payouts) {
+    const m = Number(p.forPeriod.slice(5, 7)) - 1;
+    if (m < 0 || m > 11 || p.kind !== "dividende") continue;
+    months[m].dividendsRon += p.amountRon;
+    if (p.presumed) months[m].dividendsPresumedRon += p.amountRon;
   }
 
   for (let m = 0; m < 12; m++) {
     /*
-     * Doar luna curenta si cele viitoare. Pe o luna trecuta nu mai are ce sa
-     * fie "de plata": ori s-a platit, ori nu se mai plateste, iar o banda
-     * gri peste martie doar strica citirea.
+     * Estimarea acopera luna curenta, cele viitoare SI luna trecuta — pentru
+     * ea taxele se platesc abia pe 25 a lunii asta, deci lipsa unei plati nu
+     * inseamna ca nu se datoreaza nimic. Mai departe in trecut nu inventam:
+     * ori s-a platit, ori nu se mai plateste.
      *
      * Criteriul e lipsa contributiilor salariale, nu totalul lunii pe zero:
      * o taxa de timbru de 200 RON facea totalul nenul si stergea estimarea
      * pentru restul obligatiei, care ramanea totusi de platit.
      */
-    if (m >= nowMonth && !months[m].taxRon.bs_bas) {
-      months[m].taxForecastRon = settings.bsBasRon + settings.camRon;
+    if (m >= nowMonth - 1) {
+      /*
+       * Ce se datoreaza pentru o luna, cand n-a fost inca platit:
+       *   - pachetul salarial, fix in fiecare luna (BS+BAS si CAM)
+       *   - impozitul pe dividendele chiar scoase in luna aia. Cota e pe
+       *     BRUT, iar din banca vezi netul, deci 16% pe brut inseamna
+       *     16/84 din cat ti-a intrat in cont.
+       *   - impozitul micro pe ce s-a facturat. Se plateste trimestrial, dar
+       *     aici il repartizam lunar: intrebarea e cat din banii lunii sunt
+       *     ai tai, nu cand pleaca viramentul.
+       *
+       * Fiecare bucata se estimeaza doar daca n-a fost deja platita. Altfel,
+       * o luna platita pe jumatate — impozitul pe dividende virat pe 5, dar
+       * contributiile abia pe 25 — s-ar numara de doua ori: o data ca plata
+       * chiar facuta, o data in estimare.
+       */
+      const paid = months[m].taxRon;
+      const pct = settings.dividendePct;
+      const fixedRon =
+        paid.bs_bas || paid.cam ? 0 : settings.bsBasRon + settings.camRon;
+      const dividendTaxRon = paid.dividende
+        ? 0
+        : Math.round((months[m].dividendsRon * pct) / (1 - pct));
+      const microRon = paid.micro
+        ? 0
+        : Math.round((invoicedUsd[m] / settings.fxRonToUsd) * settings.microPct);
+      months[m].taxForecastRon = fixedRon + dividendTaxRon + microRon;
     }
+    months[m].taxOwedRon = months[m].taxTotalRon + months[m].taxForecastRon;
+  }
+
+  /*
+   * "Money available": ce a ramas din luna trecuta dupa taxele ei. Se aseaza
+   * pe luna urmatoare, pentru ca aia e luna in care ai banii de cheltuit —
+   * banii din august, minus taxele lui august, se cheltuie in septembrie.
+   */
+  for (let m = 1; m < 12; m++) {
+    const prev = months[m - 1];
+    // Fara incasari in luna trecuta n-are ce sa ramana — nu desenam o bara
+    // negativa peste noiembrie doar pentru ca acolo sta un salariu estimat.
+    if (prev.earnedUsd <= 0) continue;
+    const taxUsd = Math.round(prev.taxOwedRon * settings.fxRonToUsd);
+    months[m].availableUsd = prev.earnedUsd - taxUsd;
   }
 
   return months;
@@ -341,6 +451,8 @@ export async function getDailyExpenseSummary(year: number, month: number) {
 }
 
 export type DailyHeatmapCell = {
+  /** Cat din ziua aia a fost platit din contul firmei, in bani. */
+  companyRon?: number;
   date: string; // YYYY-MM-DD
   ron: number;
   count: number;
@@ -364,11 +476,31 @@ export async function getDailyHeatmap(
 ): Promise<DailyHeatmapCell[]> {
   const daily = await getDailyExpenseSummary(year, month);
   const mm = String(month).padStart(2, "0");
+  /*
+   * Cat din ziua aia a fost platit de pe firma. Heatmap-ul coloreaza dupa
+   * total, dar ziua in care singura cheltuiala e o factura de AWS nu se
+   * citeste la fel ca una cu cumparaturi — de aia si cifra separata.
+   */
+  const companyByDay = new Map<number, number>();
+  const rows = await db.expense.findMany({
+    where: {
+      date: { gte: startOfMonth(year, month), lte: endOfMonth(year, month) },
+      excluded: false,
+      source: "ing",
+    },
+    select: { date: true, amountRon: true },
+  });
+  for (const r of rows) {
+    const d = r.date.getDate();
+    companyByDay.set(d, (companyByDay.get(d) ?? 0) + r.amountRon);
+  }
+
   return daily.map((d) => ({
     date: `${year}-${mm}-${String(d.day).padStart(2, "0")}`,
     ron: d.ron,
     count: d.count,
     top: d.top,
+    companyRon: companyByDay.get(d.day) ?? 0,
   }));
 }
 
@@ -574,17 +706,23 @@ export async function getYtd(year: number) {
   const earnedUsd = incomeToUsdCents(income.filter(isCollected), settings);
   // Facturat, dar neincasat inca.
   const outstandingUsd = incomeToUsdCents(
-    income.filter((r) => !isCollected(r)),
+    income.filter((r) => !isCollected(r) && !isUnbilled(r)),
     settings,
   );
+  // Ore din calendar care n-au ajuns inca pe nicio factura.
+  const unbilledUsd = incomeToUsdCents(income.filter(isUnbilled), settings);
   // Baza pe care se datoreaza impozitul: veniturile FACTURATE, indiferent daca
   // au fost incasate. Micro-ul nu asteapta plata clientului.
-  const invoicedUsd = incomeToUsdCents(income, settings);
+  const invoicedUsd = incomeToUsdCents(
+    income.filter((r) => !isUnbilled(r)),
+    settings,
+  );
   return {
     spentRon,
     spentUsd,
     earnedUsd,
     outstandingUsd,
+    unbilledUsd,
     invoicedUsd,
     count: expenses.length,
   };
@@ -597,12 +735,27 @@ export type MonthTotals = {
 };
 
 /** Totals for one calendar month — used for MoM deltas. */
+/**
+ * Totalurile unei luni, optional taiate la o anumita zi.
+ *
+ * `throughDay` exista pentru comparatia dintre luni: pe 9 septembrie, luna
+ * curenta are noua zile in ea, iar luna trecuta are treizeci si una. Puse una
+ * langa alta asa, orice luna in curs arata ca o prabusire de 80% — nu pentru
+ * ca ai cheltuit mai putin, ci pentru ca inca n-a trecut. Ziua se limiteaza
+ * la cate zile are luna comparata: 31 martie fata de februarie inseamna
+ * februarie intreg, nu o zi care nu exista.
+ */
 export async function getMonthTotals(
   year: number,
   month: number,
+  throughDay?: number,
 ): Promise<MonthTotals> {
   const start = startOfMonth(year, month);
-  const end = endOfMonth(year, month);
+  const lastDay = new Date(year, month, 0).getDate();
+  const end =
+    throughDay == null
+      ? endOfMonth(year, month)
+      : new Date(year, month - 1, Math.min(throughDay, lastDay), 23, 59, 59, 999);
   const [expenses, income, settings] = await Promise.all([
     db.expense.findMany({
       where: { date: { gte: start, lte: end }, excluded: false },
@@ -613,6 +766,8 @@ export async function getMonthTotals(
       select: {
         amountUsd: true,
         currency: true,
+        hours: true,
+        paidVia: true,
         invoice: { select: { status: true } },
       },
     }),
@@ -691,5 +846,135 @@ export async function getTaxProjection(
     profitBeforeDivRon,
     dividendTaxRon,
     netToOwnerRon,
+  };
+}
+
+export type NextTaxItem = {
+  kind: string;
+  label: string;
+  amountRon: number; // bani
+  note?: string;
+};
+
+export type NextTaxPayment = {
+  /** Luna acoperita, "2026-08". */
+  forPeriod: string;
+  periodLabel: string;
+  /** Scadenta, 25 a lunii urmatoare. */
+  dueDate: Date;
+  items: NextTaxItem[];
+  totalRon: number;
+  /** Dividende nete scoase in luna acoperita — baza impozitului. */
+  dividendsRon: number;
+  /** Cat din ele au fost deduse din lipsa de eticheta in banca. */
+  presumedRon: number;
+  /** Ce s-a platit deja pentru luna aia, ca sa nu ceara de doua ori. */
+  paidRon: number;
+};
+
+/**
+ * Cat ai de platit la urmatoarea scadenta.
+ *
+ * Termenul e 25 a lunii urmatoare celei acoperite. Pana pe 25 inclusiv,
+ * urmatoarea plata e cea pentru luna trecuta; dupa, se muta pe luna curenta.
+ * Cifrele nu vin dintr-o formula pe venit, ci din ce s-a intamplat efectiv in
+ * cont: cat ai scos ca dividende, cat e pachetul salarial, cat ai facturat.
+ */
+export async function getNextTaxPayment(
+  ref: Date = new Date(),
+): Promise<NextTaxPayment> {
+  const beforeDeadline = ref.getDate() <= 25;
+  const covered = new Date(
+    ref.getFullYear(),
+    ref.getMonth() - (beforeDeadline ? 1 : 0),
+    1,
+  );
+  const year = covered.getFullYear();
+  const month = covered.getMonth() + 1;
+  const forPeriod = `${year}-${String(month).padStart(2, "0")}`;
+  const dueDate = new Date(year, month, 25, 12, 0, 0);
+
+  const [settings, payouts, paid, income] = await Promise.all([
+    getSettings(),
+    db.companyPayout.findMany({ where: { forPeriod, kind: "dividende" } }),
+    db.taxPayment.findMany({ where: { forPeriod } }),
+    getYearIncome(year),
+  ]);
+
+  const dividendsRon = payouts.reduce((a, p) => a + p.amountRon, 0);
+  const presumedRon = payouts
+    .filter((p) => p.presumed)
+    .reduce((a, p) => a + p.amountRon, 0);
+  const paidByKind = new Map<string, number>();
+  for (const t of paid) {
+    paidByKind.set(t.kind, (paidByKind.get(t.kind) ?? 0) + t.amountRon);
+  }
+
+  const items: NextTaxItem[] = [];
+  if (!paidByKind.get("bs_bas")) {
+    items.push({
+      kind: "bs_bas",
+      label: "CAS + CASS + impozit pe salariu",
+      amountRon: settings.bsBasRon,
+    });
+  }
+  if (!paidByKind.get("cam")) {
+    items.push({ kind: "cam", label: "CAM", amountRon: settings.camRon });
+  }
+  if (dividendsRon > 0 && !paidByKind.get("dividende")) {
+    const pct = settings.dividendePct;
+    items.push({
+      kind: "dividende",
+      label: "Impozit pe dividende",
+      amountRon: Math.round((dividendsRon * pct) / (1 - pct)),
+      note: `${Math.round(pct * 100)}% pe brut = ${(
+        (pct / (1 - pct)) * 100
+      ).toFixed(2)}% din cei ${Math.round(dividendsRon / 100).toLocaleString(
+        "ro-RO",
+      )} RON scoși`,
+    });
+  }
+
+  /*
+   * Micro-ul e trimestrial: se plateste pana pe 25 a lunii de dupa trimestru,
+   * pe tot ce s-a FACTURAT in cele trei luni. Apare doar cand luna acoperita
+   * inchide un trimestru — martie, iunie, septembrie, decembrie.
+   */
+  if (month % 3 === 0 && !paidByKind.get("micro")) {
+    const qStart = month - 2;
+    const invoicedUsd = incomeToUsdCents(
+      income.filter((r) => {
+        const m = r.date.getMonth() + 1;
+        return m >= qStart && m <= month && !isUnbilled(r);
+      }),
+      settings,
+    );
+    const microRon = Math.round(
+      (invoicedUsd / settings.fxRonToUsd) * settings.microPct,
+    );
+    if (microRon > 0) {
+      items.push({
+        kind: "micro",
+        label: "Impozit micro, trimestrul",
+        amountRon: microRon,
+        note: `${(settings.microPct * 100).toFixed(0)}% din ce s-a facturat în T${
+          month / 3
+        }`,
+      });
+    }
+  }
+
+  return {
+    forPeriod,
+    periodLabel: covered.toLocaleDateString("ro-RO", {
+      month: "long",
+      year: "numeric",
+    }),
+    dueDate,
+    items,
+    totalRon: items.reduce((a, i) => a + i.amountRon, 0),
+    dividendsRon,
+    presumedRon,
+    paidRon: paid.reduce((a, t) => a + t.amountRon, 0),
   };
 }

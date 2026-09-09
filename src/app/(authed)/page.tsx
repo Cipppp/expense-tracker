@@ -4,6 +4,7 @@ import {
   getMonthlyCategoryBreakdown,
   getMonthTotals,
   getSettings,
+  getNextTaxPayment,
   getTopMerchants,
   getYtd,
 } from "@/lib/queries";
@@ -13,8 +14,10 @@ import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { TopMerchants } from "@/components/dashboard/top-merchants";
 import { UnifiedMonthlyChart } from "@/components/dashboard/unified-monthly-chart";
 import { CalendarHeatmap } from "@/components/dashboard/calendar-heatmap";
+import { NextTaxCard } from "@/components/dashboard/next-tax-card";
 import { CurrencyToggle } from "@/components/currency-toggle";
 import { fmtMonth, type DisplayCurrency } from "@/lib/format";
+import { latestNetWorth } from "@/lib/investments";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +39,8 @@ export default async function DashboardPage() {
     daily,
     thisMonth,
     lastMonth,
+    netWorth,
+    nextTax,
   ] = await Promise.all([
     getSettings(),
     getYtd(year),
@@ -44,19 +49,32 @@ export default async function DashboardPage() {
     getMonthlyCategoryBreakdown(year),
     getDailyHeatmap(year, month),
     getMonthTotals(year, month),
-    getMonthTotals(prevYear, prevMonth),
+    // Luna trecuta, taiata in aceeasi zi a lunii: pe 9 septembrie comparam cu
+    // 1-9 august, nu cu august intreg.
+    getMonthTotals(prevYear, prevMonth, now.getDate()),
+    latestNetWorth(),
+    getNextTaxPayment(),
   ]);
   const startMonth =
     year === settings.startYear ? settings.startMonth : 1;
   const displayCurrency: DisplayCurrency =
-    (settings.displayCurrency as DisplayCurrency) ?? "USD";
+    (settings.displayCurrency as DisplayCurrency) ?? "EUR";
+
+  /*
+   * Eticheta spune pe fata ce se compara. "vs Aug 2026" langa o luna in curs
+   * era o comparatie masluita: noua zile fata de treizeci si una. Acum scrie
+   * intervalul, ca sa se vada ca ambele capete sunt taiate la fel.
+   */
+  const prevLastDay = new Date(prevYear, prevMonth, 0).getDate();
+  const throughDay = Math.min(now.getDate(), prevLastDay);
+  const comparisonLabel = `1–${throughDay} ${fmtMonth(prevYear, prevMonth)}`;
 
   return (
     <div className="space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           <div className="eyebrow">
-            {now.toLocaleDateString("en-GB", {
+            {now.toLocaleDateString("ro-RO", {
               weekday: "long",
               day: "numeric",
               month: "long",
@@ -64,12 +82,13 @@ export default async function DashboardPage() {
             })}
           </div>
           <h1 className="mt-1.5 text-[30px] sm:text-[44px] leading-[1.02] text-balance">
-            Dashboard
+            Panou
           </h1>
         </div>
         <CurrencyToggle
           value={displayCurrency}
           fxRonToUsd={settings.fxRonToUsd}
+        fxEurToUsd={settings.fxEurToUsd}
         />
       </header>
 
@@ -79,20 +98,30 @@ export default async function DashboardPage() {
         count={ytd.count}
         thisMonth={thisMonth}
         lastMonth={lastMonth}
-        lastMonthLabel={fmtMonth(prevYear, prevMonth)}
+        lastMonthLabel={comparisonLabel}
         displayCurrency={displayCurrency}
         fxRonToUsd={settings.fxRonToUsd}
+        fxEurToUsd={settings.fxEurToUsd}
+        netWorth={
+          netWorth
+            ? {
+                day: netWorth.day,
+                stocksRon: netWorth.stocksRon,
+                savingsRon: netWorth.savingsRon,
+                totalRon: netWorth.totalRon,
+              }
+            : null
+        }
       />
-
 
       {/* Row 1: chart + heatmap, side by side, similar natural heights */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Monthly breakdown</CardTitle>
+            <CardTitle>Defalcare lunară</CardTitle>
             <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-              Switch views to see earned vs spent, taxes, or spending categories
-              — all per month.
+              Încasat față de cheltuit, taxe sau categorii — pe lună. Bara punctată e
+              ce ți-a rămas din luna trecută, după taxele ei.
             </p>
           </CardHeader>
           <Separator />
@@ -101,6 +130,7 @@ export default async function DashboardPage() {
               monthly={monthly}
               categories={categories}
               fxRonToUsd={settings.fxRonToUsd}
+              fxEurToUsd={settings.fxEurToUsd}
               bsBasRon={settings.bsBasRon}
               camRon={settings.camRon}
               microPct={settings.microPct}
@@ -113,9 +143,9 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Spending heatmap</CardTitle>
+            <CardTitle>Hartă a cheltuielilor</CardTitle>
             <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-              Intensity per day — hover for a quick look.
+              Intensitate pe zi — treci cu mouse-ul pentru detalii.
             </p>
           </CardHeader>
           <Separator />
@@ -126,22 +156,19 @@ export default async function DashboardPage() {
               daily={daily}
               displayCurrency={displayCurrency}
               fxRonToUsd={settings.fxRonToUsd}
+              fxEurToUsd={settings.fxEurToUsd}
             />
           </CardContent>
         </Card>
       </div>
 
-      {/*
-        Row 2: merchants + quick actions. `items-start` ca sa nu se intinda
-        cardul de actiuni pana la inaltimea celui de merchants — cinci linkuri
-        urmate de 200px de gol arata a card neterminat, mai ales pe lat.
-      */}
+      {/* Rândul 2: merchants + ce ai de plătit la următoarea scadență. */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Top merchants</CardTitle>
+            <CardTitle>Unde s-au dus banii</CardTitle>
             <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-              {fmtMonth(year, month)} — sorted by amount spent.
+              {fmtMonth(year, month)} — ordonat după cât s-a cheltuit.
             </p>
           </CardHeader>
           <Separator />
@@ -150,53 +177,16 @@ export default async function DashboardPage() {
               items={top}
               displayCurrency={displayCurrency}
               fxRonToUsd={settings.fxRonToUsd}
+              fxEurToUsd={settings.fxEurToUsd}
             />
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick actions</CardTitle>
-          </CardHeader>
-          <Separator />
-          <CardContent className="pt-6 space-y-1">
-            <a
-              href="/import"
-              className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-secondary transition-colors"
-            >
-              <span>Import Revolut CSV</span>
-              <span className="text-xs text-muted-foreground">→</span>
-            </a>
-            <a
-              href="/expenses"
-              className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-secondary transition-colors"
-            >
-              <span>View all expenses</span>
-              <span className="text-xs text-muted-foreground">→</span>
-            </a>
-            <a
-              href="/income"
-              className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-secondary transition-colors"
-            >
-              <span>Log income</span>
-              <span className="text-xs text-muted-foreground">→</span>
-            </a>
-            <a
-              href="/invoices"
-              className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-secondary transition-colors"
-            >
-              <span>Invoices</span>
-              <span className="text-xs text-muted-foreground">→</span>
-            </a>
-            <a
-              href="/settings"
-              className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-secondary transition-colors"
-            >
-              <span>Tax, FX & clients</span>
-              <span className="text-xs text-muted-foreground">→</span>
-            </a>
-          </CardContent>
-        </Card>
+        <NextTaxCard
+          forecast={nextTax}
+          displayCurrency={displayCurrency}
+          fx={settings}
+        />
       </div>
     </div>
   );

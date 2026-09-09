@@ -1,3 +1,4 @@
+import { getSettings, requireUserId } from "@/lib/queries";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -85,11 +86,7 @@ export async function POST(req: Request) {
   // --- auth ---
   const auth = req.headers.get("authorization") ?? "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  const settings = await db.settings.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { id: 1 },
-  });
+  const settings = await getSettings();
   if (!settings.timelogToken) {
     return NextResponse.json(
       { error: "Time-log API is disabled. Generate a token in Settings." },
@@ -222,6 +219,7 @@ export async function POST(req: Request) {
     const hours = (e - s) / 60;
     const row = await db.income.create({
       data: {
+      userId: await requireUserId(),
         date: dayStart,
         description: description || `${hours.toFixed(2)}h · ${job.name}`,
         source: job.name,
@@ -256,6 +254,7 @@ export async function POST(req: Request) {
   const hours = (endMin - startMin) / 60;
   const row = await db.income.create({
     data: {
+      userId: await requireUserId(),
       date: dayStart,
       description: description || `${hours.toFixed(2)}h · ${job.name}`,
       source: job.name,

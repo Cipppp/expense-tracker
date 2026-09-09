@@ -1,3 +1,15 @@
 {
-  "regions": ["fra1"]
+  "regions": [
+    "fra1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/efactura",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/fx",
+      "schedule": "0 5 * * 1-5"
+    }
+  ]
 }

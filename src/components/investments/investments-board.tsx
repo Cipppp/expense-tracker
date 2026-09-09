@@ -19,11 +19,12 @@ const PALETTE = [
 type SortKey = "value" | "symbol" | "today" | "pnl" | "weight";
 
 export function InvestmentsBoard({
-  portfolio, displayCurrency, fxRonToUsd,
+  portfolio, displayCurrency, fxRonToUsd, fxEurToUsd,
 }: {
   portfolio: Portfolio;
   displayCurrency: DisplayCurrency;
   fxRonToUsd: number;
+  fxEurToUsd: number;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -31,11 +32,23 @@ export function InvestmentsBoard({
   const [open, setOpen] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>("value");
   const [hover, setHover] = useState<string | null>(null);
+  /*
+   * Felia fixata cu clic. Hover-ul e trecator — bun ca sa te uiti, prost cand
+   * vrei sa citesti cifrele si sa muti mouse-ul in alta parte. Clicul o tine
+   * scoasa din inel pana apesi din nou, iar hover-ul nu mai suprascrie.
+   */
+  const [pinned, setPinned] = useState<string | null>(null);
+  const activeSlice = pinned ?? hover;
+  const pinSlice = (id: string | null) =>
+    setPinned((prev) => (id !== null && prev === id ? null : id));
 
   const fmt = (bani: number | null) =>
     bani === null
       ? "—"
-      : fmtDisplay(ronBaniToDisplay(bani, displayCurrency, fxRonToUsd), displayCurrency);
+      : fmtDisplay(
+          ronBaniToDisplay(bani, displayCurrency, { fxRonToUsd, fxEurToUsd }),
+          displayCurrency,
+        );
   const num = (n: number | null, d = 2) =>
     n === null ? "—" : n.toLocaleString("ro-RO", { minimumFractionDigits: d, maximumFractionDigits: d });
   const pct = (n: number | null) => (n === null ? "" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`);
@@ -308,7 +321,9 @@ export function InvestmentsBoard({
             <CardContent className="p-4">
               <div className="text-[13px] font-semibold mb-1">Allocation</div>
               <p className="text-[10.5px] text-muted-foreground mb-3">
-                Hover a slice for the detail.
+                {pinned
+                  ? "Fixată — clic din nou ca să eliberezi."
+                  : "Treci peste o felie, sau apasă ca s-o fixezi."}
               </p>
               {alloc.length === 0 ? (
                 <p className="text-muted-foreground">Nothing yet.</p>
@@ -321,8 +336,10 @@ export function InvestmentsBoard({
                     changePct: h.changePct, pnlPct: h.pnlPct,
                   }))}
                   total={portfolio.stocksRon}
-                  hover={hover}
+                  hover={activeSlice}
+                  pinned={pinned}
                   onHover={setHover}
+                  onPin={pinSlice}
                   fmt={fmt}
                   num={num}
                   pct={pct}
@@ -477,12 +494,15 @@ type Slice = {
  * se poate impinge putin in afara.
  */
 function Donut({
-  items, total, hover, onHover, fmt, num, pct,
+  items, total, hover, pinned, onHover, onPin, fmt, num, pct,
 }: {
   items: Slice[];
   total: number;
+  /** Felia curenta: cea fixata, altfel cea de sub mouse. */
   hover: string | null;
+  pinned: string | null;
   onHover: (id: string | null) => void;
+  onPin: (id: string | null) => void;
   fmt: (n: number | null) => string;
   num: (n: number | null, d?: number) => string;
   pct: (n: number | null) => string;
@@ -505,8 +525,9 @@ function Donut({
       <svg viewBox="0 0 200 200" className="w-full max-w-[260px] mx-auto block">
         {slices.map(({ it, a0, a1, frac }) => {
           const isActive = hover === it.id;
-          // Felia activa iese putin din inel, pe bisectoarea ei.
-          const push = isActive ? 5 : 0;
+          // Felia activa iese din inel, pe bisectoarea ei. Cea fixata iese mai
+          // mult decat cea de sub mouse, ca sa se vada ca ramane acolo.
+          const push = pinned === it.id ? 9 : isActive ? 5 : 0;
           const mid = (a0 + a1) / 2;
           const dx = Math.cos(mid) * push, dy = Math.sin(mid) * push;
           const large = a1 - a0 > Math.PI ? 1 : 0;
@@ -516,7 +537,13 @@ function Donut({
           // arc (start = final): se deseneaza ca doua inele concentrice.
           if (frac > 0.999) {
             return (
-              <g key={it.id} onMouseEnter={() => onHover(it.id)} onMouseLeave={() => onHover(null)}>
+              <g
+                key={it.id}
+                onMouseEnter={() => onHover(it.id)}
+                onMouseLeave={() => onHover(null)}
+                onClick={() => onPin(it.id)}
+                style={{ cursor: "pointer" }}
+              >
                 <circle cx={CX} cy={CY} r={(R + INNER) / 2} fill="none"
                         stroke={it.color} strokeWidth={R - INNER} />
               </g>
@@ -532,6 +559,7 @@ function Donut({
               style={{ transition: "opacity .2s, transform .25s cubic-bezier(.16,1,.3,1)", cursor: "pointer" }}
               onMouseEnter={() => onHover(it.id)}
               onMouseLeave={() => onHover(null)}
+              onClick={() => onPin(it.id)}
             />
           );
         })}
@@ -568,20 +596,25 @@ function Donut({
 
       <div className="mt-3 space-y-1.5">
         {slices.map(({ it, frac }) => (
-          <div
+          <button
             key={it.id}
+            type="button"
             onMouseEnter={() => onHover(it.id)}
             onMouseLeave={() => onHover(null)}
+            onClick={() => onPin(it.id)}
+            aria-pressed={pinned === it.id}
             className={cn(
-              "flex items-center gap-2 text-[11.5px] rounded px-1.5 py-0.5 -mx-1.5 transition-colors cursor-default",
+              "w-full flex items-center gap-2 text-[11.5px] rounded px-1.5 py-0.5 -mx-1.5 text-left",
+              "transition-colors cursor-pointer hover:bg-secondary/70",
               hover === it.id && "bg-secondary",
+              pinned === it.id && "ring-1 ring-border bg-secondary",
             )}
           >
             <span className="h-2 w-2 rounded-sm shrink-0" style={{ background: it.color }} />
             <span className="flex-1 truncate">{it.label}</span>
             <span className="tabular-nums text-muted-foreground">{fmt(it.value)}</span>
             <span className="tabular-nums w-11 text-right">{(frac * 100).toFixed(1)}%</span>
-          </div>
+          </button>
         ))}
       </div>
     </div>
