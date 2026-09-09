@@ -8,13 +8,18 @@ export function TopMerchants({
   items,
   displayCurrency,
   fxRonToUsd,
+  fxEurToUsd,
 }: {
   items: Array<{ merchant: string; count: number; amountRon: number; amountUsd: number }>;
   displayCurrency: DisplayCurrency;
   fxRonToUsd: number;
+  fxEurToUsd: number;
 }) {
   const fmt = (bani: number) =>
-    fmtDisplay(ronBaniToDisplay(bani, displayCurrency, fxRonToUsd), displayCurrency);
+    fmtDisplay(
+      ronBaniToDisplay(bani, displayCurrency, { fxRonToUsd, fxEurToUsd }),
+      displayCurrency,
+    );
   if (items.length === 0) {
     return (
       <div className="py-6 text-sm text-muted-foreground text-center">

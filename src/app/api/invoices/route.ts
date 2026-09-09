@@ -1,3 +1,4 @@
+import { getSettings, requireUserId } from "@/lib/queries";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -22,6 +23,7 @@ const Body = z.object({
   clientReg: z.string().optional().nullable(),
   clientAddress: z.string().optional().nullable(),
   clientCountry: z.string().optional().nullable(),
+  clientCounty: z.string().optional().nullable(),   // ISO 3166-2:RO, doar RO
   issuedAt: z.string(),                       // yyyy-mm-dd
   dueAt: z.string().optional().nullable(),    // yyyy-mm-dd
   invoiceCurrency: z.enum(["RON", "USD", "EUR"]).default("RON"),
@@ -63,11 +65,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
   const v = parsed.data;
-  const settings = await db.settings.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { id: 1 },
-  });
+  const settings = await getSettings();
   const series = settings.invoiceSeries;
   const { number, seriesNumber } = await getNextInvoiceNumber(series);
 
@@ -87,6 +85,7 @@ export async function POST(req: Request) {
 
   const invoice = await db.invoice.create({
     data: {
+      userId: await requireUserId(),
       number,
       series,
       seriesNumber,
@@ -99,6 +98,7 @@ export async function POST(req: Request) {
       clientReg: v.clientReg ?? null,
       clientAddress: v.clientAddress ?? null,
       clientCountry: v.clientCountry ?? null,
+      clientCounty: v.clientCounty ?? null,
       invoiceCurrency: v.invoiceCurrency,
       legalCurrency: "RON",
       bnrRate: v.bnrRate ?? null,

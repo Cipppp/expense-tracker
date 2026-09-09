@@ -45,6 +45,35 @@ export async function putPhoto(
   );
 }
 
+/*
+ * Obiect generic (arhiva e-Factura etc.), in acelasi bucket si cu acelasi rol.
+ * Fara CacheControl de un an: nu e un asset servit la utilizator, e o arhiva.
+ */
+export async function putObject(
+  key: string,
+  body: Buffer | Uint8Array,
+  contentType: string,
+): Promise<void> {
+  await s3().send(
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    }),
+  );
+}
+
+export async function getObject(key: string): Promise<Buffer | null> {
+  try {
+    const out = await s3().send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+    const bytes = await out.Body?.transformToByteArray();
+    return bytes ? Buffer.from(bytes) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function deletePhoto(key: string): Promise<void> {
   await s3()
     .send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }))

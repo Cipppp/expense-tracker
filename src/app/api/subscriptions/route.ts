@@ -1,3 +1,4 @@
+import { getSettings, requireUserId } from "@/lib/queries";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -31,14 +32,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
   const v = parsed.data;
-  const settings = await db.settings.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { id: 1 },
-  });
+  const settings = await getSettings();
   const fxRate = v.fxRate ?? settings.fxRonToUsd;
   const sub = await db.subscription.create({
     data: {
+      userId: await requireUserId(),
       name: v.name,
       category: v.category,
       amountRon: baniFromRon(v.amountRon),

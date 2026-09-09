@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { importRevolutCsv } from "@/lib/import";
+import { importIngCsv } from "@/lib/ing-import";
+import { isIngCsv } from "@/lib/ing-csv";
 
 export const runtime = "nodejs";
 
@@ -11,10 +13,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No files uploaded" }, { status: 400 });
     }
 
+    // Extrasul ING (contul firmei) si cel Revolut (cardul personal) se
+    // recunosc dupa header, ca sa poti arunca ambele in aceeasi zona.
     const summaries = [];
     for (const file of files) {
       const text = await file.text();
-      summaries.push(await importRevolutCsv(file.name, text));
+      summaries.push(
+        isIngCsv(text)
+          ? await importIngCsv(file.name, text)
+          : await importRevolutCsv(file.name, text),
+      );
     }
 
     const totals = summaries.reduce(

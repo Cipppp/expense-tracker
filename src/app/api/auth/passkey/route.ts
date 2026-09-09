@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const session = await getSession();
-  if (!session.isAuthed) {
+  if (!session.userId) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
   const passkeys = await db.passkey.findMany({

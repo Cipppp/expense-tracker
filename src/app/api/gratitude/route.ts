@@ -1,3 +1,4 @@
+import { requireUserId } from "@/lib/queries";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -16,7 +17,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
   const item = await db.gratitudeItem.create({
-    data: { text: parsed.data.text, author: parsed.data.author ?? null },
+    data: {
+      userId: await requireUserId(), text: parsed.data.text, author: parsed.data.author ?? null },
   });
   return NextResponse.json({ ok: true, item });
 }

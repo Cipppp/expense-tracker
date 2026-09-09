@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { createOblioInvoice, oblioConfigured, oblioPreflight } from "@/lib/oblio";
 import { getSettings } from "@/lib/queries";
+import { vatKindForInvoice } from "@/lib/vat";
+import { legalMentionText } from "@/lib/legal-mentions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -101,6 +103,18 @@ export async function POST(
    * real), deci ar fi picat FIECARE factura externa. Codul intracomunitar isi
    * are locul pe document, unde PDF-ul si XML-ul il pun deja corect.
    */
+  /*
+   * Mentiunile legale de pe factura. PDF-ul aplicatiei le tipareste singur,
+   * dar Oblio pune pe document doar ce primeste in `mentions`, iar contul e
+   * neplatitor de TVA, deci Oblio nu arata nicio coloana de TVA. Fara textul
+   * de mai jos, factura din Oblio (cea din contabilitate si din SPV) pleca
+   * fara "taxare inversa" si fara codul art. 317 — ambele cerute de art. 319
+   * alin. (20) Cod fiscal. Un footerNote scris de mana are prioritate.
+   */
+  const kind = vatKindForInvoice(invoice.clientCountry, invoice.vatRate, settings.vatRegistered);
+  // Romana + engleza, acelasi text ca pe PDF (lib/legal-mentions).
+  const legalMention = legalMentionText(kind, { issuerVatIntra: settings.issuerVatIntra });
+
   try {
     const result = await createOblioInvoice({
       issuerCif: settings.issuerCif,
@@ -110,7 +124,7 @@ export async function POST(
       currency: invoice.invoiceCurrency,
       exchangeRate: invoice.bnrRate,
       vatRate: invoice.vatRate,
-      mentions: invoice.footerNote,
+      mentions: invoice.footerNote?.trim() || legalMention,
       client: {
         name: invoice.clientCompany || invoice.clientName,
         cif: invoice.clientCui,

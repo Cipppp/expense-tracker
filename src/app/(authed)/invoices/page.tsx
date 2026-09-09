@@ -12,6 +12,7 @@ import { getClientInvoicingSummaries, getSettings } from "@/lib/queries";
 import { ClientSummaryTable } from "@/components/invoices/client-summary-table";
 import { InvoiceStatusPicker } from "@/components/invoices/status-picker";
 import type { WeekEntry } from "@/components/income/week-grid";
+import { efacturaDeadline, efacturaScope, efacturaTracked, isFiled, stateLabel, workingDaysUntil } from "@/lib/anaf/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,7 @@ export default async function InvoicesPage() {
   const [invoices, clientSummaries, jobs, incomeRows, settings] = await Promise.all([
     db.invoice.findMany({
       orderBy: [{ issuedAt: "desc" }, { seriesNumber: "desc" }],
-      include: { lines: true },
+      include: { lines: true, efacturaCurrent: { select: { state: true, env: true, indexIncarcare: true } } },
     }),
     getClientInvoicingSummaries(year),
     db.job.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
@@ -195,6 +196,36 @@ export default async function InvoicesPage() {
               {invoices.map((inv) => {
                 const total = inv.lines.reduce((a, l) => a + l.amount, 0);
                 const overdue = isOverdue(inv);
+                /*
+                 * Eticheta e-Factura: starea ANAF daca exista o trimitere,
+                 * "via Oblio" pentru istoricul depus prin Oblio, altfel "due"
+                 * cand legea o cere si factura e emisa. Facturile straine
+                 * netrimise si cele cu politica "skip" nu primesc nimic.
+                 * "Overdue" se judeca pe zile Bucuresti, ca in cron.
+                 */
+                const ef = inv.efacturaCurrent;
+                const efRequired =
+                  inv.status !== "draft" &&
+                  inv.status !== "void" &&
+                  inv.efacturaPolicy !== "skip" &&
+                  efacturaTracked(inv.issuedAt) &&
+                  efacturaScope(inv).scope === "required";
+                // Aceeasi regula ca in panou si in cron: depus = ok pe PROD sau
+                // via Oblio; un ok pe test nu stinge termenul.
+                const filed = Boolean(ef && ef.env === "prod" && isFiled(ef.state)) || Boolean(inv.oblioNumber);
+                const inFlightProd = Boolean(ef && ef.env === "prod" && (ef.state === "uploading" || ef.state === "in_prelucrare"));
+                const efOverdue =
+                  efRequired && !filed && !inFlightProd && workingDaysUntil(efacturaDeadline(inv.issuedAt), now) < 0;
+                const efLabel = ef
+                  ? (() => {
+                      const l = stateLabel(ef.state, { hasErrors: ef.state === "uploading" && !ef.indexIncarcare });
+                      return efOverdue ? { text: `${l.text} · overdue`, tone: "warn" as const } : l;
+                    })()
+                  : inv.oblioNumber
+                    ? { text: "via Oblio", tone: "muted" as const }
+                    : efRequired
+                      ? { text: efOverdue ? "e-Factura overdue" : "e-Factura due", tone: "warn" as const }
+                      : null;
                 return (
                   <Link
                     key={inv.id}
@@ -212,8 +243,24 @@ export default async function InvoicesPage() {
                       </span>
                     </div>
                     <div className="col-span-6 xl:col-span-1 min-w-0">
-                      <div className="text-sm font-medium truncate">
-                        {inv.clientCompany}
+                      <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                        <span className="truncate">{inv.clientCompany}</span>
+                        {efLabel && (
+                          <span
+                            className={cn(
+                              "shrink-0 rounded-full px-1.5 py-px text-[9px] uppercase tracking-wider",
+                              efLabel.tone === "ok" && "bg-success/15 text-success",
+                              efLabel.tone === "bad" && "bg-destructive/15 text-destructive",
+                              efLabel.tone === "warn" && "bg-warning/15 text-warning-foreground",
+                              efLabel.tone === "busy" && "bg-accent/15 text-accent",
+                              efLabel.tone === "muted" && "border border-border text-muted-foreground",
+                            )}
+                            title={ef?.env === "test" ? "TEST environment" : undefined}
+                          >
+                            {efLabel.text}
+                            {ef?.env === "test" ? " · test" : ""}
+                          </span>
+                        )}
                       </div>
                       <div className="xl:hidden text-[11px] text-muted-foreground truncate">
                         {fmtDate(inv.issuedAt)}

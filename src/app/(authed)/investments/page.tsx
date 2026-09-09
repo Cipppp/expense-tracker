@@ -13,7 +13,7 @@ export default async function InvestmentsPage() {
   await recordSnapshot(portfolio).catch(() => {});
 
   const displayCurrency: DisplayCurrency =
-    (settings.displayCurrency as DisplayCurrency) ?? "USD";
+    (settings.displayCurrency as DisplayCurrency) ?? "EUR";
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -43,6 +43,7 @@ export default async function InvestmentsPage() {
         // Cursul BNR de azi, nu setarea invechita — altfel o suma in USD
         // convertita in RON si inapoi se intoarce cu 1,86% mai mare.
         fxRonToUsd={portfolio.usdPerRon ?? settings.fxRonToUsd}
+        fxEurToUsd={settings.fxEurToUsd}
       />
     </div>
   );

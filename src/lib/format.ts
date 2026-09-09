@@ -48,32 +48,55 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
  * stays in its native unit (USD cents for income, RON bani for expenses)
  * and we convert only at the edges.
  */
-export type DisplayCurrency = "USD" | "RON";
+export type DisplayCurrency = "USD" | "RON" | "EUR";
+
+/**
+ * Cursurile de care are nevoie orice conversie.
+ *
+ * Sunt doua, nu trei: totul trece prin dolar. `fxRonToUsd` e cati dolari face
+ * un leu (0,2255), `fxEurToUsd` cati dolari face un euro (1,1833) — de aici
+ * ies si leii in euro, fara sa mai tinem un al treilea curs care sa iasa din
+ * pas cu primele doua.
+ */
+export type Fx = { fxRonToUsd: number; fxEurToUsd: number };
+
+export function fmtEur(cents: number): string {
+  const v = Math.round(cents) / 100;
+  const sign = v < 0 ? "-" : "";
+  return `${sign}€${Math.abs(v).toLocaleString("de-DE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
 
 /** Convert a USD-cent amount into the display currency's minor unit. */
 export function usdCentsToDisplay(
   cents: number,
   display: DisplayCurrency,
-  fxRonToUsd: number,
+  fx: Fx,
 ): number {
   if (display === "USD") return cents;
+  if (display === "EUR") return Math.round(cents / fx.fxEurToUsd);
   // RON: 1 USD = (1 / fxRonToUsd) RON → cents × (1 / fxRonToUsd) = bani
-  return Math.round(cents / fxRonToUsd);
+  return Math.round(cents / fx.fxRonToUsd);
 }
 
 /** Convert a RON-bani amount into the display currency's minor unit. */
 export function ronBaniToDisplay(
   bani: number,
   display: DisplayCurrency,
-  fxRonToUsd: number,
+  fx: Fx,
 ): number {
   if (display === "RON") return bani;
-  return Math.round(bani * fxRonToUsd);
+  const cents = bani * fx.fxRonToUsd;
+  return Math.round(display === "EUR" ? cents / fx.fxEurToUsd : cents);
 }
 
 /** Format an amount that's already in the display currency's minor unit. */
 export function fmtDisplay(amount: number, display: DisplayCurrency): string {
-  return display === "USD" ? fmtUsd(amount) : fmtRon(amount);
+  if (display === "USD") return fmtUsd(amount);
+  if (display === "EUR") return fmtEur(amount);
+  return fmtRon(amount);
 }
 
 /** Hourly rate badge: "$25/h", "€26/h", "100 RON/h". */
@@ -97,7 +120,7 @@ export function fmtCurrency(cents: number, currency: string): string {
   return `${sign}${sym}${abs}`;
 }
 
-export function fmtDate(d: Date | string, locale = "en-GB"): string {
+export function fmtDate(d: Date | string, locale = "ro-RO"): string {
   const date = typeof d === "string" ? new Date(d) : d;
   return date.toLocaleDateString(locale, {
     day: "2-digit",
@@ -108,7 +131,7 @@ export function fmtDate(d: Date | string, locale = "en-GB"): string {
 
 export function fmtMonth(year: number, month: number): string {
   const d = new Date(year, month - 1, 1);
-  return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  return d.toLocaleDateString("ro-RO", { month: "short", year: "numeric" });
 }
 
 export function monthKey(d: Date): string {

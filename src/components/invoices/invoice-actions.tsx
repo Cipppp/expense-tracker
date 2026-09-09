@@ -14,6 +14,8 @@ export function InvoiceActions({
   overdue,
   reminderContext,
   oblioReady = false,
+  anafReady = false,
+  prodFiled = false,
   oblioNumber = null,
   oblioLink = null,
 }: {
@@ -21,6 +23,10 @@ export function InvoiceActions({
   status: string;
   overdue?: boolean;
   oblioReady?: boolean;
+  /** ANAF e conectat direct PE PROD: butonul Oblio dispare, ramane panoul e-Factura. */
+  anafReady?: boolean;
+  /** Depusa la ANAF pe prod: nu se mai poate sterge, doar anula. */
+  prodFiled?: boolean;
   oblioNumber?: string | null;
   oblioLink?: string | null;
   reminderContext?: {
@@ -112,7 +118,10 @@ export function InvoiceActions({
     startDel(async () => {
       const res = await fetch(`/api/invoices/${id}`, { method: "DELETE" });
       if (!res.ok) {
-        toast.error(label ? `${label} — failed to delete` : "Failed to delete");
+        const body = await res.json().catch(() => ({}));
+        toast.error(label ? `${label} — failed to delete` : "Failed to delete", {
+          description: typeof body?.error === "string" ? body.error : undefined,
+        });
         return;
       }
       toast.success(label ? `${label} deleted` : "Invoice deleted", {
@@ -196,21 +205,23 @@ export function InvoiceActions({
             Oblio · {oblio.number}
           </Button>
         )
-      ) : oblioReady ? (
+      ) : oblioReady && !anafReady ? (
         <Button variant="outline" disabled={oblioPending} onClick={sendToOblio}>
           <Upload className={cn("h-3.5 w-3.5", oblioPending && "animate-pulse")} />
           {oblioPending ? "Sending…" : "Issue in Oblio"}
         </Button>
       ) : null}
-      <Button
-        variant="ghost"
-        disabled={pendingDel}
-        onClick={remove}
-        className="text-muted-foreground hover:text-destructive"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-        Delete
-      </Button>
+      {!prodFiled && (
+        <Button
+          variant="ghost"
+          disabled={pendingDel}
+          onClick={remove}
+          className="text-muted-foreground hover:text-destructive"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Delete
+        </Button>
+      )}
     </div>
   );
 }

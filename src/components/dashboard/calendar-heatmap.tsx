@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   fmtDisplay,
   ronBaniToDisplay,
+  type Fx,
   type DisplayCurrency,
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,8 @@ import { cn } from "@/lib/utils";
 type DailyTotal = {
   date: string;
   ron: number;
+  /** Partea platita din contul firmei — marcata separat in celula. */
+  companyRon?: number;
   count: number;
   top: Array<{
     description: string;
@@ -32,15 +35,20 @@ export function CalendarHeatmap({
   daily,
   displayCurrency,
   fxRonToUsd,
+  fxEurToUsd,
 }: {
   year: number;
   month: number;
   daily: DailyTotal[];
   displayCurrency: DisplayCurrency;
   fxRonToUsd: number;
+  fxEurToUsd: number;
 }) {
   const fmtMoney = (bani: number) =>
-    fmtDisplay(ronBaniToDisplay(bani, displayCurrency, fxRonToUsd), displayCurrency);
+    fmtDisplay(
+      ronBaniToDisplay(bani, displayCurrency, { fxRonToUsd, fxEurToUsd }),
+      displayCurrency,
+    );
   const [{ year, month }, setRange] = useState({
     year: initialYear,
     month: initialMonth,
@@ -156,7 +164,7 @@ export function CalendarHeatmap({
 
   const pending = loading && !monthDaily;
   const isInitialMonth = year === initialYear && month === initialMonth;
-  const title = new Date(year, month - 1, 1).toLocaleDateString("en-US", {
+  const title = new Date(year, month - 1, 1).toLocaleDateString("ro-RO", {
     month: "long",
     year: "numeric",
   });
@@ -246,8 +254,20 @@ export function CalendarHeatmap({
                     isHot ? "text-white/85" : "text-muted-foreground",
                   )}
                 >
-                  {compactAmount(ron, displayCurrency, fxRonToUsd)}
+                  {compactAmount(ron, displayCurrency, { fxRonToUsd, fxEurToUsd })}
                 </span>
+              )}
+              {/*
+                Ziua are si cheltuieli de pe firma: un punct in colt. Nu o a
+                doua culoare de fundal — intensitatea celulei ramane despre
+                cat s-a cheltuit, iar punctul spune de pe ce cont.
+              */}
+              {(c.data?.companyRon ?? 0) > 0 && (
+                <span
+                  className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: "hsl(var(--chart-2))" }}
+                  aria-hidden
+                />
               )}
             </button>
           );
@@ -285,7 +305,7 @@ export function CalendarHeatmap({
         {stats.daysWithSpend > 0 ? (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
             <span>
-              Avg/day · <span className="text-foreground font-medium">{fmtMoney(stats.avg)}</span>
+              Medie/zi · <span className="text-foreground font-medium">{fmtMoney(stats.avg)}</span>
             </span>
             <span>
               Max ·{" "}
@@ -312,7 +332,7 @@ export function CalendarHeatmap({
           <span>No expenses recorded in {title}.</span>
         )}
         <div className="flex items-center gap-1.5 ml-auto">
-          <span>Less</span>
+          <span>Puțin</span>
           <div className="flex gap-0.5">
             {[0.1, 0.3, 0.5, 0.7, 0.95].map((o) => (
               <div
@@ -322,7 +342,7 @@ export function CalendarHeatmap({
               />
             ))}
           </div>
-          <span>More</span>
+          <span>Mult</span>
         </div>
       </div>
     </div>
@@ -338,9 +358,9 @@ export function CalendarHeatmap({
 function compactAmount(
   bani: number,
   display: DisplayCurrency,
-  fxRonToUsd: number,
+  fx: Fx,
 ): string {
-  const major = Math.round(ronBaniToDisplay(bani, display, fxRonToUsd) / 100);
+  const major = Math.round(ronBaniToDisplay(bani, display, fx) / 100);
   const sym = display === "USD" ? "$" : "";
   if (major < 1000) return `${sym}${major}`;
   if (major < 10000) return `${sym}${(major / 1000).toFixed(1)}k`;
@@ -361,7 +381,7 @@ function DayDetail({
   fmt: (bani: number) => string;
 }) {
   const fmtMoney = fmt;
-  const dateLabel = new Date(year, month - 1, day).toLocaleDateString("en-GB", {
+  const dateLabel = new Date(year, month - 1, day).toLocaleDateString("ro-RO", {
     weekday: "long",
     day: "numeric",
     month: "long",

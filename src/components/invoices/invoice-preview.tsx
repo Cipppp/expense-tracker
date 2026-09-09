@@ -1,6 +1,7 @@
 "use client";
 
 import { vatKindForInvoice, type VatKind } from "@/lib/vat";
+import { legalMentions } from "@/lib/legal-mentions";
 import { cn } from "@/lib/utils";
 
 /*
@@ -72,16 +73,7 @@ const VAT_LABEL: Record<VatKind, string> = {
   none: "",
 };
 
-const VAT_NOTE: Record<VatKind, string> = {
-  eu_reverse:
-    "Operatiune neimpozabila in Romania - taxare inversa (reverse charge). TVA se achita de beneficiar conform art. 196 din Directiva 2006/112/CE (servicii intracomunitare B2B).",
-  exempt_310:
-    "Neplatitor de TVA - scutit conform art. 310 din Legea nr. 227/2015 privind Codul fiscal (regim special de scutire pentru intreprinderile mici).",
-  export:
-    "Operatiune neimpozabila in Romania - export de servicii catre un beneficiar din afara UE (locul prestarii la beneficiar, art. 278 Cod fiscal). TVA conform legislatiei din tara beneficiarului.",
-  domestic: "",
-  none: "",
-};
+// Mentiunile (RO + EN) vin din lib/legal-mentions, aceleasi ca pe PDF si in Oblio.
 
 export function InvoicePreview({
   issuer,
@@ -262,11 +254,15 @@ export function InvoicePreview({
         </p>
       )}
 
-      {VAT_NOTE[kind] && (
-        <p className="mt-3 rounded-md bg-secondary/50 px-3 py-2 text-[10px] text-muted-foreground">
-          {VAT_NOTE[kind]}
-        </p>
-      )}
+      {(() => {
+        const m = legalMentions(kind, { issuerVatIntra: issuer.vatIntra });
+        return m ? (
+          <div className="mt-3 rounded-md bg-secondary/50 px-3 py-2 text-[10px] text-muted-foreground space-y-1">
+            <p>{m.ro}</p>
+            <p className="opacity-80">{m.en}</p>
+          </div>
+        ) : null;
+      })()}
 
       {invoice.footerNote && (
         <p className="mt-2 rounded-md bg-secondary/50 px-3 py-2 text-[10px] text-muted-foreground">

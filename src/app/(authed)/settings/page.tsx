@@ -1,3 +1,4 @@
+import { getSettings } from "@/lib/queries";
 import { db } from "@/lib/db";
 import { CollapsibleCard } from "@/components/ui/collapsible-card";
 import { ronFromBani } from "@/lib/format";
@@ -6,18 +7,22 @@ import { ClientsManager } from "@/components/settings/clients-manager";
 import { PasskeysManager } from "@/components/settings/passkeys-manager";
 import { SubscriptionsManager } from "@/components/settings/subscriptions-manager";
 import { ApiAccessManager } from "@/components/settings/api-access-manager";
+import { AnafConnectionCard } from "@/components/settings/anaf-connection-card";
+import { anafConfigured, anafEnv, anafMissing } from "@/lib/anaf";
+import { tokenStatus } from "@/lib/anaf/oauth";
 
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage() {
-  const [settings, clients] = await Promise.all([
-    db.settings.upsert({
-      where: { id: 1 },
-      update: {},
-      create: { id: 1 },
-    }),
+export default async function SettingsPage(props: {
+  searchParams: Promise<{ anaf?: string; reason?: string }>;
+}) {
+  const [settings, clients, params, anaf] = await Promise.all([
+    getSettings(),
     db.job.findMany({ orderBy: { name: "asc" } }),
+    props.searchParams,
+    tokenStatus(anafConfigured()),
   ]);
+  const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
   return (
     <div className="space-y-4 max-w-3xl">
@@ -54,10 +59,39 @@ export default async function SettingsPage() {
               companyReg: c.companyReg ?? "",
               companyAddress: c.companyAddress ?? "",
               companyCountry: c.companyCountry ?? "",
+              companyCounty: c.companyCounty ?? "",
               defaultCurrency: c.defaultCurrency,
               email: c.email ?? "",
               invoiceDescription: c.invoiceDescription ?? "",
             }))}
+        />
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        title="ANAF e-Factura"
+        description="Direct connection to SPV with your qualified certificate — no Oblio in between. One login a year, then the app sends, tracks and archives on its own."
+        defaultOpen={!anaf.connected || anaf.level !== "ok" || Boolean(params.anaf)}
+      >
+        <AnafConnectionCard
+          notice={{ result: params.anaf ?? null, reason: params.reason ?? null }}
+          status={{
+            configured: anaf.configured,
+            missing: anaf.configured ? [] : anafMissing(),
+            env: anafEnv(),
+            redirectUri: process.env.ANAF_REDIRECT_URI ?? "",
+            connected: anaf.connected,
+            level: anaf.level,
+            needsReauth: anaf.needsReauth,
+            certSerial: anaf.certSerial,
+            obtainedAt: iso(anaf.obtainedAt),
+            refreshedAt: iso(anaf.refreshedAt),
+            accessExpiresAt: iso(anaf.accessExpiresAt),
+            refreshExpiresAt: iso(anaf.refreshExpiresAt),
+            accessDaysLeft: anaf.accessDaysLeft,
+            refreshDaysLeft: anaf.refreshDaysLeft,
+            lastHealthOk: iso(anaf.lastHealthOk),
+            lastError: anaf.lastError,
+          }}
         />
       </CollapsibleCard>
 
@@ -107,7 +141,16 @@ export default async function SettingsPage() {
             invoiceStartNumber: settings.invoiceStartNumber,
             issuerIban: settings.issuerIban,
             issuerIbanEur: settings.issuerIbanEur,
+            issuerIbanUsd: settings.issuerIbanUsd,
             issuerSwift: settings.issuerSwift,
+            issuerName: settings.issuerName,
+            issuerCif: settings.issuerCif,
+            issuerReg: settings.issuerReg,
+            issuerAddress: settings.issuerAddress,
+            issuerBank: settings.issuerBank,
+            issuerCapital: settings.issuerCapital,
+            issuerSigner: settings.issuerSigner,
+            invoiceSeries: settings.invoiceSeries,
           }}
         />
       </CollapsibleCard>

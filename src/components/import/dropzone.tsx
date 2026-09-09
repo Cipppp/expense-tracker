@@ -12,9 +12,27 @@ type Summary = {
   rowsRead: number;
   rowsInserted: number;
   rowsSkipped: number;
+  /** Prezent doar pe extrasele ING — defalcarea pe ce a produs fisierul. */
+  kind?: "ing";
+  currency?: string;
+  taxesInserted?: number;
+  payoutsInserted?: number;
+  expensesInserted?: number;
+  ownerUnset?: boolean;
+  skippedOtherCurrency?: number;
+  skippedCurrencies?: string[];
 };
 
-export function ImportDropzone() {
+/**
+ * Zona de incarcare. `variant` schimba doar textul: fisierul e recunoscut
+ * oricum dupa antet, deci un extras ING aruncat in zona de Revolut se importa
+ * corect — zonele separate exista ca sa stii ce cauti, nu ca sa te oblige.
+ */
+export function ImportDropzone({
+  variant = "revolut",
+}: {
+  variant?: "revolut" | "ing";
+} = {}) {
   const [pending, setPending] = useState(false);
   const [last, setLast] = useState<{
     totals: { rowsRead: number; rowsInserted: number; rowsSkipped: number };
@@ -32,17 +50,28 @@ export function ImportDropzone() {
       try {
         const res = await fetch("/api/import", { method: "POST", body: fd });
         const data = await res.json();
-        if (!res.ok) throw new Error(data?.error ?? "Import failed");
+        if (!res.ok) throw new Error(data?.error ?? "Importul a eșuat");
         setLast(data);
         toast.success(
-          `Inserted ${data.totals.rowsInserted} new transaction${data.totals.rowsInserted === 1 ? "" : "s"}`,
+          `${data.totals.rowsInserted} rânduri noi`,
           {
-            description: `Read ${data.totals.rowsRead} · skipped ${data.totals.rowsSkipped}`,
+            description: `Citite ${data.totals.rowsRead} · sărite ${data.totals.rowsSkipped}`,
           },
         );
+        /*
+         * Fara numele asociatului in Settings nu avem cum sti care virament e
+         * dividend. Importul reuseste, dar impozitul pe dividende va lipsi din
+         * estimare — si asta trebuie spus, nu lasat sa se vada peste o luna.
+         */
+        if (data.summaries?.some((x: Summary) => x.ownerUnset)) {
+          toast.warning("Nu știu cine e asociatul", {
+            description:
+              "Completează „Asociat” în Settings, altfel dividendele trec drept cheltuieli de firmă.",
+          });
+        }
         router.refresh();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Import failed");
+        toast.error(e instanceof Error ? e.message : "Importul a eșuat");
       } finally {
         setPending(false);
       }
@@ -80,10 +109,16 @@ export function ImportDropzone() {
           )}
           <div className="space-y-1">
             <div className="font-display text-lg">
-              {isDragActive ? "Drop the files here…" : "Drop Revolut CSVs"}
+              {isDragActive
+                ? "Dă-le drumul aici…"
+                : variant === "ing"
+                  ? "Extrase ING Business"
+                  : "Extrase Revolut"}
             </div>
             <div className="text-sm text-muted-foreground">
-              or click to choose · multiple files supported
+              {variant === "ing"
+                ? "sau apasă ca să alegi · toate cele trei conturi odată — RON, EUR, USD"
+                : "sau apasă ca să alegi · mai multe fișiere deodată"}
             </div>
           </div>
         </div>
@@ -93,7 +128,7 @@ export function ImportDropzone() {
         <div className="rounded-md border border-border bg-card p-4 space-y-2 animate-fade-in">
           <div className="flex items-center gap-2 text-sm font-medium">
             <FileSpreadsheet className="h-4 w-4 text-accent" />
-            Last import
+            Ultimul import
           </div>
           <div className="space-y-1">
             {last.summaries.map((s) => (
@@ -103,9 +138,34 @@ export function ImportDropzone() {
               >
                 <span className="truncate">{s.filename}</span>
                 <span>
-                  read {s.rowsRead} · inserted{" "}
-                  <span className="text-success font-medium">{s.rowsInserted}</span> ·
-                  skipped {s.rowsSkipped}
+                  {s.kind === "ing" ? (
+                    <>
+                      {s.currency} · {s.taxesInserted ?? 0} taxe ·{" "}
+                      {s.payoutsInserted ?? 0} dividende ·{" "}
+                      <span className="text-success font-medium">
+                        {s.expensesInserted ?? 0}
+                      </span>{" "}
+                      cheltuieli
+                    </>
+                  ) : (
+                    <>
+                      citite {s.rowsRead} · adăugate{" "}
+                      <span className="text-success font-medium">
+                        {s.rowsInserted}
+                      </span>{" "}
+                      · sărite {s.rowsSkipped}
+                      {(s.skippedOtherCurrency ?? 0) > 0 && (
+                        <>
+                          {" "}
+                          ·{" "}
+                          <span className="text-warning">
+                            {s.skippedOtherCurrency} în{" "}
+                            {(s.skippedCurrencies ?? []).join("/")}
+                          </span>
+                        </>
+                      )}
+                    </>
+                  )}
                 </span>
               </div>
             ))}

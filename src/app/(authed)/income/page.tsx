@@ -73,13 +73,13 @@ export default async function IncomePage(props: {
   const totalYtd = incomeToUsdCents(ytdIncome, settings);
   const totalMonth = incomeToUsdCents(monthIncome, settings);
   const displayCurrency: DisplayCurrency =
-    (settings.displayCurrency as DisplayCurrency) ?? "USD";
+    (settings.displayCurrency as DisplayCurrency) ?? "EUR";
   const totalYtdDisplay = fmtDisplay(
-    usdCentsToDisplay(totalYtd, displayCurrency, settings.fxRonToUsd),
+    usdCentsToDisplay(totalYtd, displayCurrency, settings),
     displayCurrency,
   );
   const totalMonthDisplay = fmtDisplay(
-    usdCentsToDisplay(totalMonth, displayCurrency, settings.fxRonToUsd),
+    usdCentsToDisplay(totalMonth, displayCurrency, settings),
     displayCurrency,
   );
   const monthLabel = fmtMonth(anchorYear, anchorMonth);
@@ -154,7 +154,7 @@ export default async function IncomePage(props: {
         <TabsContent value="projects" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">New project payment</CardTitle>
+              <CardTitle className="text-lg">Plată nouă de proiect</CardTitle>
               <p className="text-sm text-muted-foreground">
                 One-off lump sums (e.g. invoiced fixed-price projects).
               </p>

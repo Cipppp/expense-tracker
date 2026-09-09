@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import {
   DAYS,
   PEOPLE,
+  type People,
   personForSet,
   type SetId,
   type PersonKey,
@@ -34,10 +35,13 @@ export function ChoresBoard({
   todayIdx,
   dayNums,
   chores: initialChores,
+  people = PEOPLE,
 }: {
   weekKey: string;
   weekRange: string;
   assignmentThis: Assignment;
+  /** Numele si culorile celor doi, din Settings. */
+  people?: People;
   assignmentNext: Assignment;
   done: string[];
   todayIdx: number;
@@ -217,11 +221,11 @@ export function ChoresBoard({
           <p className="text-xs text-muted-foreground">
             Săptămâna viitoare ·{" "}
             <span className="text-foreground">
-              {PEOPLE.cip.name} → Rândul {assignNext.cip}
+              {people.cip.name} → Rândul {assignNext.cip}
             </span>{" "}
             ·{" "}
             <span className="text-foreground">
-              {PEOPLE.axy.name} → Rândul {assignNext.axy}
+              {people.axy.name} → Rândul {assignNext.axy}
             </span>
           </p>
           <Button

@@ -1,3 +1,4 @@
+import { requireUserId } from "@/lib/queries";
 import "server-only";
 import { db } from "@/lib/db";
 
@@ -305,13 +306,30 @@ export async function getPortfolio(): Promise<Portfolio> {
 }
 
 /** Un rand pe zi; ultimul castiga, ca graficul sa nu ramana pe valoarea de dimineata. */
+/**
+ * Ultima fotografie a averii, pentru dashboard.
+ *
+ * Nu recalculeaza portofoliul (cotatii + curs BNR la fiecare deschidere a
+ * dashboard-ului ar fi lent si zgomotos): citeste snapshotul pe care il lasa
+ * pagina Investments la fiecare vizita. Cardul spune de cand e cifra.
+ */
+export async function latestNetWorth(): Promise<{
+  day: string;
+  stocksRon: number;
+  savingsRon: number;
+  totalRon: number;
+  takenAt: Date;
+} | null> {
+  return db.netWorthSnapshot.findFirst({ orderBy: { day: "desc" } });
+}
+
 export async function recordSnapshot(p: Portfolio) {
   const day = new Date().toLocaleDateString("en-CA", {
     timeZone: "Europe/Bucharest",
   });
   await db.netWorthSnapshot.upsert({
-    where: { day },
+    where: { userId_day: { userId: await requireUserId(), day } },
     update: { stocksRon: p.stocksRon, savingsRon: p.savingsRon, totalRon: p.totalRon },
-    create: { day, stocksRon: p.stocksRon, savingsRon: p.savingsRon, totalRon: p.totalRon },
+    create: { userId: await requireUserId(), day, stocksRon: p.stocksRon, savingsRon: p.savingsRon, totalRon: p.totalRon },
   });
 }

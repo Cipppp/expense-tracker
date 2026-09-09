@@ -27,10 +27,7 @@ export const maxDuration = 60;
 export async function POST(req: Request) {
   const auth = req.headers.get("authorization") ?? "";
   const bearer = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  const s = await db.settings.findUnique({
-    where: { id: 1 },
-    select: { timelogToken: true },
-  });
+  const s = await getSettings();
   if (!s?.timelogToken || bearer !== s.timelogToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -47,7 +44,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const invoice = await db.invoice.findUnique({
+  const invoice = await db.invoice.findFirst({
     where: { number },
     include: { lines: { orderBy: { position: "asc" } }, job: true },
   });

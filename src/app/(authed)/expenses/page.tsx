@@ -93,10 +93,10 @@ export default async function ExpensesPage(props: {
     filters.q
   );
   const displayCurrency: DisplayCurrency =
-    (settings.displayCurrency as DisplayCurrency) ?? "USD";
+    (settings.displayCurrency as DisplayCurrency) ?? "EUR";
   const fmtMoney = (bani: number) =>
     fmtDisplay(
-      ronBaniToDisplay(bani, displayCurrency, settings.fxRonToUsd),
+      ronBaniToDisplay(bani, displayCurrency, settings),
       displayCurrency,
     );
 
@@ -148,7 +148,7 @@ export default async function ExpensesPage(props: {
       <Card>
         <CardHeader className="space-y-4 pb-4">
           <div className="flex items-baseline justify-between">
-            <CardTitle className="text-lg">All transactions</CardTitle>
+            <CardTitle className="text-lg">Toate tranzacțiile</CardTitle>
             {isFiltered && (
               <Badge variant="accent" className="text-[10px]">
                 Filtered
@@ -178,7 +178,7 @@ export default async function ExpensesPage(props: {
                     className="text-accent underline-offset-4 hover:underline"
                     href="/import"
                   >
-                    Import a Revolut CSV
+                    Importă un extras de cont
                   </a>{" "}
                   to get started.
                 </>

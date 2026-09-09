@@ -1,11 +1,10 @@
+import { getSettings } from "@/lib/queries";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { Resend } from "resend";
 import { db } from "@/lib/db";
-import { EU_MEMBER_STATES } from "@/lib/vat";
 import { renderInvoicePdf, renderActivityReport } from "@/lib/invoice-render";
-import { buildEfacturaXml } from "@/lib/efactura";
-import { pickIssuerIban } from "@/lib/invoice";
+import { buildForInvoice } from "@/lib/anaf/build";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,9 +16,6 @@ const Body = z.object({
   includeActivityReport: z.boolean().optional().default(true),
   includeXml: z.boolean().optional().default(false),
 });
-
-const iso = (d: Date) =>
-  `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 
 export async function POST(
   req: Request,
@@ -50,11 +46,7 @@ export async function POST(
   });
   if (!invoice) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const settings = await db.settings.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { id: 1 },
-  });
+  const settings = await getSettings();
 
   const to = v.to ?? invoice.job?.email ?? null;
   if (!to) {
@@ -85,53 +77,19 @@ export async function POST(
   }
 
   if (v.includeXml) {
-    const xml = buildEfacturaXml({
-      issuer: {
-        name: settings.issuerName,
-        /*
-       * Acelasi swap ca pe ruta de descarcare. Fara el, emailul pleca cu un
-       * PDF care scrie "Cod TVA intracomunitar: RO55415170" si un XML care
-       * declara CIF-ul firmei — doua documente care se contrazic, pentru
-       * aceeasi factura.
-       */
-      cif:
-        settings.issuerVatIntra &&
-        invoice.clientCountry &&
-        invoice.clientCountry.toUpperCase() !== "RO" &&
-        EU_MEMBER_STATES.has(invoice.clientCountry.toUpperCase())
-          ? settings.issuerVatIntra
-          : settings.issuerCif,
-        reg: settings.issuerReg,
-      vatRegistered: settings.vatRegistered,
-        address: settings.issuerAddress,
-        iban: pickIssuerIban(settings, invoice.clientCountry, invoice.invoiceCurrency),
-        swift: settings.issuerSwift,
-      },
-      invoice: {
-        series: invoice.series,
-        number: invoice.number,
-        issuedAtISO: iso(invoice.issuedAt),
-        dueAtISO: invoice.dueAt ? iso(invoice.dueAt) : null,
-        clientCompany: invoice.clientCompany,
-        clientCui: invoice.clientCui,
-        clientReg: invoice.clientReg,
-        clientAddress: invoice.clientAddress,
-        clientCountry: invoice.clientCountry,
-        invoiceCurrency: invoice.invoiceCurrency,
-        bnrRate: invoice.bnrRate,
-        vatRate: invoice.vatRate,
-        lines: invoice.lines.map((l) => ({
-          description: l.description,
-          unit: l.unit,
-          quantity: l.quantity,
-          unitPrice: l.unitPrice,
-          amount: l.amount,
-        })),
-      },
-    });
+    // Acelasi XML pe care l-ar trimite aplicatia la ANAF — un singur
+    // constructor, ca emailul si depunerea sa nu se contrazica.
+    const built = await buildForInvoice(id);
+    if (!built) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (built.doc.blockers.length) {
+      return NextResponse.json(
+        { error: `e-Factura XML has blockers: ${built.doc.blockers.join("; ")}` },
+        { status: 422 },
+      );
+    }
     attachments.push({
       filename: `eFactura_${invoice.series}${invoice.number}.xml`,
-      content: Buffer.from(xml, "utf-8").toString("base64"),
+      content: Buffer.from(built.doc.xml, "utf-8").toString("base64"),
     });
   }
 

@@ -22,6 +22,7 @@ function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") ?? "/";
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +36,7 @@ function LoginForm() {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password, remember }),
+      body: JSON.stringify({ email: email.trim() || undefined, password, remember }),
     });
     setPending(false);
     if (!res.ok) {
@@ -123,16 +124,25 @@ function LoginForm() {
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4">
-        <input
-          type="text"
-          name="username"
-          autoComplete="username"
-          defaultValue="owner"
-          className="hidden"
-          aria-hidden
-        />
+        {/*
+          Emailul e optional: pe o instalare cu un singur cont, serverul il
+          alege singur, deci n-are rost sa ti se ceara ceva ce oricum e unic.
+        */}
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="username"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="lasă gol dacă e singurul cont"
+            className="h-11"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="password">Parolă</Label>
           <Input
             id="password"
             type="password"
@@ -149,7 +159,7 @@ function LoginForm() {
             checked={remember}
             onCheckedChange={(c) => setRemember(c === true)}
           />
-          <span className="text-sm">Remember me for 90 days</span>
+          <span className="text-sm">Ține-mă minte 90 de zile</span>
         </label>
 
         {error && (
@@ -163,7 +173,7 @@ function LoginForm() {
           className="w-full h-11"
           disabled={pending || !password || passkeyPending}
         >
-          {pending ? "Signing in…" : "Sign in"}
+          {pending ? "Se intră…" : "Intră în cont"}
         </Button>
       </form>
     </div>

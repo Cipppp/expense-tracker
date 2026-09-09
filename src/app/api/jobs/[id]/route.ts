@@ -13,6 +13,14 @@ const Update = z.object({
   companyReg: z.string().optional().nullable(),
   companyAddress: z.string().optional().nullable(),
   companyCountry: z.string().optional().nullable(),
+  companyCounty: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^RO-[A-Z]{1,2}$/, "County must be an ISO 3166-2:RO code like RO-B or RO-CJ")
+    .optional()
+    .nullable()
+    .or(z.literal("")),
   email: z.string().email().optional().nullable().or(z.literal("")),
   invoiceDescription: z.string().optional().nullable(),
 });
@@ -26,6 +34,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
   const data = { ...parsed.data };
   if (data.email === "") data.email = null; // normalize blank → cleared
+  if (data.companyCounty === "") data.companyCounty = null;
   const job = await db.job.update({ where: { id }, data });
   return NextResponse.json({ ok: true, job });
 }

@@ -13,34 +13,65 @@ export default async function ImportPage() {
   });
 
   return (
-    <div className="space-y-8 max-w-4xl">
+    <div className="space-y-8">
       <header>
         <div className="text-xs uppercase tracking-[0.07em] text-muted-foreground">
           Import
         </div>
-        <h1 className="mt-1.5 text-[30px] sm:text-[44px] leading-[1.02]">Revolut CSV</h1>
+        <h1 className="mt-1.5 text-[30px] sm:text-[44px] leading-[1.02]">
+          Extrase de cont
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground max-w-2xl">
-          Drop one or more Revolut statement CSVs below. Only RON expenses with
-          state <span className="font-mono text-foreground">COMPLETED</span> are imported. Dedup
-          preserves twin transactions and skips cross-import duplicates automatically.
+          Două surse, două zone. Fișierele sunt recunoscute după antet, deci
+          nimic nu se strică dacă le încurci — zonele separate sunt ca să știi
+          ce cauți. Deduplicarea păstrează tranzacțiile gemene și sare peste
+          rândurile deja importate.
         </p>
       </header>
 
-      <Card>
-        <CardContent className="p-6">
-          <ImportDropzone />
-        </CardContent>
-      </Card>
+      {/*
+        Pe lat, cele doua zone stau in stanga si istoricul in dreapta. Cu
+        totul intr-o coloana de 4xl, jumatate de ecran ramanea gol si trebuia
+        sa dai scroll ca sa vezi daca importul de acum un minut a intrat.
+      */}
+      <div className="grid grid-cols-1 gap-4 items-start xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(320px,0.9fr)]">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Personal — Revolut</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+              Cheltuielile de pe cardul tău. Se importă doar rândurile în RON cu
+              starea <span className="font-mono text-foreground">COMPLETED</span>.
+            </p>
+          </CardHeader>
+          <Separator />
+          <CardContent className="p-6">
+            <ImportDropzone variant="revolut" />
+          </CardContent>
+        </Card>
 
-      <Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Firmă — ING Business</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+              Toate cele trei conturi. Din ele ies taxele plătite, dividendele
+              scoase și cheltuielile firmei — marcate separat în dashboard.
+            </p>
+          </CardHeader>
+          <Separator />
+          <CardContent className="p-6">
+            <ImportDropzone variant="ing" />
+          </CardContent>
+        </Card>
+
+      <Card className="xl:max-h-[640px] xl:overflow-auto">
         <CardHeader>
-          <CardTitle className="text-lg">Recent imports</CardTitle>
+          <CardTitle className="text-lg">Ultimele importuri</CardTitle>
         </CardHeader>
         <Separator />
         <CardContent className="p-0">
           {recent.length === 0 ? (
             <div className="px-6 py-12 text-center text-sm text-muted-foreground">
-              No imports yet.
+              Niciun import încă.
             </div>
           ) : (
             <div className="divide-y divide-border">
@@ -79,6 +110,7 @@ export default async function ImportPage() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,6 @@
+import { resolvePeople } from "@/lib/chores";
 import { db } from "@/lib/db";
+import { getSettings } from "@/lib/queries";
 import { bucharestDay, type Supplement } from "@/lib/supplements";
 import { SupplementsBoard, type LogRow } from "@/components/supplements/supplements-board";
 
@@ -27,6 +29,7 @@ export default async function SupplementsPage() {
 
   return (
     <SupplementsBoard
+      people={resolvePeople(await getSettings())}
       initialLogs={rows}
       today={today}
       catalog={catalog.map((c) => ({

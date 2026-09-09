@@ -14,12 +14,59 @@ Sheets + Apps Script setup with a typed, deployable web app.
 
 ```bash
 npm install
-npm run db:push     # create / migrate schema
-npm run db:seed     # default tax config + default category rules
-npm run dev         # http://localhost:3000
-
-# Default password (set in .env): cefani
+cp .env.example .env       # completează DATABASE_URL, SESSION_SECRET, ACCESS_PASSWORD
+npx prisma migrate deploy  # aplică migrările din prisma/migrations
+npm run db:seed            # reguli de categorii + setări implicite
+npm run dev                # http://localhost:3000
 ```
+
+Baza de date e **PostgreSQL**, nu SQLite. Local merge cel mai simplu prin
+Docker:
+
+```bash
+docker run -d --name et-pg -p 5432:5432 -e POSTGRES_PASSWORD=local postgres:16
+# DATABASE_URL="postgresql://postgres:local@localhost:5432/postgres"
+```
+
+`ACCESS_PASSWORD` și `SESSION_SECRET` sunt obligatorii: nu există parolă
+implicită, iar aplicația refuză cererile fără un secret de sesiune de cel
+puțin 32 de caractere (`openssl rand -hex 32`).
+
+### După prima pornire
+
+Aplicația nu presupune că e a nimănui anume. Înainte să emiți prima factură,
+în **Settings** completează:
+
+- **Firma care emite** — denumire, CIF, reg. com., adresă, bancă, semnatar,
+  seria facturii. Fără ele, factura pleacă goală.
+- **Asociat** — numele cu care apari în extrasul de firmă. Pe baza lui se
+  recunosc dividendele; gol înseamnă că ele trec drept cheltuieli.
+- **Cei doi din casă** — numele și culorile pentru chores, gratitude și
+  suplimente.
+
+### Conturi
+
+Fiecare rând din baza de date aparține unui cont, iar filtrarea se face în
+stratul de date, nu în fiecare interogare: un `where` uitat undeva nu poate
+scurge datele altcuiva, pentru că filtrul se pune oricum.
+
+- Primul cont se creează la **`/signup`**. După ce există unul, înregistrările
+  se închid — o instanță expusă pe internet n-ar trebui să accepte vecini.
+  Pentru mai mulți oameni pe aceeași instanță: `ALLOW_SIGNUP=true`.
+- Parolele sunt hashuite cu scrypt (din Node, fără dependențe noi).
+- La autentificare, emailul e opțional dacă există un singur cont.
+
+### Upgrade de la versiunea cu o singură parolă
+
+```bash
+npx prisma migrate deploy                     # adaugă conturile, leagă datele
+npm run adopt-owner -- --email tu@exemplu.ro  # parola: --password sau ACCESS_PASSWORD
+```
+
+Migrarea creează contul `owner` și îi atribuie **tot** ce există deja —
+cheltuieli, facturi, ore, investiții, setări. Nu se pierde niciun rând.
+`adopt-owner` îi pune emailul și parola cu care intri de-acum înainte; până
+atunci contul are parola goală, deci nu se poate folosi.
 
 Then drop one or more Revolut CSVs onto the **Import** page.
 

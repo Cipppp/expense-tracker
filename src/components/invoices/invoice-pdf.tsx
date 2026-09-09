@@ -7,6 +7,8 @@ import {
   StyleSheet,
 } from "@react-pdf/renderer";
 import { vatKindForInvoice } from "@/lib/vat";
+import { roCountyName } from "@/lib/anaf/scope";
+import { legalMentions } from "@/lib/legal-mentions";
 
 const styles = StyleSheet.create({
   page: {
@@ -99,6 +101,7 @@ export type InvoicePdfProps = {
     clientReg?: string | null;
     clientAddress?: string | null;
     clientCountry?: string | null;
+    clientCounty?: string | null; // ISO 3166-2:RO, ca in XML
     invoiceCurrency: string; // "RON" | "USD" | "EUR"
     legalCurrency: string; // always "RON"
     bnrRate?: number | null;
@@ -217,7 +220,9 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
             {invoice.clientCountry && invoice.clientCountry !== "RO" ? (
               <Text style={styles.blockLine}>Tara: {countryName(invoice.clientCountry)}</Text>
             ) : invoice.clientCountry === "RO" ? (
-              <Text style={styles.blockLine}>Judet: Bucuresti</Text>
+              roCountyName(invoice.clientCounty) ? (
+                <Text style={styles.blockLine}>Judet: {roCountyName(invoice.clientCounty)}</Text>
+              ) : null
             ) : null}
           </View>
         </View>
@@ -272,31 +277,20 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
           </View>
         ) : null}
 
-        {kind === "eu_reverse" ? (
-          <View style={styles.note}>
-            <Text>
-              Operatiune neimpozabila in Romania - taxare inversa (reverse charge).
-              TVA se achita de beneficiar conform art. 196 din Directiva 2006/112/CE
-              (servicii intracomunitare B2B).
-            </Text>
-          </View>
-        ) : kind === "exempt_310" ? (
-          <View style={styles.note}>
-            <Text>
-              Neplatitor de TVA - scutit conform art. 310 din Legea nr. 227/2015
-              privind Codul fiscal (regim special de scutire pentru
-              intreprinderile mici).
-            </Text>
-          </View>
-        ) : kind === "export" ? (
-          <View style={styles.note}>
-            <Text>
-              Operatiune neimpozabila in Romania - export de servicii catre un
-              beneficiar din afara UE (locul prestarii la beneficiar, art. 278
-              Cod fiscal). TVA conform legislatiei din tara beneficiarului.
-            </Text>
-          </View>
-        ) : null}
+        {/*
+          Mentiunea legala de TVA, in romana si engleza, din lib/legal-mentions —
+          acelasi text ajunge si in Oblio, ca cele doua exemplare ale facturii
+          sa nu se contrazica. Clientii sunt straini: engleza nu e optionala.
+        */}
+        {(() => {
+          const m = legalMentions(kind, { issuerVatIntra: issuer.vatIntra });
+          return m ? (
+            <View style={styles.note}>
+              <Text>{m.ro}</Text>
+              <Text style={{ marginTop: 3, color: "#333" }}>{m.en}</Text>
+            </View>
+          ) : null;
+        })()}
 
         {invoice.footerNote ? (
           <View style={styles.note}>

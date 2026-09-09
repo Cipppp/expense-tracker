@@ -13,6 +13,48 @@ export const PEOPLE = {
 } as const;
 export type PersonKey = keyof typeof PEOPLE;
 
+export type Person = { key: PersonKey; name: string; color: string; soft: string };
+export type People = Record<PersonKey, Person>;
+
+/**
+ * Cine sunt cei doi din casa.
+ *
+ * Cheile raman "cip" si "axy" — sunt scrise in fiecare rand din baza de date
+ * si nu au de ce sa se schimbe. Numele si culorile vin din Settings, ca alta
+ * casa sa nu fie nevoita sa traiasca cu numele noastre pe ecran.
+ */
+function softOf(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return "rgba(120,120,130,0.12)";
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},0.12)`;
+}
+
+export function resolvePeople(settings: {
+  personAName?: string | null;
+  personAColor?: string | null;
+  personBName?: string | null;
+  personBColor?: string | null;
+}): People {
+  const one = (
+    key: PersonKey,
+    name: string | null | undefined,
+    color: string | null | undefined,
+  ): Person => {
+    const c = (color ?? "").trim() || PEOPLE[key].color;
+    return {
+      key,
+      name: (name ?? "").trim() || PEOPLE[key].name,
+      color: c,
+      soft: softOf(c),
+    };
+  };
+  return {
+    cip: one("cip", settings.personAName, settings.personAColor),
+    axy: one("axy", settings.personBName, settings.personBColor),
+  };
+}
+
 export const DAYS = [
   "Luni",
   "Marți",

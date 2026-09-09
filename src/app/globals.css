@@ -63,11 +63,70 @@
     --input: 240 12% 92%;
     --ring: 210 100% 45%;              /* focus is blue, not orange */
 
-    --chart-1: 14 89% 53%;             /* signal orange */
-    --chart-2: 210 100% 45%;           /* action blue */
-    --chart-3: 180 84% 35%;            /* teal */
-    --chart-4: 258 90% 66%;            /* violet */
-    --chart-5: 80 42% 43%;             /* olive */
+    /*
+     * Paleta graficelor. Zece nuante alese asa incat sa ramana deosebite si
+     * una langa alta intr-o stiva, si intre ele si fundal. Luminozitatea e
+     * tinuta pe aceeasi treapta in fiecare tema — pe alb coborata ca sa aiba
+     * contrast, pe negru ridicata din acelasi motiv — ca sa nu iasa o
+     * categorie mai "tare" doar pentru ca s-a nimerit mai deschisa.
+     *
+     * Ordinea nu e decorativa: primele patru sunt cele care apar cel mai des
+     * (cheltuieli, incasari, transferuri, taxe), si sunt cele mai departate
+     * intre ele pe roata culorilor.
+     */
+    --chart-1: 20 88% 48%;             /* terracotta */
+    --chart-2: 214 90% 48%;            /* albastru */
+    --chart-3: 168 72% 32%;            /* verde-petrol */
+    --chart-4: 268 72% 55%;            /* violet */
+    --chart-5: 344 78% 48%;            /* zmeuriu */
+    --chart-6: 192 88% 36%;            /* cyan inchis */
+    --chart-7: 41 92% 42%;             /* chihlimbar */
+    --chart-8: 96 48% 36%;             /* verde crud */
+    --chart-9: 236 62% 58%;            /* indigo */
+    --chart-10: 240 6% 46%;            /* neutru */
+
+    /*
+     * Cele trei serii din "Earned vs spent" au culori proprii, nu imprumutate
+     * din paleta categoriilor: sunt aceleasi trei in fiecare luna si trebuie
+     * sa se citeasca instant, nu sa fie deduse din legenda.
+     *
+     * "Available" e desenat ca o umbra: contur clar, umplere aproape
+     * inexistenta. Verdele trebuie sa fie SATURAT chiar daca e inchis — un
+     * verde spalacit intins peste jumatate de bara da masliniu murdar, nu
+     * umbra. Identitatea o duce conturul, nu umplerea.
+     */
+    --series-earned: 266 72% 52%;      /* violet */
+    --series-spent: 348 76% 50%;       /* rose */
+    --series-available: 162 58% 30%;   /* verde curat, adanc */
+
+    /*
+     * Categoriile de cheltuieli: o singura familie de culoare, de la cald si
+     * deschis catre inchis, in ordinea marimii. Opt nuante diferite faceau
+     * graficul sa arate ca o cutie de creioane si tot nu se deosebeau intre
+     * ele — cu o rampa, ordinea din stiva se vede singura.
+     */
+    --cat-1: 40 92% 48%;
+    --cat-2: 32 86% 44%;
+    --cat-3: 24 78% 40%;
+    --cat-4: 18 68% 36%;
+    --cat-5: 12 58% 33%;
+    --cat-6: 6 50% 30%;
+    --cat-7: 358 42% 27%;
+    --cat-8: 350 32% 25%;
+
+    /*
+     * Taxele au propria rampa, rece, ca sa nu se confunde tab-ul cu cel de
+     * categorii doar aruncand un ochi: acolo e cald, aici e albastru-violet.
+     * Aceeasi regula ca la categorii — cea mai mare obligatie ia tonul cel
+     * mai inchis, cele marunte pe cele deschise.
+     */
+    --tax-1: 199 92% 45%;
+    --tax-2: 214 84% 46%;
+    --tax-3: 228 70% 48%;
+    --tax-4: 246 62% 47%;
+    --tax-5: 262 56% 43%;
+    --tax-6: 274 48% 37%;
+    --tax-7: 282 40% 31%;
 
     --radius: 0.75rem;
   }
@@ -111,11 +170,37 @@
     --input: 240 7% 20%;
     --ring: 210 100% 62%;
 
-    --chart-1: 14 92% 60%;
-    --chart-2: 210 100% 66%;
-    --chart-3: 180 65% 48%;
-    --chart-4: 258 90% 74%;
-    --chart-5: 80 45% 55%;
+    --chart-1: 20 92% 62%;
+    --chart-2: 214 96% 66%;
+    --chart-3: 168 62% 46%;
+    --chart-4: 268 88% 74%;
+    --chart-5: 344 88% 68%;
+    --chart-6: 192 82% 52%;
+    --chart-7: 41 94% 58%;
+    --chart-8: 96 46% 54%;
+    --chart-9: 236 84% 74%;
+    --chart-10: 240 6% 58%;
+
+    --series-earned: 266 88% 72%;
+    --series-spent: 348 88% 66%;
+    --series-available: 162 52% 42%;
+
+    --cat-1: 40 96% 74%;
+    --cat-2: 32 92% 65%;
+    --cat-3: 24 84% 56%;
+    --cat-4: 18 72% 48%;
+    --cat-5: 12 60% 42%;
+    --cat-6: 6 50% 37%;
+    --cat-7: 358 40% 33%;
+    --cat-8: 350 30% 29%;
+
+    --tax-1: 199 90% 62%;
+    --tax-2: 214 88% 66%;
+    --tax-3: 228 80% 68%;
+    --tax-4: 246 72% 66%;
+    --tax-5: 262 62% 58%;
+    --tax-6: 274 52% 48%;
+    --tax-7: 282 44% 40%;
   }
 }
 

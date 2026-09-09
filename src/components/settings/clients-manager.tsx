@@ -43,6 +43,8 @@ export type ClientRow = {
   companyReg: string;
   companyAddress: string;
   companyCountry: string;
+  /** ISO 3166-2:RO (RO-B, RO-CJ). ANAF il cere pentru clientii din Romania. */
+  companyCounty: string;
   defaultCurrency: string;
   email: string;
   invoiceDescription: string;
@@ -136,6 +138,9 @@ function ClientRowEditor({
   const [companyAddress, setCompanyAddress] = useState(client.companyAddress);
   const [invoiceDescription, setInvoiceDescription] = useState(client.invoiceDescription);
   const [companyCountry, setCompanyCountry] = useState(client.companyCountry);
+  const [companyCounty, setCompanyCounty] = useState(client.companyCounty);
+  // Tara goala = Romania, exact cum o citesc serverul si generatorul XML.
+  const isRo = !companyCountry || companyCountry === "RO";
   const [email, setEmail] = useState(client.email ?? "");
   const [defaultCurrency, setDefaultCurrency] = useState(
     client.defaultCurrency || "USD",
@@ -156,6 +161,7 @@ function ClientRowEditor({
         companyAddress: companyAddress || null,
         invoiceDescription: invoiceDescription || null,
         companyCountry: companyCountry || null,
+        companyCounty: isRo ? companyCounty.trim().toUpperCase() || null : null,
         defaultCurrency,
         email: email.trim() || null,
       }),
@@ -298,6 +304,22 @@ function ClientRowEditor({
                 maxLength={2}
               />
             </div>
+            {isRo && (
+              <div className="col-span-12 sm:col-span-5 space-y-1">
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  County (ISO 3166-2)
+                </Label>
+                <Input
+                  value={companyCounty}
+                  onChange={(e) => setCompanyCounty(e.target.value.toUpperCase())}
+                  placeholder="RO-B, RO-CJ, RO-TM…"
+                  maxLength={5}
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  ANAF refuses e-Factura without it. Bucharest = RO-B, and the address must say &quot;Sector N&quot;.
+                </p>
+              </div>
+            )}
             <div className="col-span-6 space-y-1">
               <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 CIF / VAT
@@ -384,6 +406,7 @@ function ClientRowEditor({
                 setCompanyAddress(client.companyAddress);
                 setInvoiceDescription(client.invoiceDescription);
                 setCompanyCountry(client.companyCountry);
+                setCompanyCounty(client.companyCounty);
                 setEmail(client.email ?? "");
                 setDefaultCurrency(client.defaultCurrency || "USD");
               }}
@@ -510,6 +533,8 @@ function NewClientForm({
   const [companyAddress, setCompanyAddress] = useState("");
   const [invoiceDescription, setInvoiceDescription] = useState("");
   const [companyCountry, setCompanyCountry] = useState("RO");
+  const [companyCounty, setCompanyCounty] = useState("");
+  const isRo = !companyCountry || companyCountry === "RO";
   const [pending, setPending] = useState(false);
 
   async function save() {
@@ -528,6 +553,7 @@ function NewClientForm({
         companyAddress: companyAddress || null,
         invoiceDescription: invoiceDescription || null,
         companyCountry: companyCountry || null,
+        companyCounty: isRo ? companyCounty.trim().toUpperCase() || null : null,
       }),
     });
     setPending(false);
@@ -625,6 +651,19 @@ function NewClientForm({
               maxLength={2}
             />
           </div>
+          {isRo && (
+            <div className="col-span-12 sm:col-span-5 space-y-1">
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                County (ISO 3166-2)
+              </Label>
+              <Input
+                value={companyCounty}
+                onChange={(e) => setCompanyCounty(e.target.value.toUpperCase())}
+                placeholder="RO-B, RO-CJ, RO-TM…"
+                maxLength={5}
+              />
+            </div>
+          )}
           <div className="col-span-6 space-y-1">
             <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
               CIF / VAT
