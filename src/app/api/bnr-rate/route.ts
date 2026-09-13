@@ -55,7 +55,7 @@ export async function GET(req: Request) {
    * answers every invoice date; only a no-date request uses the daily file.
    */
   const year = date ? parseInt(date.slice(0, 4), 10) : new Date().getFullYear();
-  let xmlUrl = date ? YEAR_URL(year) : TODAY_URL;
+  const xmlUrl = date ? YEAR_URL(year) : TODAY_URL;
 
   let xml: string;
   try {

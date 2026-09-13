@@ -1,0 +1,69 @@
+# Ce trebuie să fie adevărat înainte ca ceva să ajungă în producție.
+#
+# Aplicația se deployează singură din `main`, deci „merge la mine” era, până
+# acum, singura verificare. Aici rulează tot ce se poate rula fără un om:
+# tipurile, testele — inclusiv izolarea între conturi, care are nevoie de un
+# Postgres adevărat — și build-ul.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Ca să poată fi pornit și de mână, când vrei să verifici fără să împingi.
+  workflow_dispatch:
+
+# Un push nou peste altul anulează rulajul vechi: contează ultima stare, nu
+# istoria încercărilor.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        # Fără asta, pașii pornesc înaintea bazei și pică pe conexiune.
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+      # Build-ul nu atinge baza — paginile sunt dinamice — dar Prisma vrea o
+      # adresă validă ca să se inițializeze.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+      SESSION_SECRET: ci-numai-pentru-build-nu-e-un-secret-real
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Tipuri
+        run: npm run typecheck
+
+      - name: Teste
+        # Izolarea între conturi are nevoie de baza de sus. Dacă
+        # TEST_DATABASE_URL lipsește, testele alea se sar în tăcere — de-aia e
+        # setat mai sus, la nivel de job, nu lăsat pe seama nimănui.
+        run: npm test
+
+      - name: Build
+        run: npm run build
