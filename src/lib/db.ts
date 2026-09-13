@@ -45,11 +45,18 @@ async function requireUserId(): Promise<string> {
   throw new NoTenantError();
 }
 
-function makeClient() {
-  const base = new PrismaClient({
+const globalForPrisma = globalThis as unknown as {
+  prisma: ExtendedClient | undefined;
+  prismaBase: PrismaClient | undefined;
+};
+
+const base =
+  globalForPrisma.prismaBase ??
+  new PrismaClient({
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 
+function makeClient() {
   return base.$extends({
     query: {
       $allModels: {
@@ -89,10 +96,41 @@ function makeClient() {
 
 type ExtendedClient = ReturnType<typeof makeClient>;
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: ExtendedClient | undefined;
-};
-
 export const db: ExtendedClient = globalForPrisma.prisma ?? makeClient();
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = db;
+  globalForPrisma.prismaBase = base;
+}
+
+/* -------------------------------------------------------------------------
+ * Autentificarea cu passkey — singurul loc care ocoleste filtrul.
+ *
+ * Filtrul raspunde la "ce are voie sa vada utilizatorul X". La login inca nu
+ * exista un X: intrebarea e chiar "cine esti?", iar raspunsul il da
+ * credentialId-ul, generat de autentificator si unic pe toata instalarea.
+ * Pus prin filtru, apelul ar crapa cu NoTenantError — corect, dar in locul
+ * gresit.
+ *
+ * Sunt trei functii anume, nu un client nescopat exportat pe fata: asa nu
+ * ajunge nimeni sa ocoleasca filtrul din greseala, iar cand cauti ce nu e
+ * filtrat, gasesti exact lista asta.
+ * ---------------------------------------------------------------------- */
+
+/** Toate credentialele de pe instalare, pentru `allowCredentials`. */
+export function listPasskeysForLogin() {
+  return base.passkey.findMany({ select: { credentialId: true, transports: true } });
+}
+
+/** Passkey-ul prezentat de browser, impreuna cu contul caruia ii apartine. */
+export function findPasskeyForLogin(credentialId: string) {
+  return base.passkey.findUnique({ where: { credentialId } });
+}
+
+/** Contorul anti-clonare si ultima folosire, scrise inainte sa existe sesiune. */
+export function recordPasskeyUse(id: string, counter: number) {
+  return base.passkey.update({
+    where: { id },
+    data: { counter, lastUsedAt: new Date() },
+  });
+}
