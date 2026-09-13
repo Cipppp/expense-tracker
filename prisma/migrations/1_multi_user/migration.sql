@@ -119,6 +119,10 @@ ALTER TABLE "Settings" ALTER COLUMN "userId" SET NOT NULL;
 ALTER TABLE "ChoreWeek" ADD CONSTRAINT "ChoreWeek_pkey" PRIMARY KEY ("userId", "isoWeek");
 ALTER TABLE "NetWorthSnapshot" ADD CONSTRAINT "NetWorthSnapshot_pkey" PRIMARY KEY ("userId", "day");
 ALTER TABLE "Settings" ADD CONSTRAINT "Settings_pkey" PRIMARY KEY ("userId");
+-- AnafToken era cheiat pe `id = 1`, adica un singur token pentru toata
+-- instalarea. Acum tokenul apartine contului, deci cheia devine userId.
+ALTER TABLE "AnafToken" DROP CONSTRAINT "AnafToken_pkey", DROP COLUMN "id";
+ALTER TABLE "AnafToken" ADD CONSTRAINT "AnafToken_pkey" PRIMARY KEY ("userId");
 
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 CREATE INDEX "AnafToken_userId_idx" ON "AnafToken"("userId");

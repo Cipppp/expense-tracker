@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
 import { generateAuthenticationOptions } from "@simplewebauthn/server";
-import { db } from "@/lib/db";
+import { listPasskeysForLogin } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { rpFromRequest } from "@/lib/webauthn";
 
 export async function POST(req: Request) {
   const { rpID } = rpFromRequest(req);
 
-  const passkeys = await db.passkey.findMany({
-    select: { credentialId: true, transports: true },
-  });
+  const passkeys = await listPasskeysForLogin();
 
   const options = await generateAuthenticationOptions({
     rpID,

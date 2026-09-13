@@ -1,8 +1,9 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession, getSessionRemember } from "@/lib/session";
 import { db } from "@/lib/db";
-import { verifyPassword } from "@/lib/password";
+import { hashPassword, verifyPassword } from "@/lib/password";
 
 export const runtime = "nodejs";
 
@@ -76,7 +77,10 @@ export async function POST(req: Request) {
    * Acelasi raspuns si cand contul nu exista, si cand parola e gresita. Un
    * mesaj diferit ar spune cine are cont pe instanta asta.
    */
-  const ok = user ? await verifyPassword(password, user.passwordHash) : false;
+  const ok = user
+    ? (await verifyPassword(password, user.passwordHash)) ||
+      (await adoptEnvPassword(user, password))
+    : false;
   if (!user || !ok) {
     recordFailure(ip);
     return NextResponse.json({ error: "Email sau parolă greșită" }, { status: 401 });
@@ -91,6 +95,42 @@ export async function POST(req: Request) {
   session.loginAt = Date.now();
   await session.save();
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * Puntea de la parola din mediu la parola contului.
+ *
+ * Pana la conturi, parola statea in ACCESS_PASSWORD si era a instalarii, nu a
+ * cuiva anume. Migrarea nu putea s-o mute: SQL-ul nu hashuieste, iar secretul
+ * nu se poate citi inapoi din Vercel — variabilele sensibile se scriu, nu se
+ * citesc. Singurul loc unde valoarea exista e aplicatia care ruleaza.
+ *
+ * Deci se muta singura, la prima autentificare reusita: daca tocmai contul a
+ * ramas cu hash-ul gol si ce-ai tastat e chiar ACCESS_PASSWORD, parola devine
+ * a contului. De-atunci `verifyPassword` raspunde primul si functia asta nu se
+ * mai atinge — hash-ul nu mai e gol.
+ *
+ * Nu slabeste nimic: cat timp hash-ul e gol, singura parola care merge e
+ * exact aia care mergea si inainte. Dupa prima intrare, ACCESS_PASSWORD nu mai
+ * conteaza si poate fi sters din Vercel.
+ */
+async function adoptEnvPassword(
+  user: { id: string; passwordHash: string },
+  typed: string,
+): Promise<boolean> {
+  if (user.passwordHash !== "") return false;
+  const fromEnv = process.env.ACCESS_PASSWORD ?? "";
+  if (fromEnv.length < 8) return false;
+
+  const a = Buffer.from(typed);
+  const b = Buffer.from(fromEnv);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return false;
+
+  await db.user.update({
+    where: { id: user.id },
+    data: { passwordHash: await hashPassword(typed) },
+  });
+  return true;
 }
 
 /** O instalare cu un singur cont nu trebuie sa ceara si emailul. */

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyAuthenticationResponse } from "@simplewebauthn/server";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { findPasskeyForLogin, recordPasskeyUse } from "@/lib/db";
 import {
   getSession,
   getSessionRemember,
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   }
 
   const credentialId = (parsed.data.response as AuthenticationResponseJSON).id;
-  const passkey = await db.passkey.findUnique({ where: { credentialId } });
+  const passkey = await findPasskeyForLogin(credentialId);
   if (!passkey) {
     return NextResponse.json({ error: "Unknown passkey" }, { status: 404 });
   }
@@ -67,18 +67,16 @@ export async function POST(req: Request) {
   }
 
   // Update counter + lastUsed.
-  await db.passkey.update({
-    where: { id: passkey.id },
-    data: {
-      counter: verification.authenticationInfo.newCounter,
-      lastUsedAt: new Date(),
-    },
-  });
+  await recordPasskeyUse(passkey.id, verification.authenticationInfo.newCounter);
 
   // Authenticate using the appropriate session TTL.
   const authSession = parsed.data.remember
     ? await getSessionRemember()
     : await getSession();
+  // Contul vine din passkey: el a raspuns la "cine esti". Fara randul asta
+  // sesiunea ar fi autentificata dar fara proprietar, iar prima interogare ar
+  // crapa cu NoTenantError.
+  authSession.userId = passkey.userId;
   authSession.isAuthed = true;
   authSession.loginAt = Date.now();
   authSession.currentChallenge = undefined;

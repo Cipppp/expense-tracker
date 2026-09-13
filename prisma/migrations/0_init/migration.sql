@@ -1,123 +1,17 @@
+-- Punctul de plecare: aplicatia asa cum arata inainte de conturi.
+--
+-- Nu e scrisa de mana, ci extrasa din baza care rula deja in productie, pentru
+-- ca istoricul a inceput dupa ea. De-aia nu are "User" si nicio coloana
+-- "userId" — alea vin din migrarea urmatoare, care le adauga peste date
+-- existente. Daca le-ar avea si aici, cele doua migrari s-ar bate cap in cap
+-- si lantul n-ar mai putea fi rulat de la zero pe o baza goala.
+
 -- CreateSchema
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- CreateTable
-CREATE TABLE "User" (
-    "id" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "passwordHash" TEXT NOT NULL,
-    "name" TEXT NOT NULL DEFAULT '',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Expense" (
-    "userId" TEXT NOT NULL,
-    "id" TEXT NOT NULL,
-    "date" TIMESTAMP(3) NOT NULL,
-    "description" TEXT NOT NULL,
-    "category" TEXT NOT NULL DEFAULT 'Other',
-    "amountRon" INTEGER NOT NULL,
-    "amountUsd" INTEGER NOT NULL,
-    "fxRate" DOUBLE PRECISION NOT NULL,
-    "merchant" TEXT NOT NULL,
-    "source" TEXT NOT NULL DEFAULT 'manual',
-    "dedupKey" TEXT NOT NULL,
-    "sortKey" TEXT,
-    "excluded" BOOLEAN NOT NULL DEFAULT false,
-    "notes" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Expense_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Income" (
-    "userId" TEXT NOT NULL,
-    "id" TEXT NOT NULL,
-    "date" TIMESTAMP(3) NOT NULL,
-    "description" TEXT NOT NULL,
-    "jobId" TEXT,
-    "source" TEXT NOT NULL,
-    "startMinutes" INTEGER,
-    "endMinutes" INTEGER,
-    "hours" DOUBLE PRECISION,
-    "hourlyRate" DOUBLE PRECISION,
-    "currency" TEXT NOT NULL DEFAULT 'USD',
-    "amountUsd" INTEGER NOT NULL,
-    "notes" TEXT,
-    "paidVia" TEXT,
-    "invoiceId" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Income_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Job" (
-    "userId" TEXT NOT NULL,
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "rateUsd" DOUBLE PRECISION NOT NULL,
-    "color" TEXT NOT NULL DEFAULT '#c65c2a',
-    "active" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "companyName" TEXT,
-    "companyCui" TEXT,
-    "companyReg" TEXT,
-    "companyAddress" TEXT,
-    "companyCountry" TEXT,
-    "companyCounty" TEXT,
-    "defaultCurrency" TEXT NOT NULL DEFAULT 'USD',
-    "email" TEXT,
-    "invoiceDescription" TEXT,
-
-    CONSTRAINT "Job_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Invoice" (
-    "userId" TEXT NOT NULL,
-    "id" TEXT NOT NULL,
-    "number" TEXT NOT NULL,
-    "series" TEXT NOT NULL DEFAULT 'CP',
-    "seriesNumber" INTEGER NOT NULL,
-    "issuedAt" TIMESTAMP(3) NOT NULL,
-    "dueAt" TIMESTAMP(3),
-    "jobId" TEXT,
-    "clientName" TEXT NOT NULL,
-    "clientCompany" TEXT NOT NULL,
-    "clientCui" TEXT,
-    "clientReg" TEXT,
-    "clientAddress" TEXT,
-    "clientCountry" TEXT,
-    "clientCounty" TEXT,
-    "invoiceCurrency" TEXT NOT NULL DEFAULT 'RON',
-    "legalCurrency" TEXT NOT NULL DEFAULT 'RON',
-    "bnrRate" DOUBLE PRECISION,
-    "vatRate" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "footerNote" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'draft',
-    "oblioNumber" TEXT,
-    "oblioLink" TEXT,
-    "paidAt" TIMESTAMP(3),
-    "paidIncomeId" TEXT,
-    "efacturaPolicy" TEXT NOT NULL DEFAULT 'auto',
-    "efacturaCurrentId" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Invoice_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "AnafToken" (
-    "userId" TEXT NOT NULL,
+CREATE TABLE "public"."AnafToken" (
+    "id" INTEGER NOT NULL DEFAULT 1,
     "accessTokenEnc" TEXT NOT NULL,
     "refreshTokenEnc" TEXT NOT NULL,
     "accessExpiresAt" TIMESTAMP(3) NOT NULL,
@@ -125,17 +19,64 @@ CREATE TABLE "AnafToken" (
     "certSerial" TEXT,
     "obtainedAt" TIMESTAMP(3) NOT NULL,
     "refreshedAt" TIMESTAMP(3),
-    "refreshingAt" TIMESTAMP(3),
-    "needsReauth" BOOLEAN NOT NULL DEFAULT false,
     "lastHealthOk" TIMESTAMP(3),
     "lastError" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "needsReauth" BOOLEAN NOT NULL DEFAULT false,
+    "refreshingAt" TIMESTAMP(3),
 
-    CONSTRAINT "AnafToken_pkey" PRIMARY KEY ("userId")
+    CONSTRAINT "AnafToken_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "EfacturaSubmission" (
+CREATE TABLE "public"."CategoryRule" (
+    "id" TEXT NOT NULL,
+    "keyword" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "priority" INTEGER NOT NULL DEFAULT 100,
+
+    CONSTRAINT "CategoryRule_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."Chore" (
+    "id" TEXT NOT NULL,
+    "setId" INTEGER NOT NULL,
+    "day" INTEGER NOT NULL,
+    "label" TEXT NOT NULL,
+    "shopping" BOOLEAN NOT NULL DEFAULT false,
+    "position" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Chore_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."ChoreWeek" (
+    "isoWeek" TEXT NOT NULL,
+    "done" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ChoreWeek_pkey" PRIMARY KEY ("isoWeek")
+);
+
+-- CreateTable
+CREATE TABLE "public"."CompanyPayout" (
+    "id" TEXT NOT NULL,
+    "paidAt" TIMESTAMP(3) NOT NULL,
+    "forPeriod" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "amountRon" INTEGER NOT NULL,
+    "description" TEXT NOT NULL,
+    "presumed" BOOLEAN NOT NULL DEFAULT false,
+    "dedupKey" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CompanyPayout_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."EfacturaSubmission" (
     "id" TEXT NOT NULL,
     "invoiceId" TEXT NOT NULL,
     "env" TEXT NOT NULL,
@@ -166,7 +107,135 @@ CREATE TABLE "EfacturaSubmission" (
 );
 
 -- CreateTable
-CREATE TABLE "InvoiceLine" (
+CREATE TABLE "public"."Expense" (
+    "id" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "description" TEXT NOT NULL,
+    "category" TEXT NOT NULL DEFAULT 'Other',
+    "amountRon" INTEGER NOT NULL,
+    "amountUsd" INTEGER NOT NULL,
+    "fxRate" DOUBLE PRECISION NOT NULL,
+    "merchant" TEXT NOT NULL,
+    "source" TEXT NOT NULL DEFAULT 'manual',
+    "dedupKey" TEXT NOT NULL,
+    "sortKey" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "excluded" BOOLEAN NOT NULL DEFAULT false,
+    "notes" TEXT,
+
+    CONSTRAINT "Expense_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."GratitudeItem" (
+    "id" TEXT NOT NULL,
+    "text" TEXT NOT NULL,
+    "author" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "photoKey" TEXT,
+    "pinned" BOOLEAN NOT NULL DEFAULT false,
+    "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
+
+    CONSTRAINT "GratitudeItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."GratitudeReaction" (
+    "id" TEXT NOT NULL,
+    "itemId" TEXT NOT NULL,
+    "person" TEXT NOT NULL,
+    "emoji" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "GratitudeReaction_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."Holding" (
+    "id" TEXT NOT NULL,
+    "symbol" TEXT NOT NULL,
+    "name" TEXT,
+    "quantity" DOUBLE PRECISION NOT NULL,
+    "avgCost" DOUBLE PRECISION,
+    "currency" TEXT NOT NULL DEFAULT 'USD',
+    "source" TEXT NOT NULL DEFAULT 'manual',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Holding_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."ImportBatch" (
+    "id" TEXT NOT NULL,
+    "filename" TEXT NOT NULL,
+    "rowsRead" INTEGER NOT NULL,
+    "rowsInsert" INTEGER NOT NULL,
+    "rowsSkipped" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ImportBatch_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."Income" (
+    "id" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "description" TEXT NOT NULL,
+    "source" TEXT NOT NULL,
+    "hours" DOUBLE PRECISION,
+    "hourlyRate" DOUBLE PRECISION,
+    "amountUsd" INTEGER NOT NULL,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "endMinutes" INTEGER,
+    "jobId" TEXT,
+    "startMinutes" INTEGER,
+    "invoiceId" TEXT,
+    "currency" TEXT NOT NULL DEFAULT 'USD',
+    "paidVia" TEXT,
+
+    CONSTRAINT "Income_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."Invoice" (
+    "id" TEXT NOT NULL,
+    "number" TEXT NOT NULL,
+    "series" TEXT NOT NULL DEFAULT 'CP',
+    "seriesNumber" INTEGER NOT NULL,
+    "issuedAt" TIMESTAMP(3) NOT NULL,
+    "dueAt" TIMESTAMP(3),
+    "jobId" TEXT,
+    "clientName" TEXT NOT NULL,
+    "clientCompany" TEXT NOT NULL,
+    "clientCui" TEXT,
+    "clientReg" TEXT,
+    "clientAddress" TEXT,
+    "clientCountry" TEXT,
+    "invoiceCurrency" TEXT NOT NULL DEFAULT 'RON',
+    "legalCurrency" TEXT NOT NULL DEFAULT 'RON',
+    "bnrRate" DOUBLE PRECISION,
+    "footerNote" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'draft',
+    "paidAt" TIMESTAMP(3),
+    "paidIncomeId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "vatRate" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "oblioLink" TEXT,
+    "oblioNumber" TEXT,
+    "clientCounty" TEXT,
+    "efacturaCurrentId" TEXT,
+    "efacturaPolicy" TEXT NOT NULL DEFAULT 'auto',
+
+    CONSTRAINT "Invoice_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."InvoiceLine" (
     "id" TEXT NOT NULL,
     "invoiceId" TEXT NOT NULL,
     "position" INTEGER NOT NULL,
@@ -180,8 +249,112 @@ CREATE TABLE "InvoiceLine" (
 );
 
 -- CreateTable
-CREATE TABLE "Subscription" (
-    "userId" TEXT NOT NULL,
+CREATE TABLE "public"."Job" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "rateUsd" DOUBLE PRECISION NOT NULL,
+    "color" TEXT NOT NULL DEFAULT '#c65c2a',
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "companyAddress" TEXT,
+    "companyCountry" TEXT,
+    "companyCui" TEXT,
+    "companyName" TEXT,
+    "companyReg" TEXT,
+    "defaultCurrency" TEXT NOT NULL DEFAULT 'USD',
+    "email" TEXT,
+    "invoiceDescription" TEXT,
+    "companyCounty" TEXT,
+
+    CONSTRAINT "Job_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."NetWorthSnapshot" (
+    "day" TEXT NOT NULL,
+    "stocksRon" INTEGER NOT NULL,
+    "savingsRon" INTEGER NOT NULL,
+    "totalRon" INTEGER NOT NULL,
+    "takenAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "NetWorthSnapshot_pkey" PRIMARY KEY ("day")
+);
+
+-- CreateTable
+CREATE TABLE "public"."Passkey" (
+    "id" TEXT NOT NULL,
+    "label" TEXT NOT NULL,
+    "credentialId" TEXT NOT NULL,
+    "publicKey" BYTEA NOT NULL,
+    "counter" INTEGER NOT NULL DEFAULT 0,
+    "transports" TEXT NOT NULL DEFAULT '',
+    "deviceType" TEXT NOT NULL DEFAULT 'singleDevice',
+    "backedUp" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastUsedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Passkey_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."SavingsAccount" (
+    "id" TEXT NOT NULL,
+    "label" TEXT NOT NULL,
+    "amountRon" INTEGER NOT NULL DEFAULT 0,
+    "amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "currency" TEXT NOT NULL DEFAULT 'RON',
+    "position" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SavingsAccount_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."Settings" (
+    "id" INTEGER NOT NULL DEFAULT 1,
+    "fxRonToUsd" DOUBLE PRECISION NOT NULL DEFAULT 0.2255,
+    "bsBasRon" INTEGER NOT NULL DEFAULT 141500,
+    "camRon" INTEGER NOT NULL DEFAULT 8400,
+    "microPct" DOUBLE PRECISION NOT NULL DEFAULT 0.01,
+    "dividendePct" DOUBLE PRECISION NOT NULL DEFAULT 0.16,
+    "redThresholdRon" INTEGER NOT NULL DEFAULT 5000,
+    "startYear" INTEGER NOT NULL DEFAULT 2026,
+    "startMonth" INTEGER NOT NULL DEFAULT 4,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "invoiceSeries" TEXT NOT NULL DEFAULT 'CP',
+    "issuerAddress" TEXT NOT NULL DEFAULT '',
+    "issuerBank" TEXT NOT NULL DEFAULT '',
+    "issuerCapital" TEXT NOT NULL DEFAULT '',
+    "issuerCif" TEXT NOT NULL DEFAULT '',
+    "issuerIban" TEXT NOT NULL DEFAULT '',
+    "issuerName" TEXT NOT NULL DEFAULT '',
+    "issuerReg" TEXT NOT NULL DEFAULT '',
+    "issuerSigner" TEXT NOT NULL DEFAULT '',
+    "displayCurrency" TEXT NOT NULL DEFAULT 'EUR',
+    "timelogToken" TEXT,
+    "vatRate" DOUBLE PRECISION NOT NULL DEFAULT 0.21,
+    "invoiceStartNumber" INTEGER NOT NULL DEFAULT 1,
+    "senderEmail" TEXT NOT NULL DEFAULT '',
+    "senderName" TEXT NOT NULL DEFAULT '',
+    "issuerIbanEur" TEXT NOT NULL DEFAULT '',
+    "issuerSwift" TEXT NOT NULL DEFAULT '',
+    "choresFlip" BOOLEAN NOT NULL DEFAULT false,
+    "fxEurToUsd" DOUBLE PRECISION NOT NULL DEFAULT 1.1833,
+    "issuerVatIntra" TEXT NOT NULL DEFAULT '',
+    "vatRegistered" BOOLEAN NOT NULL DEFAULT true,
+    "issuerIbanUsd" TEXT NOT NULL DEFAULT '',
+    "ownerNames" TEXT NOT NULL DEFAULT '',
+    "personAColor" TEXT NOT NULL DEFAULT '',
+    "personAName" TEXT NOT NULL DEFAULT '',
+    "personBColor" TEXT NOT NULL DEFAULT '',
+    "personBName" TEXT NOT NULL DEFAULT '',
+
+    CONSTRAINT "Settings_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."Subscription" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "category" TEXT NOT NULL DEFAULT 'Subscriptions',
@@ -201,174 +374,7 @@ CREATE TABLE "Subscription" (
 );
 
 -- CreateTable
-CREATE TABLE "TaxPayment" (
-    "userId" TEXT NOT NULL,
-    "id" TEXT NOT NULL,
-    "paidAt" TIMESTAMP(3) NOT NULL,
-    "forPeriod" TEXT,
-    "kind" TEXT NOT NULL,
-    "amountRon" INTEGER NOT NULL,
-    "description" TEXT NOT NULL,
-    "dedupKey" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "TaxPayment_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "CompanyPayout" (
-    "userId" TEXT NOT NULL,
-    "id" TEXT NOT NULL,
-    "paidAt" TIMESTAMP(3) NOT NULL,
-    "forPeriod" TEXT NOT NULL,
-    "kind" TEXT NOT NULL,
-    "amountRon" INTEGER NOT NULL,
-    "description" TEXT NOT NULL,
-    "presumed" BOOLEAN NOT NULL DEFAULT false,
-    "dedupKey" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "CompanyPayout_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Holding" (
-    "userId" TEXT NOT NULL,
-    "id" TEXT NOT NULL,
-    "symbol" TEXT NOT NULL,
-    "name" TEXT,
-    "quantity" DOUBLE PRECISION NOT NULL,
-    "avgCost" DOUBLE PRECISION,
-    "currency" TEXT NOT NULL DEFAULT 'USD',
-    "source" TEXT NOT NULL DEFAULT 'manual',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Holding_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "SavingsAccount" (
-    "userId" TEXT NOT NULL,
-    "id" TEXT NOT NULL,
-    "label" TEXT NOT NULL,
-    "amountRon" INTEGER NOT NULL DEFAULT 0,
-    "amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "currency" TEXT NOT NULL DEFAULT 'RON',
-    "position" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "SavingsAccount_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "NetWorthSnapshot" (
-    "userId" TEXT NOT NULL,
-    "day" TEXT NOT NULL,
-    "stocksRon" INTEGER NOT NULL,
-    "savingsRon" INTEGER NOT NULL,
-    "totalRon" INTEGER NOT NULL,
-    "takenAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "NetWorthSnapshot_pkey" PRIMARY KEY ("userId","day")
-);
-
--- CreateTable
-CREATE TABLE "Settings" (
-    "userId" TEXT NOT NULL,
-    "displayCurrency" TEXT NOT NULL DEFAULT 'EUR',
-    "timelogToken" TEXT,
-    "fxRonToUsd" DOUBLE PRECISION NOT NULL DEFAULT 0.2255,
-    "fxEurToUsd" DOUBLE PRECISION NOT NULL DEFAULT 1.1833,
-    "bsBasRon" INTEGER NOT NULL DEFAULT 141500,
-    "camRon" INTEGER NOT NULL DEFAULT 8400,
-    "microPct" DOUBLE PRECISION NOT NULL DEFAULT 0.01,
-    "dividendePct" DOUBLE PRECISION NOT NULL DEFAULT 0.16,
-    "vatRate" DOUBLE PRECISION NOT NULL DEFAULT 0.21,
-    "vatRegistered" BOOLEAN NOT NULL DEFAULT true,
-    "issuerVatIntra" TEXT NOT NULL DEFAULT '',
-    "redThresholdRon" INTEGER NOT NULL DEFAULT 5000,
-    "startYear" INTEGER NOT NULL DEFAULT 2026,
-    "startMonth" INTEGER NOT NULL DEFAULT 4,
-    "issuerName" TEXT NOT NULL DEFAULT '',
-    "issuerCif" TEXT NOT NULL DEFAULT '',
-    "issuerReg" TEXT NOT NULL DEFAULT '',
-    "issuerAddress" TEXT NOT NULL DEFAULT '',
-    "issuerIban" TEXT NOT NULL DEFAULT '',
-    "issuerIbanEur" TEXT NOT NULL DEFAULT '',
-    "issuerIbanUsd" TEXT NOT NULL DEFAULT '',
-    "issuerSwift" TEXT NOT NULL DEFAULT '',
-    "issuerBank" TEXT NOT NULL DEFAULT '',
-    "issuerCapital" TEXT NOT NULL DEFAULT '',
-    "issuerSigner" TEXT NOT NULL DEFAULT '',
-    "senderEmail" TEXT NOT NULL DEFAULT '',
-    "senderName" TEXT NOT NULL DEFAULT '',
-    "invoiceSeries" TEXT NOT NULL DEFAULT 'CP',
-    "invoiceStartNumber" INTEGER NOT NULL DEFAULT 1,
-    "ownerNames" TEXT NOT NULL DEFAULT '',
-    "personAName" TEXT NOT NULL DEFAULT '',
-    "personAColor" TEXT NOT NULL DEFAULT '',
-    "personBName" TEXT NOT NULL DEFAULT '',
-    "personBColor" TEXT NOT NULL DEFAULT '',
-    "choresFlip" BOOLEAN NOT NULL DEFAULT false,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Settings_pkey" PRIMARY KEY ("userId")
-);
-
--- CreateTable
-CREATE TABLE "Chore" (
-    "userId" TEXT NOT NULL,
-    "id" TEXT NOT NULL,
-    "setId" INTEGER NOT NULL,
-    "day" INTEGER NOT NULL,
-    "label" TEXT NOT NULL,
-    "shopping" BOOLEAN NOT NULL DEFAULT false,
-    "position" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Chore_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "ChoreWeek" (
-    "userId" TEXT NOT NULL,
-    "isoWeek" TEXT NOT NULL,
-    "done" TEXT[] DEFAULT ARRAY[]::TEXT[],
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "ChoreWeek_pkey" PRIMARY KEY ("userId","isoWeek")
-);
-
--- CreateTable
-CREATE TABLE "GratitudeItem" (
-    "userId" TEXT NOT NULL,
-    "id" TEXT NOT NULL,
-    "text" TEXT NOT NULL,
-    "author" TEXT,
-    "photoKey" TEXT,
-    "pinned" BOOLEAN NOT NULL DEFAULT false,
-    "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "GratitudeItem_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "GratitudeReaction" (
-    "id" TEXT NOT NULL,
-    "itemId" TEXT NOT NULL,
-    "person" TEXT NOT NULL,
-    "emoji" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "GratitudeReaction_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Supplement" (
-    "userId" TEXT NOT NULL,
+CREATE TABLE "public"."Supplement" (
     "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -393,8 +399,7 @@ CREATE TABLE "Supplement" (
 );
 
 -- CreateTable
-CREATE TABLE "SupplementLog" (
-    "userId" TEXT NOT NULL,
+CREATE TABLE "public"."SupplementLog" (
     "id" TEXT NOT NULL,
     "day" TEXT NOT NULL,
     "person" TEXT NOT NULL,
@@ -406,298 +411,163 @@ CREATE TABLE "SupplementLog" (
 );
 
 -- CreateTable
-CREATE TABLE "ImportBatch" (
-    "userId" TEXT NOT NULL,
+CREATE TABLE "public"."TaxPayment" (
     "id" TEXT NOT NULL,
-    "filename" TEXT NOT NULL,
-    "rowsRead" INTEGER NOT NULL,
-    "rowsInsert" INTEGER NOT NULL,
-    "rowsSkipped" INTEGER NOT NULL,
+    "paidAt" TIMESTAMP(3) NOT NULL,
+    "forPeriod" TEXT,
+    "kind" TEXT NOT NULL,
+    "amountRon" INTEGER NOT NULL,
+    "description" TEXT NOT NULL,
+    "dedupKey" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "ImportBatch_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "CategoryRule" (
-    "userId" TEXT NOT NULL,
-    "id" TEXT NOT NULL,
-    "keyword" TEXT NOT NULL,
-    "category" TEXT NOT NULL,
-    "priority" INTEGER NOT NULL DEFAULT 100,
-
-    CONSTRAINT "CategoryRule_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Passkey" (
-    "userId" TEXT NOT NULL,
-    "id" TEXT NOT NULL,
-    "label" TEXT NOT NULL,
-    "credentialId" TEXT NOT NULL,
-    "publicKey" BYTEA NOT NULL,
-    "counter" INTEGER NOT NULL DEFAULT 0,
-    "transports" TEXT NOT NULL DEFAULT '',
-    "deviceType" TEXT NOT NULL DEFAULT 'singleDevice',
-    "backedUp" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "lastUsedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Passkey_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "TaxPayment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+CREATE UNIQUE INDEX "CategoryRule_keyword_key" ON "public"."CategoryRule"("keyword" ASC);
 
 -- CreateIndex
-CREATE INDEX "Expense_date_idx" ON "Expense"("date");
+CREATE INDEX "Chore_setId_day_position_idx" ON "public"."Chore"("setId" ASC, "day" ASC, "position" ASC);
 
 -- CreateIndex
-CREATE INDEX "Expense_category_idx" ON "Expense"("category");
+CREATE UNIQUE INDEX "CompanyPayout_dedupKey_key" ON "public"."CompanyPayout"("dedupKey" ASC);
 
 -- CreateIndex
-CREATE INDEX "Expense_dedupKey_idx" ON "Expense"("dedupKey");
+CREATE INDEX "CompanyPayout_forPeriod_idx" ON "public"."CompanyPayout"("forPeriod" ASC);
 
 -- CreateIndex
-CREATE INDEX "Expense_merchant_idx" ON "Expense"("merchant");
+CREATE INDEX "CompanyPayout_kind_idx" ON "public"."CompanyPayout"("kind" ASC);
 
 -- CreateIndex
-CREATE INDEX "Expense_excluded_idx" ON "Expense"("excluded");
+CREATE INDEX "CompanyPayout_paidAt_idx" ON "public"."CompanyPayout"("paidAt" ASC);
 
 -- CreateIndex
-CREATE INDEX "Expense_userId_idx" ON "Expense"("userId");
+CREATE UNIQUE INDEX "EfacturaSubmission_indexIncarcare_key" ON "public"."EfacturaSubmission"("indexIncarcare" ASC);
 
 -- CreateIndex
-CREATE INDEX "Income_date_idx" ON "Income"("date");
+CREATE INDEX "EfacturaSubmission_invoiceId_idx" ON "public"."EfacturaSubmission"("invoiceId" ASC);
 
 -- CreateIndex
-CREATE INDEX "Income_jobId_idx" ON "Income"("jobId");
+CREATE INDEX "EfacturaSubmission_state_idx" ON "public"."EfacturaSubmission"("state" ASC);
 
 -- CreateIndex
-CREATE INDEX "Income_source_idx" ON "Income"("source");
+CREATE INDEX "Expense_category_idx" ON "public"."Expense"("category" ASC);
 
 -- CreateIndex
-CREATE INDEX "Income_invoiceId_idx" ON "Income"("invoiceId");
+CREATE INDEX "Expense_date_idx" ON "public"."Expense"("date" ASC);
 
 -- CreateIndex
-CREATE INDEX "Income_userId_idx" ON "Income"("userId");
+CREATE INDEX "Expense_dedupKey_idx" ON "public"."Expense"("dedupKey" ASC);
 
 -- CreateIndex
-CREATE INDEX "Job_userId_idx" ON "Job"("userId");
+CREATE INDEX "Expense_excluded_idx" ON "public"."Expense"("excluded" ASC);
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Job_userId_name_key" ON "Job"("userId", "name");
+CREATE INDEX "Expense_merchant_idx" ON "public"."Expense"("merchant" ASC);
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Invoice_paidIncomeId_key" ON "Invoice"("paidIncomeId");
+CREATE INDEX "GratitudeItem_createdAt_idx" ON "public"."GratitudeItem"("createdAt" ASC);
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Invoice_efacturaCurrentId_key" ON "Invoice"("efacturaCurrentId");
+CREATE INDEX "GratitudeReaction_itemId_idx" ON "public"."GratitudeReaction"("itemId" ASC);
 
 -- CreateIndex
-CREATE INDEX "Invoice_issuedAt_idx" ON "Invoice"("issuedAt");
+CREATE UNIQUE INDEX "GratitudeReaction_itemId_person_key" ON "public"."GratitudeReaction"("itemId" ASC, "person" ASC);
 
 -- CreateIndex
-CREATE INDEX "Invoice_jobId_idx" ON "Invoice"("jobId");
+CREATE INDEX "Holding_source_idx" ON "public"."Holding"("source" ASC);
 
 -- CreateIndex
-CREATE INDEX "Invoice_status_idx" ON "Invoice"("status");
+CREATE UNIQUE INDEX "Holding_symbol_source_key" ON "public"."Holding"("symbol" ASC, "source" ASC);
 
 -- CreateIndex
-CREATE INDEX "Invoice_userId_idx" ON "Invoice"("userId");
+CREATE INDEX "Income_date_idx" ON "public"."Income"("date" ASC);
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Invoice_userId_number_key" ON "Invoice"("userId", "number");
+CREATE INDEX "Income_invoiceId_idx" ON "public"."Income"("invoiceId" ASC);
 
 -- CreateIndex
-CREATE INDEX "AnafToken_userId_idx" ON "AnafToken"("userId");
+CREATE INDEX "Income_jobId_idx" ON "public"."Income"("jobId" ASC);
 
 -- CreateIndex
-CREATE UNIQUE INDEX "EfacturaSubmission_indexIncarcare_key" ON "EfacturaSubmission"("indexIncarcare");
+CREATE INDEX "Income_source_idx" ON "public"."Income"("source" ASC);
 
 -- CreateIndex
-CREATE INDEX "EfacturaSubmission_invoiceId_idx" ON "EfacturaSubmission"("invoiceId");
+CREATE UNIQUE INDEX "Invoice_efacturaCurrentId_key" ON "public"."Invoice"("efacturaCurrentId" ASC);
 
 -- CreateIndex
-CREATE INDEX "EfacturaSubmission_state_idx" ON "EfacturaSubmission"("state");
+CREATE INDEX "Invoice_issuedAt_idx" ON "public"."Invoice"("issuedAt" ASC);
 
 -- CreateIndex
-CREATE INDEX "InvoiceLine_invoiceId_idx" ON "InvoiceLine"("invoiceId");
+CREATE INDEX "Invoice_jobId_idx" ON "public"."Invoice"("jobId" ASC);
 
 -- CreateIndex
-CREATE INDEX "Subscription_active_idx" ON "Subscription"("active");
+CREATE UNIQUE INDEX "Invoice_number_key" ON "public"."Invoice"("number" ASC);
 
 -- CreateIndex
-CREATE INDEX "Subscription_userId_idx" ON "Subscription"("userId");
+CREATE UNIQUE INDEX "Invoice_paidIncomeId_key" ON "public"."Invoice"("paidIncomeId" ASC);
 
 -- CreateIndex
-CREATE INDEX "TaxPayment_paidAt_idx" ON "TaxPayment"("paidAt");
+CREATE INDEX "Invoice_status_idx" ON "public"."Invoice"("status" ASC);
 
 -- CreateIndex
-CREATE INDEX "TaxPayment_forPeriod_idx" ON "TaxPayment"("forPeriod");
+CREATE INDEX "InvoiceLine_invoiceId_idx" ON "public"."InvoiceLine"("invoiceId" ASC);
 
 -- CreateIndex
-CREATE INDEX "TaxPayment_kind_idx" ON "TaxPayment"("kind");
+CREATE UNIQUE INDEX "Job_name_key" ON "public"."Job"("name" ASC);
 
 -- CreateIndex
-CREATE UNIQUE INDEX "TaxPayment_userId_dedupKey_key" ON "TaxPayment"("userId", "dedupKey");
+CREATE INDEX "Passkey_credentialId_idx" ON "public"."Passkey"("credentialId" ASC);
 
 -- CreateIndex
-CREATE INDEX "CompanyPayout_paidAt_idx" ON "CompanyPayout"("paidAt");
+CREATE UNIQUE INDEX "Passkey_credentialId_key" ON "public"."Passkey"("credentialId" ASC);
 
 -- CreateIndex
-CREATE INDEX "CompanyPayout_forPeriod_idx" ON "CompanyPayout"("forPeriod");
+CREATE INDEX "Subscription_active_idx" ON "public"."Subscription"("active" ASC);
 
 -- CreateIndex
-CREATE INDEX "CompanyPayout_kind_idx" ON "CompanyPayout"("kind");
+CREATE UNIQUE INDEX "Supplement_key_key" ON "public"."Supplement"("key" ASC);
 
 -- CreateIndex
-CREATE UNIQUE INDEX "CompanyPayout_userId_dedupKey_key" ON "CompanyPayout"("userId", "dedupKey");
+CREATE INDEX "Supplement_timing_position_idx" ON "public"."Supplement"("timing" ASC, "position" ASC);
 
 -- CreateIndex
-CREATE INDEX "Holding_userId_idx" ON "Holding"("userId");
+CREATE INDEX "SupplementLog_day_idx" ON "public"."SupplementLog"("day" ASC);
 
 -- CreateIndex
-CREATE INDEX "Holding_source_idx" ON "Holding"("source");
+CREATE UNIQUE INDEX "SupplementLog_day_person_key_key" ON "public"."SupplementLog"("day" ASC, "person" ASC, "key" ASC);
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Holding_userId_symbol_source_key" ON "Holding"("userId", "symbol", "source");
+CREATE UNIQUE INDEX "TaxPayment_dedupKey_key" ON "public"."TaxPayment"("dedupKey" ASC);
 
 -- CreateIndex
-CREATE INDEX "SavingsAccount_userId_idx" ON "SavingsAccount"("userId");
+CREATE INDEX "TaxPayment_forPeriod_idx" ON "public"."TaxPayment"("forPeriod" ASC);
 
 -- CreateIndex
-CREATE INDEX "Chore_setId_day_position_idx" ON "Chore"("setId", "day", "position");
+CREATE INDEX "TaxPayment_kind_idx" ON "public"."TaxPayment"("kind" ASC);
 
 -- CreateIndex
-CREATE INDEX "Chore_userId_idx" ON "Chore"("userId");
-
--- CreateIndex
-CREATE INDEX "GratitudeItem_createdAt_idx" ON "GratitudeItem"("createdAt");
-
--- CreateIndex
-CREATE INDEX "GratitudeItem_userId_idx" ON "GratitudeItem"("userId");
-
--- CreateIndex
-CREATE INDEX "GratitudeReaction_itemId_idx" ON "GratitudeReaction"("itemId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "GratitudeReaction_itemId_person_key" ON "GratitudeReaction"("itemId", "person");
-
--- CreateIndex
-CREATE INDEX "Supplement_timing_position_idx" ON "Supplement"("timing", "position");
-
--- CreateIndex
-CREATE INDEX "Supplement_userId_idx" ON "Supplement"("userId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Supplement_userId_key_key" ON "Supplement"("userId", "key");
-
--- CreateIndex
-CREATE INDEX "SupplementLog_day_idx" ON "SupplementLog"("day");
-
--- CreateIndex
-CREATE INDEX "SupplementLog_userId_idx" ON "SupplementLog"("userId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "SupplementLog_userId_day_person_key_key" ON "SupplementLog"("userId", "day", "person", "key");
-
--- CreateIndex
-CREATE INDEX "ImportBatch_userId_idx" ON "ImportBatch"("userId");
-
--- CreateIndex
-CREATE INDEX "CategoryRule_userId_idx" ON "CategoryRule"("userId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "CategoryRule_userId_keyword_key" ON "CategoryRule"("userId", "keyword");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Passkey_credentialId_key" ON "Passkey"("credentialId");
-
--- CreateIndex
-CREATE INDEX "Passkey_credentialId_idx" ON "Passkey"("credentialId");
-
--- CreateIndex
-CREATE INDEX "Passkey_userId_idx" ON "Passkey"("userId");
+CREATE INDEX "TaxPayment_paidAt_idx" ON "public"."TaxPayment"("paidAt" ASC);
 
 -- AddForeignKey
-ALTER TABLE "Expense" ADD CONSTRAINT "Expense_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."EfacturaSubmission" ADD CONSTRAINT "EfacturaSubmission_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "public"."Invoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Income" ADD CONSTRAINT "Income_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."GratitudeReaction" ADD CONSTRAINT "GratitudeReaction_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "public"."GratitudeItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Income" ADD CONSTRAINT "Income_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."Income" ADD CONSTRAINT "Income_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "public"."Invoice"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Income" ADD CONSTRAINT "Income_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."Income" ADD CONSTRAINT "Income_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "public"."Job"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Job" ADD CONSTRAINT "Job_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."Invoice" ADD CONSTRAINT "Invoice_efacturaCurrentId_fkey" FOREIGN KEY ("efacturaCurrentId") REFERENCES "public"."EfacturaSubmission"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."Invoice" ADD CONSTRAINT "Invoice_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "public"."Job"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_efacturaCurrentId_fkey" FOREIGN KEY ("efacturaCurrentId") REFERENCES "EfacturaSubmission"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AnafToken" ADD CONSTRAINT "AnafToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "EfacturaSubmission" ADD CONSTRAINT "EfacturaSubmission_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "InvoiceLine" ADD CONSTRAINT "InvoiceLine_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "TaxPayment" ADD CONSTRAINT "TaxPayment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CompanyPayout" ADD CONSTRAINT "CompanyPayout_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Holding" ADD CONSTRAINT "Holding_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SavingsAccount" ADD CONSTRAINT "SavingsAccount_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "NetWorthSnapshot" ADD CONSTRAINT "NetWorthSnapshot_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Settings" ADD CONSTRAINT "Settings_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Chore" ADD CONSTRAINT "Chore_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ChoreWeek" ADD CONSTRAINT "ChoreWeek_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "GratitudeItem" ADD CONSTRAINT "GratitudeItem_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "GratitudeReaction" ADD CONSTRAINT "GratitudeReaction_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "GratitudeItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Supplement" ADD CONSTRAINT "Supplement_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SupplementLog" ADD CONSTRAINT "SupplementLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ImportBatch" ADD CONSTRAINT "ImportBatch_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CategoryRule" ADD CONSTRAINT "CategoryRule_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Passkey" ADD CONSTRAINT "Passkey_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."InvoiceLine" ADD CONSTRAINT "InvoiceLine_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "public"."Invoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
