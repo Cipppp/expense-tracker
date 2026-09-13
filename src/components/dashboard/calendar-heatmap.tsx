@@ -94,6 +94,10 @@ export function CalendarHeatmap({
 
   useEffect(() => {
     if (months[key]) return;
+    // Aduce luna ceruta daca n-o avem deja. `setState` se intampla dupa raspuns,
+    // nu sincron aici — regula se uita in interiorul lui `fetchMonth` si nu poate
+    // vedea ca totul e dupa un `await`.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchMonth(year, month);
   }, [key, year, month, months, fetchMonth]);
 

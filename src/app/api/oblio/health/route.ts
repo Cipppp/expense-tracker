@@ -1,7 +1,6 @@
-import { getSettings, requireUserId } from "@/lib/queries";
+import { getSettings } from "@/lib/queries";
 import { NextResponse } from "next/server";
 import { oblioConfigured, oblioPreflight } from "@/lib/oblio";
-import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

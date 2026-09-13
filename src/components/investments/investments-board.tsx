@@ -508,14 +508,22 @@ function Donut({
   pct: (n: number | null) => string;
 }) {
   const CX = 100, CY = 100, R = 82, INNER = 50;
-  let angle = -Math.PI / 2;
-  const slices = items.map((it) => {
+  // Inelul pornește în vârf, nu la ora 3, unde începe cercul trigonometric.
+  const START = -Math.PI / 2;
+  /*
+   * Fiecare felie începe unde s-a terminat cea dinainte. Un `reduce` ține
+   * capătul în listă, nu într-o variabilă de deasupra pe care randarea o
+   * modifică pe parcurs.
+   */
+  const slices = items.reduce<
+    { it: (typeof items)[number]; a0: number; a1: number; mid: number; frac: number }[]
+  >((acc, it) => {
     const frac = Math.max(0, Math.min(1, it.value / (total || 1)));
-    const a0 = angle;
-    const a1 = angle + frac * Math.PI * 2;
-    angle = a1;
-    return { it, a0, a1, mid: (a0 + a1) / 2, frac };
-  });
+    const a0 = acc.length ? acc[acc.length - 1].a1 : START;
+    const a1 = a0 + frac * Math.PI * 2;
+    acc.push({ it, a0, a1, mid: (a0 + a1) / 2, frac });
+    return acc;
+  }, []);
 
   const active = slices.find((s) => s.it.id === hover) ?? null;
   const pt = (a: number, r: number) => [CX + Math.cos(a) * r, CY + Math.sin(a) * r];

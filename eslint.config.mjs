@@ -6,10 +6,12 @@ import typescript from "eslint-config-next/typescript";
  * sine — deci linting nu mai rula de ceva vreme, în tăcere. ESLint se cheamă
  * acum direct, cu aceleași reguli pe care le aducea Next.
  */
-export default [
+const config = [
   {
     ignores: [".next/**", "node_modules/**", "next-env.d.ts", "prisma/migrations/**"],
   },
   ...coreWebVitals,
   ...typescript,
 ];
+
+export default config;

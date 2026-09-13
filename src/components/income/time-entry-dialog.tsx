@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Trash2 } from "@/lib/icons";
@@ -51,9 +51,18 @@ export function TimeEntryDialog({
   const [pending, setPending] = useState(false);
   const [form, setForm] = useState<EntryDraft | null>(draft);
 
-  useEffect(() => {
-    if (open) setForm(draft);
-  }, [draft, open]);
+  /*
+   * Cand dialogul se deschide peste alta intrare, formularul reporneste de la
+   * ea. React numeste asta „ajustarea starii cand se schimba o proprietate”:
+   * se face in randare, nu intr-un efect. Diferenta se vede — cu efect, React
+   * apuca sa deseneze o data valorile intrarii dinainte si abia apoi le
+   * inlocuieste.
+   */
+  const [shownDraft, setShownDraft] = useState(draft);
+  if (open && draft !== shownDraft) {
+    setShownDraft(draft);
+    setForm(draft);
+  }
 
   const job = useMemo(
     () => jobs.find((j) => j.id === form?.jobId) ?? null,

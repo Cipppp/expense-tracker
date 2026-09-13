@@ -103,6 +103,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
+      // `localStorage` nu exista pe server, deci prima randare e cea implicita si
+      // preferinta salvata se aplica dupa hidratare. Orice alta ordine da
+      // nepotrivire intre ce trimite serverul si ce deseneaza browserul.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (saved === "1") setCollapsed(true);
     } catch {
       // private mode / SSR boundary — fall through to default
@@ -150,6 +154,8 @@ function useGroupState(pathname: string) {
       const raw = localStorage.getItem(GROUPS_KEY);
       // Only an explicit saved choice overrides the default — an absent key
       // means "never touched it", which keeps Finance-only.
+      // Acelasi motiv ca la bara laterala: preferinta traieste in browser.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setClosed(new Set(JSON.parse(raw) as string[]));
     } catch {
       // ignore
@@ -489,6 +495,10 @@ function MobileHeader() {
 
   // Close the sheet whenever the route changes.
   useEffect(() => {
+    // Sertarul de pe mobil se inchide cand pleci in alta pagina. E o reactie la
+    // navigare, adica la un sistem din afara lui React — nu o stare derivata din
+    // alta.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(false);
   }, [pathname]);
 

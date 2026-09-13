@@ -7,9 +7,13 @@ import { SupplementsBoard, type LogRow } from "@/components/supplements/suppleme
 export const dynamic = "force-dynamic";
 
 export default async function SupplementsPage() {
-  const today = bucharestDay(new Date());
+  // O singură citire de ceas pentru ambele capete: două apeluri separate pot
+  // cădea de o parte și de alta a miezului nopții, și-atunci intervalul iese
+  // de 13 zile sau de 15.
+  const now = new Date();
+  const today = bucharestDay(now);
   // Last 14 days cover the metrics strip plus a bit of back-navigation.
-  const from = bucharestDay(new Date(Date.now() - 13 * 86400000));
+  const from = bucharestDay(new Date(now.getTime() - 13 * 86400000));
 
   const [logs, catalog] = await Promise.all([
     db.supplementLog.findMany({

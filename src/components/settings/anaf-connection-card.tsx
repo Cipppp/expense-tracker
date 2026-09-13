@@ -107,7 +107,7 @@ export function AnafConnectionCard({
               (username + password, email code).
             </li>
             <li>
-              „Editare profil Oauth" → „Gestionare aplicații" → new app, service <b>E-Factura</b>, Callback URL{" "}
+              „Editare profil Oauth” → „Gestionare aplicații” → new app, service <b>E-Factura</b>, Callback URL{" "}
               <span className="font-mono text-foreground break-all">{status.redirectUri || "ANAF_REDIRECT_URI"}</span>. The callback cannot be edited later.
             </li>
             <li>Copy Client ID / Client Secret into Vercel env, plus <span className="font-mono">ANAF_TOKEN_ENC_KEY</span> (<span className="font-mono">openssl rand -base64 32</span>). Redeploy.</li>

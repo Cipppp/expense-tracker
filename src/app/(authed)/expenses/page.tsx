@@ -84,7 +84,6 @@ export default async function ExpensesPage(props: {
   const included = monthExp.filter((e) => !e.excluded);
   const excludedCount = monthExp.length - included.length;
   const monthTotalRon = included.reduce((a, b) => a + b.amountRon, 0);
-  const monthTotalUsd = included.reduce((a, b) => a + b.amountUsd, 0);
   const yearTotalRon = yearExp.reduce((a, b) => a + b.amountRon, 0);
   const isFiltered = !!(
     filters.category ||

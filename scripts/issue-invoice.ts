@@ -1,5 +1,4 @@
 import { runAsUser } from "../src/lib/tenant";
-import { requireUserId } from "@/lib/queries";
 /*
  * Emite o factura din orele nefacturate ale unui client, exact cum ar face
  * formularul "New invoice" (o linie pe luna, tariful din orele logate), si

@@ -1,4 +1,4 @@
-import { getSettings, requireUserId } from "@/lib/queries";
+import { getSettings } from "@/lib/queries";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { anafConfigured, anafEnv, anafMissing } from "@/lib/anaf";
