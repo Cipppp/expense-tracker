@@ -18,8 +18,20 @@ type Ctx = { userId: string };
 
 const store = new AsyncLocalStorage<Ctx>();
 
+/*
+ * `await fn()`, nu `fn` direct — și contează.
+ *
+ * Interogările Prisma sunt leneșe: `db.expense.findMany()` nu pornește nimic,
+ * întoarce un obiect care abia la `.then()` execută. Dat direct lui
+ * `store.run`, un `() => db.expense.findMany()` iese din context înainte să
+ * apuce să ruleze, iar interogarea pornește afară — fără proprietar.
+ *
+ * Cu `await` înăuntru, și crearea, și pornirea se întâmplă în context, deci
+ * merge și forma scurtă, și cea cu `async`. Altfel apelul evident ar fi fost
+ * tocmai cel greșit — și ar fi trecut de compilator fără o vorbă.
+ */
 export function runAsUser<T>(userId: string, fn: () => Promise<T>): Promise<T> {
-  return store.run({ userId }, fn);
+  return store.run({ userId }, async () => await fn());
 }
 
 /** Contextul explicit, dacă există. Nu atinge sesiunea. */
