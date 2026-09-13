@@ -718,7 +718,11 @@ function DayColumn({
     const rect = el.getBoundingClientRect();
     const y = clientY - rect.top;
     return snap(minFromY(y));
-  }, []);
+    // `minFromY` depinde de inaltimea unui rand, care difera intre modul
+    // normal si cel compact (52px fata de 28px). Cu lista goala, functia
+    // ramanea cu prima versiune: in compact, o tragere de o ora s-ar fi citit
+    // ca vreo jumatate.
+  }, [minFromY]);
 
   function onMouseDown(e: React.MouseEvent) {
     // Only left button; ignore clicks bubbling up from existing blocks.

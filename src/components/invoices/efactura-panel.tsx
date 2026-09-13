@@ -41,6 +41,25 @@ export function EfacturaPanel({
   const [st, setSt] = useState<EfacturaStatus>(initial);
   const [busy, setBusy] = useState<"send" | "refresh" | null>(null);
 
+  /*
+   * Ceasul ca stare, nu citit în timpul randării.
+   *
+   * `stuck` de mai jos înseamnă „a trecut un minut de la upload și n-a venit
+   * indexul”. Citit cu `Date.now()` direct în randare, ieșeau două probleme:
+   * serverul și clientul ajungeau la valori diferite la hidratare, iar apoi
+   * cifra rămânea înghețată — se actualiza doar când se întâmpla să se
+   * re-randeze componenta din altă cauză. Mergea din noroc, pentru că
+   * interogarea de stare de mai jos re-randa oricum la 15 secunde.
+   *
+   * Pornește de la 0, deci `stuck` e fals la prima randare, la fel pe server
+   * și pe client. Prima bătaie vine după cinci secunde.
+   */
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 5_000);
+    return () => clearInterval(t);
+  }, []);
+
   const sub = st.submission;
   const state = sub?.state ?? null;
   const sameEnv = Boolean(sub && sub.env === st.env);
@@ -51,7 +70,7 @@ export function EfacturaPanel({
     sameEnv &&
     state === "uploading" &&
     !sub?.indexIncarcare &&
-    (sub ? Date.now() - new Date(sub.createdAt).getTime() > 60_000 : false);
+    (sub ? now - new Date(sub.createdAt).getTime() > 60_000 : false);
   const inFlight = sameEnv && (state === "in_prelucrare" || (state === "uploading" && !stuck));
   const legallyFiled = Boolean(sub && sub.env === "prod" && isFiled(sub.state)) || Boolean(st.viaOblio);
   const lbl = stateLabel(state, { hasErrors: stuck || (sub?.errors.length ?? 0) > 0 });

@@ -77,6 +77,8 @@ export function GratitudeList({
   useEffect(() => {
     try {
       const a = localStorage.getItem(AUTHOR_KEY);
+      // Cine scrie se tine minte in browser; serverul n-are de unde sti.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (a === "cip" || a === "axy") setAuthor(a);
     } catch {
       /* ignore */
@@ -838,10 +840,7 @@ function ActionBtn({
   disabled,
   danger,
   children,
-  people = PEOPLE,
 }: {
-  /** Numele si culorile celor doi, din Settings. */
-  people?: People;
   label: string;
   onClick: () => void;
   disabled?: boolean;

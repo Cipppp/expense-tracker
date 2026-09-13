@@ -42,6 +42,14 @@ export default function AuthedError({
           <div className="flex gap-2 pt-2">
             <Button onClick={reset}>Încearcă din nou</Button>
             <Button variant="outline" asChild>
+              {/*
+               * Dinadins `<a>`, nu `<Link>`: suntem într-o pagină care tocmai
+               * a crăpat. O navigare din router ar refolosi exact starea de
+               * client care ne-a adus aici, iar dacă ce s-a stricat e chiar
+               * dashboard-ul, ai ateriza înapoi în aceeași eroare. O
+               * încărcare completă aruncă tot și pornește curat.
+               */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a href="/">Înapoi la dashboard</a>
             </Button>
           </div>

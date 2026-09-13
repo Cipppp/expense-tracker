@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -99,10 +99,6 @@ export function UnifiedMonthlyChart({
   categories,
   fxRonToUsd,
   fxEurToUsd,
-  bsBasRon,
-  camRon,
-  microPct,
-  dividendePct,
   startMonth,
   displayCurrency,
 }: {
@@ -110,10 +106,6 @@ export function UnifiedMonthlyChart({
   categories: MonthlyCategoryDatum[];
   fxRonToUsd: number;
   fxEurToUsd: number;
-  bsBasRon: number;
-  camRon: number;
-  microPct: number;
-  dividendePct: number;
   startMonth: number;
   displayCurrency: DisplayCurrency;
 }) {
@@ -124,15 +116,24 @@ export function UnifiedMonthlyChart({
    * fac conversia aici, o data. Totul trece prin dolar: leul are curs catre
    * dolar, euro are curs catre dolar, deci leul in euro iese din amandoua.
    */
-  const ronToDisplay = (ron: number) => {
-    if (displayCurrency === "RON") return ron;
-    const usd = ron * fxRonToUsd;
-    return displayCurrency === "EUR" ? usd / fxEurToUsd : usd;
-  };
-  const usdToDisplay = (usd: number) => {
-    if (displayCurrency === "USD") return usd;
-    return displayCurrency === "EUR" ? usd / fxEurToUsd : usd / fxRonToUsd;
-  };
+  // Stabile intre randari cat timp moneda si cursurile nu se schimba, ca sa
+  // poata fi trecute ca atare in listele de dependente de mai jos — altfel
+  // acolo scrie „moneda si cursurile”, ceea ce e acelasi lucru, dar pe ocolite.
+  const ronToDisplay = useCallback(
+    (ron: number) => {
+      if (displayCurrency === "RON") return ron;
+      const usd = ron * fxRonToUsd;
+      return displayCurrency === "EUR" ? usd / fxEurToUsd : usd;
+    },
+    [displayCurrency, fxRonToUsd, fxEurToUsd],
+  );
+  const usdToDisplay = useCallback(
+    (usd: number) => {
+      if (displayCurrency === "USD") return usd;
+      return displayCurrency === "EUR" ? usd / fxEurToUsd : usd / fxRonToUsd;
+    },
+    [displayCurrency, fxRonToUsd, fxEurToUsd],
+  );
   const formatMoney = (v: number) => {
     if (displayCurrency === "USD")
       return `$${v.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
@@ -163,7 +164,7 @@ export function UnifiedMonthlyChart({
         row.forecast = round2(ronToDisplay((m.taxForecastRon ?? 0) / 100));
         return row;
       }),
-    [slice, displayCurrency, fxRonToUsd, fxEurToUsd],
+    [slice, ronToDisplay],
   );
   const { taxKeysPresent, taxColorMap } = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -249,7 +250,7 @@ export function UnifiedMonthlyChart({
       return row;
     });
     return { catData: data, catKeys: keys, catColorMap: colors };
-  }, [catSlice, displayCurrency, fxRonToUsd, fxEurToUsd]);
+  }, [catSlice, ronToDisplay]);
 
   /*
    * Net view — incasat, cheltuit si cat a ramas.
@@ -277,7 +278,7 @@ export function UnifiedMonthlyChart({
         available: round2(usdToDisplay((m.availableUsd ?? 0) / 100)),
         from: i > 0 ? slice[i - 1].label : "",
       })),
-    [slice, displayCurrency, fxRonToUsd, fxEurToUsd],
+    [slice, usdToDisplay],
   );
 
   return (

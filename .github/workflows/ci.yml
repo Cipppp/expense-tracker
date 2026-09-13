@@ -59,6 +59,11 @@ jobs:
       - name: Tipuri
         run: npm run typecheck
 
+      - name: Lint
+        # Pragul e zero avertismente, nu doar zero erori: un avertisment pe
+        # care nimeni nu-l vede e un avertisment care se inmulteste.
+        run: npm run lint
+
       - name: Teste
         # Izolarea între conturi are nevoie de baza de sus. Dacă
         # TEST_DATABASE_URL lipsește, testele alea se sar în tăcere — de-aia e

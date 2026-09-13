@@ -31,9 +31,14 @@ export function NextTaxCard({
     day: "numeric",
     month: "long",
   });
-  const daysLeft = Math.ceil(
-    (forecast.dueDate.getTime() - Date.now()) / 86_400_000,
-  );
+  /*
+   * Regula se teme de nepotrivirea între server și client la hidratare, dar
+   * aici nu există client: e o componentă de server, randată o dată pe cerere.
+   * Ceasul e citit exact ca într-o funcție obișnuită.
+   */
+  // eslint-disable-next-line react-hooks/purity
+  const msLeft = forecast.dueDate.getTime() - Date.now();
+  const daysLeft = Math.ceil(msLeft / 86_400_000);
 
   return (
     <Card>

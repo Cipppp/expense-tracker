@@ -120,14 +120,17 @@ export function InvoiceForm({
   /*
    * Scadenta implicita: emitere + 5 zile.
    *
-   * `dueAtTouched` retine daca ai scris tu o data. Cat timp nu ai scris,
-   * scadenta urmeaza data emiterii; din clipa in care ai schimbat-o manual,
-   * ramane cum ai pus-o. Fara asta, mutarea datei de emitere ti-ar rescrie
-   * pe tacute termenul convenit cu clientul.
+   * Cat timp n-ai scris nimic, scadenta urmeaza data emiterii; din clipa in
+   * care ai pus-o tu, ramane cum ai pus-o. Fara asta, mutarea datei de
+   * emitere ti-ar rescrie pe tacute termenul convenit cu clientul.
+   *
+   * Se calculeaza la randare, nu printr-un efect care rescria `dueAt` dupa ce
+   * se schimba `issuedAt`. Efectul insemna o randare in plus si o clipa in
+   * care pe ecran scria inca scadenta veche.
    */
   const [issuedAt, setIssuedAt] = useState(today);
-  const [dueAt, setDueAt] = useState(() => addDays(today, DEFAULT_DUE_DAYS));
-  const [dueAtTouched, setDueAtTouched] = useState(false);
+  const [dueAtManual, setDueAtManual] = useState<string | null>(null);
+  const dueAt = dueAtManual ?? addDays(issuedAt, DEFAULT_DUE_DAYS);
   const [toOblio, setToOblio] = useState(oblioReady && !anafReady);
   /*
    * e-Factura la creare. Bifat implicit cand legea o cere (client din RO sau
@@ -140,9 +143,6 @@ export function InvoiceForm({
   const [toAnafManual, setToAnafManual] = useState<boolean | null>(null);
   const toAnaf = toAnafManual ?? (anafReady && anafRequired);
 
-  useEffect(() => {
-    if (!dueAtTouched) setDueAt(addDays(issuedAt, DEFAULT_DUE_DAYS));
-  }, [issuedAt, dueAtTouched]);
   const [invoiceCurrency, setInvoiceCurrency] = useState<"RON" | "USD" | "EUR">(
     (selectedJob?.defaultCurrency as "RON" | "USD" | "EUR") ?? "RON",
   );
@@ -152,7 +152,6 @@ export function InvoiceForm({
     date: string;
     fellBack: boolean;
   } | null>(null);
-  const [footerNote, setFooterNote] = useState("");
 
   const [lines, setLines] = useState<Line[]>([emptyLine()]);
 
@@ -186,6 +185,10 @@ export function InvoiceForm({
   useEffect(() => {
     if (!jobId) return;
     let cancelled = false;
+    // Aprinde indicatorul de incarcare inainte de cerere. Regula urmareste in
+    // interiorul functiei si vede un `setState`, dar asta e exact rostul lui:
+    // spune ca a inceput ceva, nu deriva o stare din alta.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setUnbilledLoading(true);
     fetch(`/api/income/unbilled?jobId=${encodeURIComponent(jobId)}`)
       .then((r) => r.json())
@@ -383,6 +386,9 @@ export function InvoiceForm({
   useEffect(() => {
     if (!needsBnrRate) return;
     // Reset stale source label if currency switches.
+    // Nu e o stare derivata: doar sterge eticheta sursei inainte sa plece
+    // cererea noua, ca sa nu ramana scris cursul de la moneda dinainte.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setBnrSource(null);
     fetchBnrRate(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -409,7 +415,9 @@ export function InvoiceForm({
         dueAt: dueAt || null,
         invoiceCurrency,
         bnrRate: needsBnrRate ? bnrRateNum : null,
-        footerNote: footerNote || null,
+        // API-ul accepta o nota de subsol, dar formularul n-are inca un camp
+        // pentru ea; pana atunci pleaca goala, nu o valoare care pare scrisa.
+        footerNote: null,
         lines: lines
           .filter((l) => l.description.trim() && Number(l.unitPrice) > 0)
           .map((l) => ({
@@ -518,7 +526,7 @@ export function InvoiceForm({
     invoiceCurrency,
     bnrRate: needsBnrRate ? bnrRateNum : null,
     vatRate,
-    footerNote: footerNote || null,
+    footerNote: null,
     lines: lines.map((l) => ({
       description: l.description,
       unit: l.unit || "buc",
@@ -585,10 +593,7 @@ export function InvoiceForm({
             type="date"
             value={dueAt}
             min={issuedAt}
-            onChange={(e) => {
-              setDueAtTouched(true);
-              setDueAt(e.target.value);
-            }}
+            onChange={(e) => setDueAtManual(e.target.value)}
           />
         </Field>
         {needsBnrRate && (

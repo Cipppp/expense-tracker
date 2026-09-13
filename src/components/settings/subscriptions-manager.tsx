@@ -41,6 +41,8 @@ export function SubscriptionsManager() {
     setLoading(false);
   }
   useEffect(() => {
+    // `load` scrie starea abia dupa ce raspunde reteaua, deci nu e sincron.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, []);
 

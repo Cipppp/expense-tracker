@@ -1,7 +1,7 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useHydrated } from "@/lib/use-hydrated";
 import { Sun, Moon } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -18,10 +18,9 @@ export function ThemeToggle({
   className?: string;
 }) {
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
-  const isDark = mounted ? resolvedTheme === "dark" : false;
+  // Tema rezolvată există doar în browser: pe server n-avem de unde ști ce
+  // preferă sistemul. Până la hidratare desenăm varianta deschisă.
+  const isDark = useHydrated() && resolvedTheme === "dark";
   const next = isDark ? "light" : "dark";
 
   function onClick(e: React.MouseEvent) {

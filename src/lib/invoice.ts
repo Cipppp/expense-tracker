@@ -1,4 +1,4 @@
-import { getSettings, requireUserId } from "@/lib/queries";
+import { getSettings } from "@/lib/queries";
 import "server-only";
 import { db } from "@/lib/db";
 

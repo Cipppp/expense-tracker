@@ -47,6 +47,8 @@ export function PasskeysManager() {
   }
 
   useEffect(() => {
+    // `load` scrie starea abia dupa ce raspunde reteaua, deci nu e sincron.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, []);
 
@@ -131,7 +133,7 @@ export function PasskeysManager() {
       ) : passkeys.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No passkeys yet. Add one to sign in with Face ID, Touch ID, or your
-          device's biometric.
+          device’s biometric.
         </p>
       ) : (
         <ul className="space-y-2">
@@ -216,7 +218,7 @@ export function PasskeysManager() {
         </div>
         <p className="text-[11px] text-muted-foreground">
           Your device will prompt for Face ID / Touch ID / Windows Hello. The
-          passkey is bound to this domain — it can't be used anywhere else.
+          passkey is bound to this domain — it can’t be used anywhere else.
           <br />
           <span className="text-foreground">
             iCloud Keychain syncs the passkey across all your Apple devices

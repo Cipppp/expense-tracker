@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { PEOPLE, resolvePeople, type People, type PersonKey } from "@/lib/chores";
+import { PEOPLE, type People, type PersonKey } from "@/lib/chores";
 import {
   SUPP_BY_KEY,
   TIMINGS,
@@ -134,6 +134,8 @@ export function SupplementsBoard({
   useEffect(() => {
     try {
       const a = localStorage.getItem(AUTHOR_KEY);
+      // Persoana selectata se tine minte in browser; serverul n-are de unde sti.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (a === "cip" || a === "axy") setPerson(a);
     } catch {
       /* ignore */

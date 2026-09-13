@@ -131,10 +131,6 @@ export default async function DashboardPage() {
               categories={categories}
               fxRonToUsd={settings.fxRonToUsd}
               fxEurToUsd={settings.fxEurToUsd}
-              bsBasRon={settings.bsBasRon}
-              camRon={settings.camRon}
-              microPct={settings.microPct}
-              dividendePct={settings.dividendePct}
               startMonth={startMonth}
               displayCurrency={displayCurrency}
             />
