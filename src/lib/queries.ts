@@ -7,6 +7,7 @@
  * can un-exclude.
  */
 import "server-only";
+import { isThemeId, type ThemeChoice } from "@/lib/theme";
 import { db } from "@/lib/db";
 import { endOfMonth, startOfMonth } from "@/lib/format";
 
@@ -193,6 +194,23 @@ export async function getSettings() {
     update: {},
     create: { userId },
   });
+}
+
+/**
+ * Tema contului curent. Se citeste in layout, pe fiecare pagina, deci doar
+ * cele doua coloane de care e nevoie, fara `upsert`: un cont care n-a ales
+ * nimic primeste tema de baza.
+ */
+export async function getTheme(): Promise<ThemeChoice> {
+  const userId = await requireUserId();
+  const s = await db.settings.findUnique({
+    where: { userId },
+    select: { themePreset: true, themeAccent: true },
+  });
+  return {
+    preset: isThemeId(s?.themePreset) ? s.themePreset : "classic",
+    accent: s?.themeAccent ?? "",
+  };
 }
 
 /** Utilizatorul curent, sau o eroare limpede daca nu exista sesiune. */

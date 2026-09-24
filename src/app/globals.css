@@ -212,6 +212,10 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    /* Controalele native si cursorul de text urmeaza tema, nu albastrul
+       browserului: altfel o tema roz ar avea bife si caret albastre. */
+    accent-color: hsl(var(--action));
+    caret-color: hsl(var(--action));
   }
   body {
     @apply bg-background text-foreground font-sans;

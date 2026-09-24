@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { CollapsibleCard } from "@/components/ui/collapsible-card";
 import { ronFromBani } from "@/lib/format";
 import { SettingsForm } from "@/components/settings/settings-form";
+import { AppearancePicker } from "@/components/settings/appearance-picker";
+import { isThemeId } from "@/lib/theme";
 import { ClientsManager } from "@/components/settings/clients-manager";
 import { PasskeysManager } from "@/components/settings/passkeys-manager";
 import { SubscriptionsManager } from "@/components/settings/subscriptions-manager";
@@ -34,6 +36,19 @@ export default async function SettingsPage(props: {
           Tax, FX & clients
         </h1>
       </header>
+
+      <CollapsibleCard
+        title="Appearance"
+        description="Colors for this account, on every device you sign in from."
+        defaultOpen={true}
+      >
+        <AppearancePicker
+          initial={{
+            preset: isThemeId(settings.themePreset) ? settings.themePreset : "classic",
+            accent: settings.themeAccent,
+          }}
+        />
+      </CollapsibleCard>
 
       <CollapsibleCard
         title="Clients"
