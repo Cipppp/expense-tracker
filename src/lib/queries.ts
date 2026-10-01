@@ -215,6 +215,11 @@ export async function getTheme(): Promise<ThemeChoice> {
 
 /** Utilizatorul curent, sau o eroare limpede daca nu exista sesiune. */
 export async function requireUserId(): Promise<string> {
+  // Un script (sau un cron) intra explicit in contul cuiva cu `runAsUser`;
+  // acolo nu exista cereri, deci nici cookie-uri din care sa citim sesiunea.
+  const { tenantFromContext } = await import("@/lib/tenant");
+  const scoped = tenantFromContext();
+  if (scoped) return scoped;
   const { currentUserId } = await import("@/lib/session");
   const id = await currentUserId();
   if (!id) throw new Error("Nicio sesiune — nu stiu al cui e randul asta.");
