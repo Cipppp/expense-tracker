@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { baniFromRon } from "@/lib/format";
+import { THEME_IDS } from "@/lib/theme";
 
 const Body = z.object({
   fxRonToUsd: z.coerce.number().positive(),
@@ -43,6 +44,14 @@ const PartialBody = z.object({
   // Time-log API token management. "generate" mints a new token; "revoke"
   // clears it (disables the external API).
   timelogTokenAction: z.enum(["generate", "revoke"]).optional(),
+  // Tema contului. Accentul e fie gol (al temei), fie strict #rrggbb: ajunge
+  // intr-un <style>, deci nu primeste nimic ce n-ar putea fi o culoare.
+  theme: z
+    .object({
+      preset: z.enum(THEME_IDS),
+      accent: z.string().regex(/^#[0-9a-f]{6}$/i).or(z.literal("")),
+    })
+    .optional(),
 });
 
 export async function PATCH(req: Request) {
@@ -70,6 +79,20 @@ export async function PATCH(req: Request) {
       create: { userId: await requireUserId(), timelogToken: token },
     });
     return NextResponse.json({ ok: true, token });
+  }
+
+  if (partial.success && keys.length === 1 && partial.data.theme) {
+    const userId = await requireUserId();
+    const theme = {
+      themePreset: partial.data.theme.preset,
+      themeAccent: partial.data.theme.accent.toLowerCase(),
+    };
+    await db.settings.upsert({
+      where: { userId },
+      update: theme,
+      create: { userId, ...theme },
+    });
+    return NextResponse.json({ ok: true });
   }
 
   const parsed = Body.safeParse(json);
