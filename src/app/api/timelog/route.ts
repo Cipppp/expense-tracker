@@ -1,7 +1,8 @@
-import { getSettings, requireUserId } from "@/lib/queries";
+import { requireUserId } from "@/lib/queries";
+import { runAsUser } from "@/lib/tenant";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { db, findUserByApiToken } from "@/lib/db";
 import { centsFromUsd, dateAtNoonUTC } from "@/lib/format";
 import { parseQuickLog } from "@/lib/quick-log";
 
@@ -84,18 +85,18 @@ function resolveDate(keyword: string | undefined): string {
 
 export async function POST(req: Request) {
   // --- auth ---
+  // Agentul n-are sesiune: contul il da tokenul, iar restul cererii ruleaza
+  // in contul acela, prin filtrul din stratul de date.
   const auth = req.headers.get("authorization") ?? "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  const settings = await getSettings();
-  if (!settings.timelogToken) {
-    return NextResponse.json(
-      { error: "Time-log API is disabled. Generate a token in Settings." },
-      { status: 403 },
-    );
-  }
-  if (!token || token !== settings.timelogToken) {
+  const userId = await findUserByApiToken(token);
+  if (!userId) {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
+  return runAsUser(userId, () => logTime(req));
+}
+
+async function logTime(req: Request) {
 
   // --- parse body ---
   const json = await req.json().catch(() => null);

@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
-import { db } from "@/lib/db";
+import { db, listUsersWithAnafToken } from "@/lib/db";
 import { getSettings } from "@/lib/queries";
 import { anafConfigured, anafEnv } from "@/lib/anaf";
 import { AnafAuthError, getAccessToken, REAUTH_WARN_MS, REFRESH_AHEAD_MS, tokenStatus } from "@/lib/anaf/oauth";
 import { sweepSubmissions } from "@/lib/anaf/send";
 import { EFACTURA_SINCE, efacturaDeadline, efacturaScope, isFiled, workingDaysUntil } from "@/lib/anaf/scope";
+import { runAsUser } from "@/lib/tenant";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +36,21 @@ export async function GET(req: Request) {
   }
   if (!anafConfigured()) return NextResponse.json({ skipped: "ANAF not configured" });
 
+  /*
+   * Cronul n-are sesiune. Ruleaza pentru fiecare cont legat la ANAF, in
+   * contul lui, cu bugetul de timp impartit intre ele.
+   */
+  const users = await listUsersWithAnafToken();
+  if (users.length === 0) return NextResponse.json({ skipped: "No account connected to ANAF" });
+  const results = [];
+  for (const userId of users) {
+    const res = await runAsUser(userId, () => runForUser(startedAt));
+    results.push(await res.json());
+  }
+  return NextResponse.json(results.length === 1 ? results[0] : results);
+}
+
+async function runForUser(startedAt: number) {
   const settings = await getSettings();
   const alerts: string[] = [];
   const report: Record<string, unknown> = { env: anafEnv() };
