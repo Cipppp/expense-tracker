@@ -513,6 +513,13 @@ model Settings {
   // App-wide display currency. Storage is unchanged (USD cents for income,
   // RON bani for expenses) — this only affects formatting in the UI.
   displayCurrency String @default("EUR") // EUR | USD | RON
+  /*
+   * Tema contului, aplicata peste variabilele din globals.css. `classic`
+   * inseamna aplicatia de dinainte de teme, neatinsa. `themeAccent` e un
+   * hex ales liber (#rrggbb) sau gol, caz in care ramane accentul temei.
+   */
+  themePreset     String @default("classic")
+  themeAccent     String @default("")
   // Bearer token for the external time-log API (/api/timelog). Lets tools
   // like Conductor POST hours without a browser session. Null = disabled.
   timelogToken    String?

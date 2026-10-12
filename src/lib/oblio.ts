@@ -1,5 +1,6 @@
 import "server-only";
 import { EU_MEMBER_STATES } from "@/lib/vat";
+import { invoiceLanguage, oblioLanguage } from "@/lib/invoice-labels";
 
 /*
  * Oblio — emiterea facturii si in contul de facturare, nu doar in aplicatie.
@@ -167,7 +168,8 @@ export async function createOblioInvoice(input: {
     issueDate: iso(input.issuedAt),
     dueDate: input.dueAt ? iso(input.dueAt) : "",
     seriesName: input.seriesName,
-    language: "RO",
+    // Aceeasi limba ca PDF-ul aplicatiei: engleza pentru clientii straini.
+    language: oblioLanguage(invoiceLanguage(input.client.country)),
     precision: 2,
     currency: input.currency,
     // Oblio cere cursul doar cand moneda facturii nu e RON.

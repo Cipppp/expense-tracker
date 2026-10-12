@@ -8,6 +8,7 @@ import {
 import { vatKindForInvoice } from "@/lib/vat";
 import { roCountyName } from "@/lib/anaf/scope";
 import { legalMentions } from "@/lib/legal-mentions";
+import { INVOICE_LABELS, invoiceLabels } from "@/lib/invoice-labels";
 
 const styles = StyleSheet.create({
   page: {
@@ -118,6 +119,12 @@ export type InvoicePdfProps = {
 
 export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
   const rate = invoice.bnrRate ?? 1;
+  // Romana pentru clientii romani, engleza pentru cei straini (lib/invoice-labels).
+  const L = invoiceLabels(invoice.clientCountry);
+  const fmtAmount = (n: number) =>
+    n.toLocaleString(L.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtRate = (n: number) =>
+    n.toLocaleString(L.locale, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
   const kind = vatKindForInvoice(
     invoice.clientCountry,
     invoice.vatRate,
@@ -130,7 +137,7 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
   // RO client whose contract is in USD/EUR sees RON amounts (with the foreign
   // equivalent) — exactly like the SmartBill invoices.
   const present = invoice.clientCountry === "RO" ? "RON" : invoice.invoiceCurrency;
-  const presLabel = present === "RON" ? "Lei" : present;
+  const presLabel = present === "RON" ? L.ronLabel : present;
   // Factor from the line currency (invoiceCurrency) into the presentation
   // currency: 1 if they match, the BNR rate when converting a foreign contract
   // into RON.
@@ -166,61 +173,54 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
       <Page size="A4" style={styles.page}>
         <View style={styles.headerRow}>
           <View style={styles.block}>
-            <Text style={styles.blockTitle}>Furnizor: {issuer.name}</Text>
-            <Text style={styles.blockLine}>Reg. com.: {issuer.reg}</Text>
+            <Text style={styles.blockTitle}>{L.supplier}: {issuer.name}</Text>
+            <Text style={styles.blockLine}>{L.regCom}: {issuer.reg}</Text>
             {/* Pe facturile catre UE se trece codul special de TVA (art. 317),
                 nu CIF-ul firmei — el e cel valabil in VIES pentru taxare
                 inversa. Pe rest ramane CIF-ul obisnuit. */}
             {kind === "eu_reverse" && issuer.vatIntra ? (
               <Text style={styles.blockLine}>
-                Cod TVA intracomunitar: {issuer.vatIntra}
+                {L.euVatId}: {issuer.vatIntra}
               </Text>
             ) : (
-              <Text style={styles.blockLine}>CIF: {issuer.cif}</Text>
+              <Text style={styles.blockLine}>{L.taxId}: {issuer.cif}</Text>
             )}
-            <Text style={styles.blockLine}>Adresa: {issuer.address}</Text>
-            <Text style={styles.blockLine}>IBAN: {issuer.iban}</Text>
+            <Text style={styles.blockLine}>{L.address}: {issuer.address}</Text>
+            <Text style={styles.blockLine}>{L.iban}: {issuer.iban}</Text>
             {issuer.swift ? (
-              <Text style={styles.blockLine}>SWIFT/BIC: {issuer.swift}</Text>
+              <Text style={styles.blockLine}>{L.swift}: {issuer.swift}</Text>
             ) : null}
-            <Text style={styles.blockLine}>Banca: {issuer.bank}</Text>
-            <Text style={styles.blockLine}>Capital social: {issuer.capital}</Text>
+            <Text style={styles.blockLine}>{L.bank}: {issuer.bank}</Text>
+            <Text style={styles.blockLine}>{L.capital}: {issuer.capital}</Text>
           </View>
           <View style={[styles.block, { alignItems: "center" }]}>
-            <Text style={styles.title}>FACTURA</Text>
+            <Text style={styles.title}>{L.invoice}</Text>
             <View style={styles.metaBox}>
+              <Text style={styles.meta}>{L.seriesNo(invoice.series, invoice.number)}</Text>
               <Text style={styles.meta}>
-                Seria {invoice.series} nr. {invoice.number}
+                {L.dateLong}: {invoice.issuedAt}
               </Text>
-              <Text style={styles.meta}>Data (zi/luna/an): {invoice.issuedAt}</Text>
               <Text style={styles.meta}>
-                Cota TVA:{" "}
-                {kind === "eu_reverse"
-                  ? "taxare inversa"
-                  : kind === "export"
-                    ? "neimpozabil"
-                    : kind === "exempt_310"
-                      ? "scutit art. 310"
-                      : `${Math.round(invoice.vatRate * 100)}%`}
+                {L.vatRate}: {L.vatKind[kind] || `${Math.round(invoice.vatRate * 100)}%`}
               </Text>
             </View>
           </View>
           <View style={styles.block}>
-            <Text style={styles.blockTitle}>Client: {invoice.clientCompany}</Text>
+            <Text style={styles.blockTitle}>{L.client}: {invoice.clientCompany}</Text>
             {invoice.clientReg ? (
-              <Text style={styles.blockLine}>Reg. com.: {invoice.clientReg}</Text>
+              <Text style={styles.blockLine}>{L.regCom}: {invoice.clientReg}</Text>
             ) : null}
             {invoice.clientCui ? (
-              <Text style={styles.blockLine}>CIF: {invoice.clientCui}</Text>
+              <Text style={styles.blockLine}>{L.taxId}: {invoice.clientCui}</Text>
             ) : null}
             {invoice.clientAddress ? (
-              <Text style={styles.blockLine}>Adresa: {invoice.clientAddress}</Text>
+              <Text style={styles.blockLine}>{L.address}: {invoice.clientAddress}</Text>
             ) : null}
             {invoice.clientCountry && invoice.clientCountry !== "RO" ? (
-              <Text style={styles.blockLine}>Tara: {countryName(invoice.clientCountry)}</Text>
+              <Text style={styles.blockLine}>{L.country}: {L.countryNames[invoice.clientCountry] ?? invoice.clientCountry}</Text>
             ) : invoice.clientCountry === "RO" ? (
               roCountyName(invoice.clientCounty) ? (
-                <Text style={styles.blockLine}>Judet: {roCountyName(invoice.clientCounty)}</Text>
+                <Text style={styles.blockLine}>{L.county}: {roCountyName(invoice.clientCounty)}</Text>
               ) : null
             ) : null}
           </View>
@@ -228,20 +228,18 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
 
         <View style={styles.table}>
           <View style={styles.tr}>
-            <Text style={[styles.th, styles.colNr]}>Nr. crt</Text>
-            <Text style={[styles.th, styles.colDesc]}>
-              Denumirea produselor sau a serviciilor
-            </Text>
-            <Text style={[styles.th, styles.colUm]}>U.M.</Text>
-            <Text style={[styles.th, styles.colQty]}>Cant.</Text>
+            <Text style={[styles.th, styles.colNr]}>{L.colNr}</Text>
+            <Text style={[styles.th, styles.colDesc]}>{L.colDesc}</Text>
+            <Text style={[styles.th, styles.colUm]}>{L.colUnit}</Text>
+            <Text style={[styles.th, styles.colQty]}>{L.colQty}</Text>
             <Text style={[styles.th, styles.colPrice]}>
-              Pret unitar{"\n"}(fara TVA){"\n"}-{presLabel}-
+              {L.colUnitPrice}{"\n"}-{presLabel}-
             </Text>
             <Text style={[styles.th, styles.colAmount]}>
-              Valoarea{"\n"}-{presLabel}-
+              {L.colAmount}{"\n"}-{presLabel}-
             </Text>
             <Text style={[styles.thLast, styles.colVat]}>
-              Valoarea TVA{"\n"}-{presLabel}-
+              {L.colVat}{"\n"}-{presLabel}-
             </Text>
           </View>
           <View style={[styles.tr, { backgroundColor: "#f7f7f7" }]}>
@@ -270,8 +268,13 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
         {showEquivalent ? (
           <View style={styles.note}>
             <Text>
-              Echivalent {fmtAmount(equivAmount)} {equivCur} la cursul BNR din{" "}
-              {dotDate(invoice.issuedAt)}, 1 {foreignCur} = {fmtRate(rate)} RON.
+              {L.equivalent(
+                fmtAmount(equivAmount),
+                equivCur,
+                dotDate(invoice.issuedAt),
+                foreignCur,
+                fmtRate(rate),
+              )}
             </Text>
           </View>
         ) : null}
@@ -299,21 +302,29 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
 
         <View style={styles.footerBox}>
           <View style={styles.footerRow}>
-            <Text style={{ flex: 1, padding: 4, borderRightWidth: 1, borderColor: "#000", fontSize: 8 }}>
-              Intocmit de: {issuer.signer}{"\n"}
-              CNP: -{"\n"}
-              Numele delegatului: -{"\n"}
-              B.I/C.I: -{"\n"}
-              Mijloc transport: -{"\n"}
-              Expedierea s-a efectuat in prezenta noastra la data de ........ora......
-              {"\n"}
-              Semnatura de primire:
-            </Text>
+            {/* Rubricile de expeditie sunt ale facturii romanesti de bunuri; un
+                client strain de servicii nu are ce face cu ele. */}
+            {L === INVOICE_LABELS.ro ? (
+              <Text style={{ flex: 1, padding: 4, borderRightWidth: 1, borderColor: "#000", fontSize: 8 }}>
+                Intocmit de: {issuer.signer}{"\n"}
+                CNP: -{"\n"}
+                Numele delegatului: -{"\n"}
+                B.I/C.I: -{"\n"}
+                Mijloc transport: -{"\n"}
+                Expedierea s-a efectuat in prezenta noastra la data de ........ora......
+                {"\n"}
+                Semnatura de primire:
+              </Text>
+            ) : (
+              <Text style={{ flex: 1, padding: 4, borderRightWidth: 1, borderColor: "#000", fontSize: 8 }}>
+                {L.preparedBy}: {issuer.signer}
+              </Text>
+            )}
             <View style={{ width: "40%" }}>
               {/* Total (net | VAT) */}
               <View style={{ flexDirection: "row", borderBottomWidth: 1, borderColor: "#000" }}>
                 <Text style={{ flex: 1, padding: 4, fontSize: 8, fontFamily: "Helvetica-Bold", borderRightWidth: 1, borderColor: "#000" }}>
-                  Total
+                  {L.total}
                 </Text>
                 <Text style={{ flex: 1, padding: 4, fontSize: 8, textAlign: "right", borderRightWidth: 1, borderColor: "#000" }}>
                   {fmtAmount(totalNet)}
@@ -325,7 +336,7 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
               {/* Total plata (gross) */}
               <View style={{ flexDirection: "row" }}>
                 <Text style={{ flex: 1, padding: 4, fontSize: 9, fontFamily: "Helvetica-Bold", borderRightWidth: 1, borderColor: "#000" }}>
-                  Total plata
+                  {L.totalDue}
                 </Text>
                 <Text style={{ flex: 2, padding: 4, fontSize: 9, fontFamily: "Helvetica-Bold", textAlign: "right" }}>
                   {fmtAmount(totalGross)} {present}
@@ -336,13 +347,10 @@ export function InvoicePdf({ issuer, invoice }: InvoicePdfProps) {
         </View>
 
         {invoice.dueAt ? (
-          <Text style={{ marginTop: 6, fontSize: 8 }}>Termen plata: {invoice.dueAt}</Text>
+          <Text style={{ marginTop: 6, fontSize: 8 }}>{L.dueDate}: {invoice.dueAt}</Text>
         ) : null}
 
-        <Text style={styles.smallFoot}>
-          Factura este valabila fara semnatura si stampila, conform art. 319 alin.
-          29 din legea 227/2015.
-        </Text>
+        <Text style={styles.smallFoot}>{L.validWithoutSignature}</Text>
       </Page>
     </Document>
   );
@@ -353,37 +361,7 @@ function fmtNum(n: number): string {
   return n.toFixed(2);
 }
 
-function fmtAmount(n: number): string {
-  return n.toLocaleString("ro-RO", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-// BNR rate with 4 decimals, Romanian comma separator (e.g. "5,2359").
-function fmtRate(n: number): string {
-  return n.toLocaleString("ro-RO", {
-    minimumFractionDigits: 4,
-    maximumFractionDigits: 4,
-  });
-}
-
 // dd.mm.yyyy from a dd/mm/yyyy string (SmartBill uses dots in the note).
 function dotDate(ddmmyyyy: string): string {
   return ddmmyyyy.replace(/\//g, ".");
-}
-
-function countryName(code: string): string {
-  const names: Record<string, string> = {
-    RO: "Romania",
-    DK: "Danemarca",
-    PT: "Portugalia",
-    US: "Statele Unite",
-    GB: "Marea Britanie",
-    DE: "Germania",
-    ES: "Spania",
-    FR: "Franta",
-    NL: "Olanda",
-  };
-  return names[code] ?? code;
 }

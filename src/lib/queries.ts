@@ -7,6 +7,7 @@
  * can un-exclude.
  */
 import "server-only";
+import { isThemeId, type ThemeChoice } from "@/lib/theme";
 import { db } from "@/lib/db";
 import { endOfMonth, startOfMonth } from "@/lib/format";
 
@@ -195,8 +196,30 @@ export async function getSettings() {
   });
 }
 
+/**
+ * Tema contului curent. Se citeste in layout, pe fiecare pagina, deci doar
+ * cele doua coloane de care e nevoie, fara `upsert`: un cont care n-a ales
+ * nimic primeste tema de baza.
+ */
+export async function getTheme(): Promise<ThemeChoice> {
+  const userId = await requireUserId();
+  const s = await db.settings.findUnique({
+    where: { userId },
+    select: { themePreset: true, themeAccent: true },
+  });
+  return {
+    preset: isThemeId(s?.themePreset) ? s.themePreset : "classic",
+    accent: s?.themeAccent ?? "",
+  };
+}
+
 /** Utilizatorul curent, sau o eroare limpede daca nu exista sesiune. */
 export async function requireUserId(): Promise<string> {
+  // Un script (sau un cron) intra explicit in contul cuiva cu `runAsUser`;
+  // acolo nu exista cereri, deci nici cookie-uri din care sa citim sesiunea.
+  const { tenantFromContext } = await import("@/lib/tenant");
+  const scoped = tenantFromContext();
+  if (scoped) return scoped;
   const { currentUserId } = await import("@/lib/session");
   const id = await currentUserId();
   if (!id) throw new Error("Nicio sesiune — nu stiu al cui e randul asta.");

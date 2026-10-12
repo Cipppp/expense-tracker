@@ -1,7 +1,8 @@
 "use client";
 
-import { vatKindForInvoice, type VatKind } from "@/lib/vat";
+import { vatKindForInvoice } from "@/lib/vat";
 import { legalMentions } from "@/lib/legal-mentions";
+import { invoiceLabels } from "@/lib/invoice-labels";
 import { cn } from "@/lib/utils";
 
 /*
@@ -52,26 +53,12 @@ export type PreviewInvoice = {
   }>;
 };
 
-const money = (n: number) =>
-  n.toLocaleString("ro-RO", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
 /** yyyy-mm-dd -> dd/mm/yyyy, fara sa treaca prin Date (fara surprize de fus). */
 function ddmmyyyy(iso: string) {
   const [y, m, d] = (iso ?? "").split("-");
   return y && m && d ? `${d}/${m}/${y}` : iso;
 }
 const dotted = (iso: string) => ddmmyyyy(iso).replace(/\//g, ".");
-
-const VAT_LABEL: Record<VatKind, string> = {
-  eu_reverse: "taxare inversa",
-  export: "neimpozabil",
-  exempt_310: "scutit art. 310",
-  domestic: "",
-  none: "",
-};
 
 // Mentiunile (RO + EN) vin din lib/legal-mentions, aceleasi ca pe PDF si in Oblio.
 
@@ -89,6 +76,10 @@ export function InvoicePreview({
     invoice.vatRate,
     issuer.vatRegistered,
   );
+  // Aceeasi limba ca PDF-ul si Oblio: romana pentru RO, engleza pentru rest.
+  const L = invoiceLabels(invoice.clientCountry);
+  const money = (n: number) =>
+    n.toLocaleString(L.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const foreign = invoice.invoiceCurrency !== "RON";
   const rate = invoice.bnrRate ?? 0;
   const rows = invoice.lines.filter(
@@ -120,31 +111,33 @@ export function InvoicePreview({
       {/* Antet: furnizor | FACTURA | client */}
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-5 sm:gap-4">
         <div className="min-w-0">
-          <div className="font-semibold">Furnizor: {issuer.name}</div>
-          <Line>Reg. com.: {issuer.reg}</Line>
-          <Line>CIF: {issuerFiscalId}</Line>
-          <Line>Adresa: {issuer.address}</Line>
-          <Line>IBAN: {iban}</Line>
-          <Line>Banca: {issuer.bank}</Line>
-          <Line>Capital social: {issuer.capital}</Line>
+          <div className="font-semibold">{L.supplier}: {issuer.name}</div>
+          <Line>{L.regCom}: {issuer.reg}</Line>
+          <Line>
+            {kind === "eu_reverse" && issuer.vatIntra ? L.euVatId : L.taxId}: {issuerFiscalId}
+          </Line>
+          <Line>{L.address}: {issuer.address}</Line>
+          <Line>{L.iban}: {iban}</Line>
+          <Line>{L.bank}: {issuer.bank}</Line>
+          <Line>{L.capital}: {issuer.capital}</Line>
         </div>
 
         <div className="text-center sm:px-3">
-          <div className="font-display text-base tracking-wide">FACTURA</div>
+          <div className="font-display text-base tracking-wide">{L.invoice}</div>
           <div className="mt-2 inline-block rounded-md border border-border px-3 py-2 text-left">
             <div className="tabular-nums">
-              Seria {invoice.series} nr. {invoice.number}
+              {L.seriesNo(invoice.series, invoice.number)}
             </div>
             <div className="tabular-nums">
-              Data: {ddmmyyyy(invoice.issuedAt)}
+              {L.date}: {ddmmyyyy(invoice.issuedAt)}
             </div>
-            {VAT_LABEL[kind] && <div>Cota TVA: {VAT_LABEL[kind]}</div>}
+            {L.vatKind[kind] && <div>{L.vatRate}: {L.vatKind[kind]}</div>}
             {kind === "domestic" && (
-              <div>Cota TVA: {Math.round(invoice.vatRate * 100)}%</div>
+              <div>{L.vatRate}: {Math.round(invoice.vatRate * 100)}%</div>
             )}
             {invoice.dueAt && (
               <div className="tabular-nums">
-                Termen plata: {ddmmyyyy(invoice.dueAt)}
+                {L.dueDate}: {ddmmyyyy(invoice.dueAt)}
               </div>
             )}
           </div>
@@ -152,12 +145,16 @@ export function InvoicePreview({
 
         <div className="min-w-0 sm:text-right">
           <div className="font-semibold break-words">
-            Client: {invoice.clientCompany || "—"}
+            {L.client}: {invoice.clientCompany || "—"}
           </div>
-          {invoice.clientReg && <Line>Reg. com.: {invoice.clientReg}</Line>}
-          {invoice.clientCui && <Line>CIF: {invoice.clientCui}</Line>}
-          {invoice.clientAddress && <Line>Adresa: {invoice.clientAddress}</Line>}
-          {invoice.clientCountry && <Line>Tara: {invoice.clientCountry}</Line>}
+          {invoice.clientReg && <Line>{L.regCom}: {invoice.clientReg}</Line>}
+          {invoice.clientCui && <Line>{L.taxId}: {invoice.clientCui}</Line>}
+          {invoice.clientAddress && <Line>{L.address}: {invoice.clientAddress}</Line>}
+          {invoice.clientCountry && (
+            <Line>
+              {L.country}: {L.countryNames[invoice.clientCountry] ?? invoice.clientCountry}
+            </Line>
+          )}
         </div>
       </div>
 
@@ -166,16 +163,14 @@ export function InvoicePreview({
         <table className="w-full min-w-[420px] border-collapse">
           <thead>
             <tr className="border-y border-border text-[9.5px] uppercase tracking-[0.06em] text-muted-foreground">
-              <th className="py-1.5 pr-2 text-left font-medium w-6">Nr.</th>
-              <th className="py-1.5 pr-2 text-left font-medium">
-                Denumirea serviciilor
-              </th>
-              <th className="py-1.5 px-2 text-left font-medium w-12">U.M.</th>
-              <th className="py-1.5 px-2 text-right font-medium w-14">Cant.</th>
+              <th className="py-1.5 pr-2 text-left font-medium w-6">{L.colNr}</th>
+              <th className="py-1.5 pr-2 text-left font-medium">{L.colDescShort}</th>
+              <th className="py-1.5 px-2 text-left font-medium w-12">{L.colUnit}</th>
+              <th className="py-1.5 px-2 text-right font-medium w-14">{L.colQty}</th>
               <th className="py-1.5 px-2 text-right font-medium w-24">
-                Pret unitar
+                {L.colUnitPriceShort}
               </th>
-              <th className="py-1.5 pl-2 text-right font-medium w-24">Valoarea</th>
+              <th className="py-1.5 pl-2 text-right font-medium w-24">{L.colAmount}</th>
             </tr>
           </thead>
           <tbody>
@@ -221,7 +216,7 @@ export function InvoicePreview({
       {/* Totaluri */}
       <div className="mt-4 flex justify-end">
         <div className="w-full sm:w-64 space-y-1">
-          <Total label={`Total (${invoice.invoiceCurrency})`} value={money(net)} />
+          <Total label={`${L.total} (${invoice.invoiceCurrency})`} value={money(net)} />
           {invoice.vatRate > 0 && (
             <>
               <Total
@@ -230,7 +225,7 @@ export function InvoicePreview({
                 muted
               />
               <Total
-                label={`Total plata (${invoice.invoiceCurrency})`}
+                label={`${L.totalDue} (${invoice.invoiceCurrency})`}
                 value={money(gross)}
                 strong
               />
@@ -238,7 +233,7 @@ export function InvoicePreview({
           )}
           {foreign && rate > 0 && (
             <Total
-              label="Echivalent RON"
+              label={L.ronEquivalent}
               value={money(gross * rate)}
               muted
             />
@@ -248,9 +243,13 @@ export function InvoicePreview({
 
       {foreign && rate > 0 && (
         <p className="mt-4 text-[10px] text-muted-foreground">
-          Echivalent {money(gross)} {invoice.invoiceCurrency} la cursul BNR din{" "}
-          {dotted(invoice.issuedAt)}, 1 {invoice.invoiceCurrency} ={" "}
-          {rate.toFixed(4)} RON.
+          {L.equivalent(
+            money(gross),
+            invoice.invoiceCurrency,
+            dotted(invoice.issuedAt),
+            invoice.invoiceCurrency,
+            rate.toLocaleString(L.locale, { minimumFractionDigits: 4, maximumFractionDigits: 4 }),
+          )}
         </p>
       )}
 
@@ -271,11 +270,8 @@ export function InvoicePreview({
       )}
 
       <div className="mt-5 flex flex-wrap items-end justify-between gap-3 border-t border-border pt-3 text-[10px] text-muted-foreground">
-        <span>Intocmit de: {issuer.signer}</span>
-        <span>
-          Factura este valabila fara semnatura si stampila, conform art. 319
-          alin. 29 din legea 227/2015.
-        </span>
+        <span>{L.preparedBy}: {issuer.signer}</span>
+        <span>{L.validWithoutSignature}</span>
       </div>
     </div>
   );
