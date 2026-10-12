@@ -134,3 +134,27 @@ export function recordPasskeyUse(id: string, counter: number) {
     data: { counter, lastUsedAt: new Date() },
   });
 }
+
+/* -------------------------------------------------------------------------
+ * Cererile venite din afara aplicatiei: agentii care ponteaza (/api/timelog),
+ * monitorul (/api/anaf/health) si cronurile. Nu au sesiune, deci nu au un
+ * utilizator din care sa vina filtrul. Contul il da tokenul, respectiv lista
+ * conturilor care au ceva de facut; restul cererii ruleaza apoi cu
+ * `runAsUser`, prin filtru, ca orice alta cerere.
+ * ---------------------------------------------------------------------- */
+
+/** Contul caruia ii apartine un token de API din Settings, sau null. */
+export async function findUserByApiToken(token: string): Promise<string | null> {
+  if (!token) return null;
+  const s = await base.settings.findFirst({
+    where: { timelogToken: token },
+    select: { userId: true },
+  });
+  return s?.userId ?? null;
+}
+
+/** Conturile legate la ANAF, pe care le are de urmarit cronul e-Factura. */
+export async function listUsersWithAnafToken(): Promise<string[]> {
+  const rows = await base.anafToken.findMany({ select: { userId: true }, distinct: ["userId"] });
+  return rows.map((r) => r.userId);
+}

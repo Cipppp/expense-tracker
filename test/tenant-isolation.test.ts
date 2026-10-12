@@ -265,4 +265,29 @@ describe.skipIf(!url)("izolarea între utilizatori", () => {
       ).rejects.toThrow();
     });
   });
+
+  /*
+   * Agentii si monitorul vin fara sesiune; contul il da tokenul din Settings.
+   * Cautarea ocoleste filtrul, deci trebuie sa intoarca exact contul caruia
+   * ii apartine tokenul, si nimic pentru un token gol sau necunoscut.
+   */
+  describe("contul dupa tokenul de API", () => {
+    it("fiecare token duce la contul lui", async () => {
+      const { findUserByApiToken } = await import("@/lib/db");
+      await runAsUser(A, async () => {
+        await db.settings.upsert({ where: { userId: A }, update: { timelogToken: "tok-a" }, create: { userId: A, timelogToken: "tok-a" } });
+      });
+      await runAsUser(B, async () => {
+        await db.settings.upsert({ where: { userId: B }, update: { timelogToken: "tok-b" }, create: { userId: B, timelogToken: "tok-b" } });
+      });
+      expect(await findUserByApiToken("tok-a")).toBe(A);
+      expect(await findUserByApiToken("tok-b")).toBe(B);
+    });
+
+    it("un token gol sau necunoscut nu duce la niciun cont", async () => {
+      const { findUserByApiToken } = await import("@/lib/db");
+      expect(await findUserByApiToken("")).toBeNull();
+      expect(await findUserByApiToken("tok-nimeni")).toBeNull();
+    });
+  });
 });

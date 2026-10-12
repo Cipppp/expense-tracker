@@ -1,6 +1,6 @@
-import { getSettings } from "@/lib/queries";
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, findUserByApiToken } from "@/lib/db";
+import { runAsUser } from "@/lib/tenant";
 import { anafConfigured, anafEnv, anafMissing } from "@/lib/anaf";
 import { getAccessToken, hello, recordHealth, tokenStatus } from "@/lib/anaf/oauth";
 import { EFACTURA_SINCE, efacturaDeadline, efacturaScope, isFiled, workingDaysUntil } from "@/lib/anaf/scope";
@@ -23,10 +23,15 @@ export const maxDuration = 60;
 export async function GET(req: Request) {
   const auth = req.headers.get("authorization") ?? "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  const s = await getSettings();
-  if (!s?.timelogToken || token !== s.timelogToken) {
+  // Monitorul n-are sesiune: contul il da tokenul (vezi /api/timelog).
+  const userId = await findUserByApiToken(token);
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  return runAsUser(userId, () => health());
+}
+
+async function health() {
 
   const configured = anafConfigured();
   const status = await tokenStatus(configured);
