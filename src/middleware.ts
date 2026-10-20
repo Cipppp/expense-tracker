@@ -23,6 +23,10 @@ const PUBLIC_PATHS = new Set<string>([
   // Starea legaturii cu ANAF e-Factura — acelasi Bearer ca /api/timelog, ca sa
   // poata fi supravegheata din afara (UptimeRobot, curl). Read-only.
   "/api/anaf/health",
+  // Mesajele din SPV, urcate de `tools/anaf-spv-sync` de pe Mac-ul cu tokenul.
+  // Acelasi Bearer ca /api/timelog; fara el, 401.
+  "/api/anaf/spv/sync",
+  "/api/anaf/spv/pdf",
   // Cron-ul Vercel: refresh de token, verificare stari, descarcare arhive.
   // Autentificat cu CRON_SECRET, pe care Vercel il trimite singur.
   "/api/cron/efactura",

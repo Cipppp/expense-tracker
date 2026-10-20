@@ -65,7 +65,9 @@ import { ForkKnife as PForkKnife } from "@phosphor-icons/react/dist/ssr/ForkKnif
 import { Barbell as PBarbell } from "@phosphor-icons/react/dist/ssr/Barbell";
 import { Info as PInfo } from "@phosphor-icons/react/dist/ssr/Info";
 import { Smiley as PSmiley } from "@phosphor-icons/react/dist/ssr/Smiley";
+import { Bank as PBank } from "@phosphor-icons/react/dist/ssr/Bank";
 import { Bell as PBell } from "@phosphor-icons/react/dist/ssr/Bell";
+import { FilePdf as PFilePdf } from "@phosphor-icons/react/dist/ssr/FilePdf";
 import { BellSlash as PBellSlash } from "@phosphor-icons/react/dist/ssr/BellSlash";
 
 // Re-exports — keep Lucide names so existing callsites work. Phosphor's
@@ -131,5 +133,7 @@ export const ForkKnife = PForkKnife;
 export const Barbell = PBarbell;
 export const Info = PInfo;
 export const Smiley = PSmiley;
+export const Bank = PBank;
 export const Bell = PBell;
+export const FilePdf = PFilePdf;
 export const BellSlash = PBellSlash;
