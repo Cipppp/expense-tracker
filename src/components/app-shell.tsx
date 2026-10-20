@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Receipt,
@@ -19,6 +19,7 @@ import {
   Broom,
   Sparkle,
   Pill,
+  Bank,
 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -57,6 +58,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
       { href: "/expenses", label: "Expenses", icon: Receipt },
       { href: "/income", label: "Income", icon: Clock },
       { href: "/invoices", label: "Invoices", icon: FileText },
+      { href: "/anaf", label: "ANAF", icon: Bank },
       { href: "/investments", label: "Investments", icon: TrendingUp },
       { href: "/import", label: "Import", icon: Upload },
     ],
@@ -84,6 +86,13 @@ const GROUPS_KEY = "et:nav-groups-closed";
    app loads on the Dashboard. */
 const DEFAULT_CLOSED = ["household", "system"];
 
+/*
+ * Insignele din meniu (azi doar mesajele SPV necitite). Vin de la layout, de
+ * pe server, ca sa fie corecte din prima randare; un context le duce pana la
+ * fiecare link fara sa treaca prin toate componentele dintre.
+ */
+const BadgeContext = createContext<Record<string, number>>({});
+
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
@@ -96,7 +105,21 @@ function groupOf(pathname: string): string | null {
   return null;
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  badges = {},
+}: {
+  children: React.ReactNode;
+  badges?: Record<string, number>;
+}) {
+  return (
+    <BadgeContext.Provider value={badges}>
+      <Shell>{children}</Shell>
+    </BadgeContext.Provider>
+  );
+}
+
+function Shell({ children }: { children: React.ReactNode }) {
   // Start uncollapsed; hydrate from localStorage on mount. Avoids the SSR
   // layout shift that would happen if we tried to read storage during SSR.
   const [collapsed, setCollapsed] = useState(false);
@@ -196,6 +219,7 @@ function NavLink({
 }) {
   const { href, label, icon: Icon } = item;
   const active = isActive(pathname, href);
+  const count = useContext(BadgeContext)[href] ?? 0;
   return (
     <Link
       href={href}
@@ -230,6 +254,20 @@ function NavLink({
         )}
       />
       <span className={cn("truncate", collapsed && "sr-only")}>{label}</span>
+      {count > 0 &&
+        (collapsed ? (
+          <span
+            aria-label={`${count} unread`}
+            className="absolute right-2 top-1.5 h-2 w-2 rounded-full bg-destructive"
+          />
+        ) : (
+          <span
+            aria-label={`${count} unread`}
+            className="ml-auto rounded-full bg-destructive px-1.5 py-px text-[11px] font-semibold leading-4 tabular-nums text-white"
+          >
+            {count > 99 ? "99+" : count}
+          </span>
+        ))}
     </Link>
   );
 }
@@ -491,6 +529,7 @@ function SearchTrigger({ collapsed }: { collapsed: boolean }) {
 
 function MobileHeader() {
   const [open, setOpen] = useState(false);
+  const badges = useContext(BadgeContext);
   const pathname = usePathname();
 
   // Close the sheet whenever the route changes.
@@ -514,9 +553,12 @@ function MobileHeader() {
             <button
               type="button"
               aria-label="Open menu"
-              className="h-11 w-11 inline-flex items-center justify-center rounded-md text-foreground hover:bg-secondary transition-colors"
+              className="relative h-11 w-11 inline-flex items-center justify-center rounded-md text-foreground hover:bg-secondary transition-colors"
             >
               <Menu className="h-5 w-5" />
+              {Object.values(badges).some((n) => n > 0) && (
+                <span aria-hidden className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-destructive" />
+              )}
             </button>
           </SheetTrigger>
           <SheetContent>

@@ -20,7 +20,7 @@ function s3(): S3Client {
   client = new S3Client({
     region: REGION,
     // On Vercel: assume the IAM role via OIDC (keyless). Locally: fall back to
-    // the default credential chain (e.g. AWS_PROFILE=cefani-staging via SSO).
+    // the default credential chain (e.g. AWS_PROFILE=projectcip-semnio via SSO).
     credentials:
       process.env.VERCEL && ROLE_ARN
         ? awsCredentialsProvider({ roleArn: ROLE_ARN })

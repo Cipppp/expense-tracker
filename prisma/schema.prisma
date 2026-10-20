@@ -16,7 +16,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/*
+/**
  * Un cont. Pana acum aplicatia avea un singur utilizator implicit — o parola
  * din variabile de mediu si niciun rand care sa stie al cui e. Datele
  * existente se leaga la migrare de un cont "owner", ca nimic sa nu se piarda.
@@ -29,40 +29,41 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  expenses     Expense[]
-  incomes      Income[]
-  jobs         Job[]
-  invoices     Invoice[]
-  subscriptions Subscription[]
-  taxPayments  TaxPayment[]
+  expenses       Expense[]
+  incomes        Income[]
+  jobs           Job[]
+  invoices       Invoice[]
+  subscriptions  Subscription[]
+  taxPayments    TaxPayment[]
   companyPayouts CompanyPayout[]
-  holdings     Holding[]
-  savings      SavingsAccount[]
-  snapshots    NetWorthSnapshot[]
-  settings     Settings?
-  chores       Chore[]
-  choreWeeks   ChoreWeek[]
-  gratitude    GratitudeItem[]
-  supplements  Supplement[]
+  holdings       Holding[]
+  savings        SavingsAccount[]
+  snapshots      NetWorthSnapshot[]
+  settings       Settings?
+  chores         Chore[]
+  choreWeeks     ChoreWeek[]
+  gratitude      GratitudeItem[]
+  supplements    Supplement[]
   supplementLogs SupplementLog[]
-  imports      ImportBatch[]
-  categoryRules CategoryRule[]
-  passkeys     Passkey[]
-  anafTokens   AnafToken[]
+  imports        ImportBatch[]
+  categoryRules  CategoryRule[]
+  passkeys       Passkey[]
+  anafTokens     AnafToken[]
+  spvMessages    SpvMessage[]
 }
 
 model Expense {
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   id          String   @id @default(cuid())
   // Date the transaction occurred (Started Date in Revolut, normalized to local day).
   date        DateTime
   description String
   category    String   @default("Other")
-  amountRon   Int      // in bani (minor units), positive number for an expense
-  amountUsd  Int      // in cents
-  fxRate      Float    // RON→USD rate used for this row
-  merchant    String   // canonical merchant key (e.g. "wolt", "lidl")
+  amountRon   Int // in bani (minor units), positive number for an expense
+  amountUsd   Int // in cents
+  fxRate      Float // RON→USD rate used for this row
+  merchant    String // canonical merchant key (e.g. "wolt", "lidl")
   source      String   @default("manual") // "revolut" | "manual" | "import"
   // Composite signature used for cross-import dedup: `YYYY-MM-DD|desc|amount`.
   dedupKey    String
@@ -72,7 +73,7 @@ model Expense {
   // out of every aggregate / chart / total. Useful for own-account transfers,
   // refunds, or anything that shouldn't count as spending.
   excluded    Boolean  @default(false)
-  /*
+  /**
    * Nota ta pe tranzactie. Descrierea vine din extras si e ce a scris banca —
    * "Glovo*28AUG BUWTPGR4G" nu spune pentru cine a fost comanda. Nota e
    * singurul loc unde incape contextul care face un rand de peste sase luni
@@ -91,8 +92,8 @@ model Expense {
 }
 
 model Income {
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   id           String   @id @default(cuid())
   date         DateTime
   description  String
@@ -116,7 +117,7 @@ model Income {
   // Aggregates convert to USD via Settings.fxEurToUsd / fxRonToUsd.
   amountUsd    Int
   notes        String?
-  /*
+  /**
    * Ore platite fara factura in aplicatie: "upwork" pentru contractele orare
    * platite saptamanal de Upwork (BLNG pana in mai 2026, SISNET). Orele din
    * calendar conteaza ca incasate doar cand factura lor e platita — sau cand
@@ -143,95 +144,93 @@ model Job {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   id        String   @id @default(cuid())
   name      String
-  rateUsd   Float    // USD per hour
+  rateUsd   Float // USD per hour
   color     String   @default("#c65c2a")
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
   // Legal entity that this client invoices through. Used to autofill the
   // invoice header when creating a new invoice for this client.
-  companyName     String?
-  companyCui      String?         // CIF in Romania, VAT ID elsewhere
-  companyReg      String?         // J-number in RO, CVR in DK, etc.
-  companyAddress  String?
-  companyCountry  String?         // ISO country (RO, DK, US, ...)
+  companyName        String?
+  companyCui         String? // CIF in Romania, VAT ID elsewhere
+  companyReg         String? // J-number in RO, CVR in DK, etc.
+  companyAddress     String?
+  companyCountry     String? // ISO country (RO, DK, US, ...)
   // Judetul, cod ISO 3166-2:RO ("RO-B", "RO-CJ"). ANAF il cere obligatoriu
   // (BR-RO-111) pentru orice cumparator din Romania; fara el factura e
   // respinsa la SPV. Irelevant pentru clientii straini.
-  companyCounty   String?
-  defaultCurrency String   @default("USD") // USD | EUR | RON — currency the work is billed in
+  companyCounty      String?
+  defaultCurrency    String  @default("USD") // USD | EUR | RON — currency the work is billed in
   // Where to email invoices for this client. When set, the invoice page can
   // send the PDF + activity report straight to the client.
-  email           String?
-  /*
+  email              String?
+  /**
    * Textul liniei de factura, asa cum il asteapta clientul.
-   *
    * Fiecare client are formularea lui si ea nu se schimba de la o luna la
    * alta: NETOP vrea trimiterea la contract, BLNG vrea perioada de serviciu.
    * Generatorul scotea "Consulting services — August 2026" pentru toti, ceea
    * ce nu semana cu nicio factura emisa vreodata.
-   *
    * Sabloane: {month} {monthShort} {year} {lastDay} {period}
    */
   invoiceDescription String?
 
-  entries   Income[]
-  invoices  Invoice[]
+  entries  Income[]
+  invoices Invoice[]
+
   @@unique([userId, name])
   @@index([userId])
 }
 
 // Invoice issued by Project CIP SRL to a client.
 model Invoice {
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  id           String   @id @default(cuid())
-  number       String                         // formatted: "0012"
-  series       String   @default("CP")        // series prefix
-  seriesNumber Int                            // 12, 15… for ordering / next-number lookup
+  userId       String
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String @id @default(cuid())
+  number       String // formatted: "0012"
+  series       String @default("CP") // series prefix
+  seriesNumber Int // 12, 15… for ordering / next-number lookup
 
-  issuedAt     DateTime
-  dueAt        DateTime?
+  issuedAt DateTime
+  dueAt    DateTime?
 
   // Foreign-key to client. Optional — if the client is later deleted, the
   // invoice keeps its snapshotted name/CUI/address fields.
-  jobId        String?
-  job          Job?     @relation(fields: [jobId], references: [id])
+  jobId String?
+  job   Job?    @relation(fields: [jobId], references: [id])
 
   // Snapshot of client info at issue time (legal addresses / VAT IDs can
   // change; old invoices must keep their old data).
-  clientName      String
-  clientCompany   String
-  clientCui       String?
-  clientReg       String?
-  clientAddress   String?
-  clientCountry   String?
-  clientCounty    String?                     // ISO 3166-2:RO, snapshot din Job.companyCounty
+  clientName    String
+  clientCompany String
+  clientCui     String?
+  clientReg     String?
+  clientAddress String?
+  clientCountry String?
+  clientCounty  String? // ISO 3166-2:RO, snapshot din Job.companyCounty
 
   // Currency the work was billed in. The line totals + grand total are
   // displayed in `legalCurrency` (always RON for a RO SRL). `bnrRate` is
   // the RON-per-unit rate of `invoiceCurrency` on issue date.
-  invoiceCurrency String  @default("RON")     // RON | USD | EUR
-  legalCurrency   String  @default("RON")
-  bnrRate         Float?                      // RON per invoiceCurrency unit (e.g. 4.4085)
+  invoiceCurrency String @default("RON") // RON | USD | EUR
+  legalCurrency   String @default("RON")
+  bnrRate         Float? // RON per invoiceCurrency unit (e.g. 4.4085)
   // VAT rate applied to the net. 0.21 for Romanian B2B clients; 0 for
   // intra-community EU B2B (reverse charge — "taxare inversă"). Snapshotted
   // per invoice so historical rate changes don't rewrite old invoices.
-  vatRate         Float   @default(0)
+  vatRate         Float  @default(0)
 
-  footerNote   String?
-  status       String   @default("draft")     // draft | issued | paid | void
+  footerNote String?
+  status     String  @default("draft") // draft | issued | paid | void
 
   // Documentul din Oblio, cand factura a fost impinsa si acolo. Oblio duce
   // mai departe la SPV; aplicatia asta nu are certificat si nu poate semna.
   oblioNumber  String?
   oblioLink    String?
   paidAt       DateTime?
-  paidIncomeId String?  @unique               // linked Income row created on mark-paid
+  paidIncomeId String?   @unique // linked Income row created on mark-paid
 
-  /*
+  /**
    * e-Factura direct la ANAF, fara Oblio.
-   *
    * `efacturaPolicy`: "auto" = trimite doar daca legea o cere (client stabilit
    * in RO sau inregistrat in scopuri de TVA in RO); "send" = trimite oricum,
    * cu extern=DA, pentru clientii straini; "skip" = nu trimite niciodata.
@@ -239,30 +238,29 @@ model Invoice {
    * `submissions`, pentru ca o factura respinsa (nok) se retrimite cu acelasi
    * numar dupa corectarea XML-ului (OUG 120/2021 art. 4 alin. 5).
    */
-  efacturaPolicy    String   @default("auto")
-  efacturaCurrentId String?  @unique
-  efacturaCurrent   EfacturaSubmission? @relation("EfacturaCurrent", fields: [efacturaCurrentId], references: [id], onDelete: SetNull)
+  efacturaPolicy    String               @default("auto")
+  efacturaCurrentId String?              @unique
+  efacturaCurrent   EfacturaSubmission?  @relation("EfacturaCurrent", fields: [efacturaCurrentId], references: [id], onDelete: SetNull)
   submissions       EfacturaSubmission[] @relation("EfacturaAll")
 
-  lines        InvoiceLine[]
+  lines         InvoiceLine[]
   // Time entries (Income rows) that this invoice bills. Set when the user
   // generates an invoice from logged hours; cleared automatically when the
   // invoice is deleted (Income.invoice uses onDelete: SetNull).
   billedEntries Income[]
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@unique([userId, number])
   @@index([issuedAt])
   @@index([jobId])
   @@index([status])
-  @@unique([userId, number])
   @@index([userId])
 }
 
-/*
+/**
  * Tokenul OAuth2 de la ANAF (logincert.anaf.ro), un singur rand.
- *
  * Certificatul digital se foloseste O SINGURA DATA, in browser, la autorizare.
  * De acolo incolo totul e HTTP cu Bearer: access token 90 de zile, refresh
  * token 365 de zile, iar refresh-ul intoarce o pereche NOUA care trebuie
@@ -271,19 +269,19 @@ model Invoice {
  * refresh tokenul se roteste singur.
  */
 model AnafToken {
-  /*
+  /**
    * Un singur token per cont: tokenul e legat de certificatul firmei, iar o
    * firma e a unui cont. Cheia primara e chiar userId — inainte era `id = 1`,
    * adica un singur token pentru toata instalarea.
    */
   userId           String    @id
   user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessTokenEnc   String    // base64(iv|tag|ciphertext)
+  accessTokenEnc   String // base64(iv|tag|ciphertext)
   refreshTokenEnc  String
-  accessExpiresAt  DateTime  // din claim-ul `exp` al JWT-ului, altfel now + expires_in
-  refreshExpiresAt DateTime  // now + 365 zile la emitere/refresh
-  certSerial       String?   // header-ul serial_certificate intors de TestOauth/jaxrs/hello
-  obtainedAt       DateTime  // ultima autorizare completa, cu certificatul in browser
+  accessExpiresAt  DateTime // din claim-ul `exp` al JWT-ului, altfel now + expires_in
+  refreshExpiresAt DateTime // now + 365 zile la emitere/refresh
+  certSerial       String? // header-ul serial_certificate intors de TestOauth/jaxrs/hello
+  obtainedAt       DateTime // ultima autorizare completa, cu certificatul in browser
   refreshedAt      DateTime?
   // Un refresh e in curs (pornit la momentul asta). Refresh-ul consuma tokenul
   // vechi, deci al doilea proces care ar porni simultan ar ramane cu un token
@@ -295,12 +293,12 @@ model AnafToken {
   lastHealthOk     DateTime?
   lastError        String?
   updatedAt        DateTime  @updatedAt
+
   @@index([userId])
 }
 
-/*
+/**
  * O incercare de transmitere a unei facturi la e-Factura.
- *
  * Trei identificatoare ANAF care NU se amesteca: `indexIncarcare` vine din
  * upload (si e `id_solicitare` in listaMesaje), `idDescarcare` vine din
  * stareMesaj (si e `id` in listaMesaje) si e singurul acceptat de descarcare.
@@ -308,22 +306,22 @@ model AnafToken {
  * ce a vazut ANAF.
  */
 model EfacturaSubmission {
-  id             String    @id @default(cuid())
-  invoiceId      String
-  invoice        Invoice   @relation("EfacturaAll", fields: [invoiceId], references: [id], onDelete: Cascade)
-  currentOf      Invoice?  @relation("EfacturaCurrent")
+  id        String   @id @default(cuid())
+  invoiceId String
+  invoice   Invoice  @relation("EfacturaAll", fields: [invoiceId], references: [id], onDelete: Cascade)
+  currentOf Invoice? @relation("EfacturaCurrent")
 
-  env            String    // "test" | "prod" — un rand de test nu se confunda niciodata cu unul real
-  standard       String    @default("UBL")
-  extern         Boolean   @default(false) // trimis cu &extern=DA (client fara identificator RO)
-  xmlSent        String
-  xmlSha256      String
+  env       String // "test" | "prod" — un rand de test nu se confunda niciodata cu unul real
+  standard  String  @default("UBL")
+  extern    Boolean @default(false) // trimis cu &extern=DA (client fara identificator RO)
+  xmlSent   String
+  xmlSha256 String
 
   indexIncarcare String?   @unique
   idDescarcare   String?
   // uploading | upload_rejected | in_prelucrare | ok | nok | xml_nepreluat | download_failed
   state          String
-  stareRaw       String?   // atributul `stare` exact cum l-a intors ANAF
+  stareRaw       String? // atributul `stare` exact cum l-a intors ANAF
   uploadedAt     DateTime?
   stateCheckedAt DateTime?
   // Plafoane oficiale: 100 stareMesaj / mesaj / zi, 10 descarcare / mesaj / zi.
@@ -332,7 +330,7 @@ model EfacturaSubmission {
   stateChecksN   Int       @default(0)
   downloadsDay   String?
   downloadsN     Int       @default(0)
-  errors         Json?     // string[]: Errors@errorMessage de la upload sau Error@errorMessage din raportul nok
+  errors         Json? // string[]: Errors@errorMessage de la upload sau Error@errorMessage din raportul nok
 
   // Arhiva legala: ZIP-ul intreg, XML-ul facturii si semnatura MF, in S3.
   // Fara S3 configurat, ZIP-ul (cateva zeci de KB) sta inline, base64 — ANAF
@@ -343,8 +341,8 @@ model EfacturaSubmission {
   zipInline      String?
   signedAt       DateTime?
 
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([invoiceId])
   @@index([state])
@@ -354,11 +352,11 @@ model InvoiceLine {
   id          String  @id @default(cuid())
   invoiceId   String
   invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  position    Int                                // 1-based ordering within the invoice
+  position    Int // 1-based ordering within the invoice
   description String
-  unit        String  @default("buc")            // U.M. — "buc" or "h"
+  unit        String  @default("buc") // U.M. — "buc" or "h"
   quantity    Float
-  unitPrice   Float                              // in invoiceCurrency
+  unitPrice   Float // in invoiceCurrency
   // amount = quantity * unitPrice, stored to avoid float roundoff drift.
   amount      Float
 
@@ -369,91 +367,87 @@ model InvoiceLine {
 // `endsAt` (null = forever). Used to overlay "expected" segments on the
 // dashboard for future months.
 model Subscription {
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  id          String   @id @default(cuid())
-  name        String                              // "Netflix", "AWS", "GitHub", ...
-  category    String   @default("Subscriptions")
-  amountRon   Int                                 // bani — the predicted RON cost per cycle
-  amountUsd   Int                                 // cents — at the time of creation
-  fxRate      Float                               // RON→USD rate captured at creation
-  frequency   String   @default("monthly")        // monthly | yearly
-  dayOfMonth  Int      @default(1)                // 1-31, when in the cycle it bills
-  startsAt    DateTime @default(now())
-  endsAt      DateTime?                           // null = ongoing
-  active      Boolean  @default(true)
-  notes       String?
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String    @id @default(cuid())
+  name       String // "Netflix", "AWS", "GitHub", ...
+  category   String    @default("Subscriptions")
+  amountRon  Int // bani — the predicted RON cost per cycle
+  amountUsd  Int // cents — at the time of creation
+  fxRate     Float // RON→USD rate captured at creation
+  frequency  String    @default("monthly") // monthly | yearly
+  dayOfMonth Int       @default(1) // 1-31, when in the cycle it bills
+  startsAt   DateTime  @default(now())
+  endsAt     DateTime? // null = ongoing
+  active     Boolean   @default(true)
+  notes      String?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([active])
   @@index([userId])
 }
 
 // Single-row settings table.
-/*
+/**
  * Taxe platite efectiv, extrase din extrasul bancar al firmei.
- *
  * Proiectia de pe dashboard raspunde la "cat o sa datorez"; asta raspunde la
  * "cat am dat deja si pentru ce luna". Sunt doua intrebari diferite si pana
  * acum a doua nu avea raspuns nicaieri in aplicatie.
- *
  * `forPeriod` e luna ACOPERITA, nu cea in care s-a facut plata: "BS+BAS
  * martie" se plateste pe 4 mai, iar comparatia lunara are sens doar dupa luna
  * acoperita.
  */
 model TaxPayment {
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   id          String   @id @default(cuid())
   paidAt      DateTime
-  forPeriod   String?              // "2026-03"
-  kind        String               // bs_bas | dividende | venit | micro | cam | tva | alte
-  amountRon   Int                  // in bani
+  forPeriod   String? // "2026-03"
+  kind        String // bs_bas | dividende | venit | micro | cam | tva | alte
+  amountRon   Int // in bani
   description String
   // Cheie naturala din extras (data + suma + eticheta), ca reimportarea
   // aceluiasi extras sa nu duplice nimic.
   dedupKey    String
   createdAt   DateTime @default(now())
 
+  @@unique([userId, dedupKey])
   @@index([paidAt])
   @@index([forPeriod])
   @@index([kind])
-  @@unique([userId, dedupKey])
 }
 
-/*
+/**
  * Banii scosi din firma catre asociat — dividende si salariu.
- *
  * Nu sunt cheltuieli si nu sunt taxe, dar fara ei nu se poate spune cat se
  * datoreaza pentru luna curenta: impozitul pe dividendele din august se
  * plateste pe 25 septembrie, deci in TaxPayment nu exista nimic din care sa
  * iasa cifra. Randurile vin din extrasul ING, deduplicate ca si taxele.
  */
 model CompanyPayout {
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   id          String   @id @default(cuid())
   paidAt      DateTime
-  forPeriod   String               // "2026-08" — luna in care a iesit banul
-  kind        String               // dividende | salariu | alte
-  amountRon   Int                  // in bani, pozitiv
+  forPeriod   String // "2026-08" — luna in care a iesit banul
+  kind        String // dividende | salariu | alte
+  amountRon   Int // in bani, pozitiv
   description String
   // Eticheta lipsea si am dedus noi ca e dividend (ING scrie "No details").
   presumed    Boolean  @default(false)
   dedupKey    String
   createdAt   DateTime @default(now())
 
+  @@unique([userId, dedupKey])
   @@index([paidAt])
   @@index([forPeriod])
   @@index([kind])
-  @@unique([userId, dedupKey])
 }
 
-/*
+/**
  * Investitii si economii — averea personala, in aceeasi aplicatie.
- *
  * Impartirea sursele: CE si CAT detii se scrie o data (sau vine din broker),
  * dar CAT VALOREAZA se recalculeaza din pretul live la fiecare incarcare a
  * paginii. Asa net worth-ul se misca singur fara sa stocam preturi vechi.
@@ -462,12 +456,12 @@ model Holding {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   id        String   @id @default(cuid())
-  symbol    String                        // simbol Yahoo: MSFT, VWCE.DE
+  symbol    String // simbol Yahoo: MSFT, VWCE.DE
   name      String?
   quantity  Float
-  avgCost   Float?                        // pret mediu de achizitie, in `currency`
-  currency  String   @default("USD")      // moneda listarii
-  source    String   @default("manual")   // IBKR | XTB | manual
+  avgCost   Float? // pret mediu de achizitie, in `currency`
+  currency  String   @default("USD") // moneda listarii
+  source    String   @default("manual") // IBKR | XTB | manual
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -481,58 +475,62 @@ model SavingsAccount {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   id        String   @id @default(cuid())
   label     String
-  amountRon Int      @default(0)          // in bani, dupa conversie la salvare
-  amount    Float    @default(0)          // suma in moneda ei
+  amountRon Int      @default(0) // in bani, dupa conversie la salvare
+  amount    Float    @default(0) // suma in moneda ei
   currency  String   @default("RON")
   position  Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   @@index([userId])
 }
 
-/** Un rand pe zi, pentru graficul de evolutie a averii. */
+/**
+ * Un rand pe zi, pentru graficul de evolutie a averii.
+ */
 model NetWorthSnapshot {
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  day        String                       // "2026-08-30", ziua in Europe/Bucharest
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day        String // "2026-08-30", ziua in Europe/Bucharest
   stocksRon  Int
   savingsRon Int
   totalRon   Int
   takenAt    DateTime @default(now())
+
   @@id([userId, day])
 }
 
 model Settings {
-  /*
+  /**
    * Setarile sunt ale unui cont, nu ale aplicatiei. Erau un singur rand cu
    * `id = 1`, citit in vreo douazeci de locuri — al doilea utilizator ar fi
    * scris peste cursurile si peste datele de firma ale primului.
    */
-  userId          String @id
-  user            User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String  @id
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   // App-wide display currency. Storage is unchanged (USD cents for income,
   // RON bani for expenses) — this only affects formatting in the UI.
-  displayCurrency String @default("EUR") // EUR | USD | RON
-  /*
+  displayCurrency String  @default("EUR") // EUR | USD | RON
+  /**
    * Tema contului, aplicata peste variabilele din globals.css. `classic`
    * inseamna aplicatia de dinainte de teme, neatinsa. `themeAccent` e un
    * hex ales liber (#rrggbb) sau gol, caz in care ramane accentul temei.
    */
-  themePreset     String @default("classic")
-  themeAccent     String @default("")
+  themePreset     String  @default("classic")
+  themeAccent     String  @default("")
   // Bearer token for the external time-log API (/api/timelog). Lets tools
   // like Conductor POST hours without a browser session. Null = disabled.
   timelogToken    String?
-  fxRonToUsd      Float  @default(0.2255)
+  fxRonToUsd      Float   @default(0.2255)
   // USD per 1 EUR. Needed to total earnings across clients billed in
   // different currencies; ~5.2473 RON/EUR x 0.2255 USD/RON as of Aug 2026.
-  fxEurToUsd      Float  @default(1.1833)
+  fxEurToUsd      Float   @default(1.1833)
   // Romanian micro-enterprise tax inputs.
-  bsBasRon        Int    @default(141500) // 1415.00 RON in bani
-  camRon          Int    @default(8400)   //   84.00 RON in bani
-  microPct        Float  @default(0.01)   // 1% impozit micro
-  dividendePct    Float  @default(0.16)   // 16% impozit dividende
-  vatRate         Float  @default(0.21)   // 21% TVA standard rate (RO clients)
+  bsBasRon        Int     @default(141500) // 1415.00 RON in bani
+  camRon          Int     @default(8400) //   84.00 RON in bani
+  microPct        Float   @default(0.01) // 1% impozit micro
+  dividendePct    Float   @default(0.16) // 16% impozit dividende
+  vatRate         Float   @default(0.21) // 21% TVA standard rate (RO clients)
   // Inregistrarea normala in scopuri de TVA (art. 316). Anulata prin decizia
   // F700 din 03.08.2026: firma a trecut la regimul de scutire art. 310, deci
   // nu mai colecteaza TVA pe facturile interne.
@@ -541,76 +539,73 @@ model Settings {
   // atribuie un cod DISTINCT de CIF-ul firmei, valabil in VIES, care se pune
   // pe facturile catre clienti din UE in locul CIF-ului. Nu face firma
   // platitoare de TVA. Certificat seria W nr. 10052639, valabil din 10.08.2026.
-  issuerVatIntra  String @default("")
-  redThresholdRon Int    @default(5000)   // 50 RON/day in bani → row turns red
+  issuerVatIntra  String  @default("")
+  redThresholdRon Int     @default(5000) // 50 RON/day in bani → row turns red
   // Lower-bound month (defaults to Apr 2026 — start date in the Excel).
-  startYear       Int    @default(2026)
-  startMonth      Int    @default(4)
+  startYear       Int     @default(2026)
+  startMonth      Int     @default(4)
 
-  /*
+  /**
    * Datele emitentului — antetul facturii, XML-ul trimis la SPV si mesajul
    * catre Oblio.
-   *
    * Nu au valori implicite. Cand aveau, orice instalare noua emitea prima
    * factura cu CIF-ul si IBAN-ul altei firme: clientul platea in contul
    * altcuiva, iar incarcarea in SPV pleca pe alt CUI. Gol e o eroare pe care
    * o vezi; un default gresit e una pe care n-o vezi.
    */
-  issuerName     String @default("")
-  issuerCif      String @default("")
-  issuerReg      String @default("")
-  issuerAddress  String @default("")
-  issuerIban     String @default("")                          // RON account
-  issuerIbanEur  String @default("")                          // EUR account — used on EUR invoices
-  issuerIbanUsd  String @default("")                          // USD account — used on USD invoices
-  issuerSwift    String @default("")                          // BIC/SWIFT
-  issuerBank     String @default("")
-  issuerCapital  String @default("")
-  issuerSigner   String @default("")
+  issuerName         String @default("")
+  issuerCif          String @default("")
+  issuerReg          String @default("")
+  issuerAddress      String @default("")
+  issuerIban         String @default("") // RON account
+  issuerIbanEur      String @default("") // EUR account — used on EUR invoices
+  issuerIbanUsd      String @default("") // USD account — used on USD invoices
+  issuerSwift        String @default("") // BIC/SWIFT
+  issuerBank         String @default("")
+  issuerCapital      String @default("")
+  issuerSigner       String @default("")
   // Sender identity for outgoing invoice emails (must be a domain verified
   // with the email provider — see RESEND_API_KEY).
-  senderEmail    String @default("")
-  senderName     String @default("")
-  invoiceSeries  String @default("CP")            // prefix; next number derived from DB
+  senderEmail        String @default("")
+  senderName         String @default("")
+  invoiceSeries      String @default("CP") // prefix; next number derived from DB
   // Floor for the next invoice number. Lets the series continue from an
   // external tool (e.g. SmartBill issued up to CP0018 → set this to 19 so the
   // app's next invoice is CP0019, not CP0001).
-  invoiceStartNumber Int @default(1)
+  invoiceStartNumber Int    @default(1)
 
-  /*
+  /**
    * Cine e asociatul, pentru extrasul de firma.
-   *
    * Un virament din contul firmei catre persoana asta e dividend sau salariu,
    * nu cheltuiala. Era o expresie scrisa in cod cu numele proprietarului:
    * pentru oricine altcineva, dividendele lui ajungeau la "cheltuieli de
    * firma" si impozitul pe dividende disparea din estimare, fara niciun semn.
    * Mai multe nume se scriu separate prin virgula. Gol = nu se deduce nimic.
    */
-  ownerNames     String @default("")
+  ownerNames String @default("")
 
-  /*
+  /**
    * Cei doi din casa. Cheile raman "cip"/"axy" in baza de date, ca istoricul
    * sa nu se rupa; astea sunt doar numele si culorile afisate.
    */
-  personAName    String @default("")
-  personAColor   String @default("")
-  personBName    String @default("")
-  personBColor   String @default("")
+  personAName  String @default("")
+  personAColor String @default("")
+  personBName  String @default("")
+  personBColor String @default("")
 
   // Household chores rotation: which person is on "Rândul 1" vs "Rândul 2".
   // Base assignment alternates by ISO-week parity; this flag flips the phase
   // so a one-tap "Swap" lines it up with reality for good.
-  choresFlip      Boolean @default(false)
+  choresFlip Boolean @default(false)
 
-  updatedAt       DateTime @updatedAt @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 // One row per ISO week ("2026-W23") tracking which chores got ticked off.
 // `done` holds keys shaped "set-dayIndex-choreIndex" (e.g. "2-1-0"). Shared,
 // so both partners see the same checkmarks.
-/*
+/**
  * Sarcinile casnice. Erau o constanta in cod; acum se pot adauga si sterge.
- *
  * Bifele se tin pe ID-ul sarcinii, nu pe pozitia ei. Cu chei de forma
  * "set-zi-index", stergerea unei sarcini muta indicii celor de dupa si bifele
  * ar cadea pe alta sarcina.
@@ -619,10 +614,10 @@ model Chore {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   id        String   @id @default(cuid())
-  setId     Int                          // 1 = Randul 1, 2 = Randul 2
-  day       Int                          // 0 = Luni … 6 = Duminica
+  setId     Int // 1 = Randul 1, 2 = Randul 2
+  day       Int // 0 = Luni … 6 = Duminica
   label     String
-  shopping  Boolean  @default(false)     // marcaj Bringo
+  shopping  Boolean  @default(false) // marcaj Bringo
   position  Int      @default(0)
   createdAt DateTime @default(now())
 
@@ -635,7 +630,8 @@ model ChoreWeek {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   isoWeek   String
   done      String[] @default([])
-  updatedAt DateTime @updatedAt @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
   @@id([userId, isoWeek])
 }
 
@@ -648,7 +644,7 @@ model GratitudeItem {
   id        String   @id @default(cuid())
   text      String
   author    String?
-  photoKey  String?  // S3 object key in the private photos bucket (optional)
+  photoKey  String? // S3 object key in the private photos bucket (optional)
   pinned    Boolean  @default(false)
   tags      String[] @default([])
   createdAt DateTime @default(now())
@@ -663,7 +659,7 @@ model GratitudeItem {
 model GratitudeReaction {
   id        String        @id @default(cuid())
   itemId    String
-  person    String        // "cip" | "axy"
+  person    String // "cip" | "axy"
   emoji     String
   createdAt DateTime      @default(now())
   item      GratitudeItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
@@ -675,18 +671,17 @@ model GratitudeReaction {
 // One row per (day, person, supplement) with how many units were taken that
 // day. `day` is a Bucharest-local "yyyy-mm-dd"; `key` references the static
 // catalog in src/lib/supplements.ts.
-/*
+/**
  * Catalogul de suplimente. Era o constanta in cod; acum se pot adauga si
  * scoate din interfata.
- *
  * `key` ramane identificatorul stabil, pentru ca SupplementLog scrie pe el:
  * schimbarea numelui unui produs nu trebuie sa piarda istoricul bifelor.
  * Campurile bogate (compozitie, interactiuni, contributii la doza zilnica) au
  * sens doar pentru produsele cercetate; ce adaugi tu le lasa goale.
  */
 model Supplement {
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   id           String   @id @default(cuid())
   key          String
   name         String
@@ -695,20 +690,20 @@ model Supplement {
   benefits     String[]
   unit         String   @default("capsulă")
   target       Int      @default(1)
-  timing       String                       // morning | noon | evening | preworkout
+  timing       String // morning | noon | evening | preworkout
   timingNote   String   @default("")
   foodNote     String   @default("")
   composition  String   @default("")
   interactions String[]
   cautions     String[]
   daily        Boolean  @default(true)
-  suggestedFor String?                      // cip | axy | null = amandoi
+  suggestedFor String? // cip | axy | null = amandoi
   contributes  Json?
   position     Int      @default(0)
   createdAt    DateTime @default(now())
 
-  @@index([timing, position])
   @@unique([userId, key])
+  @@index([timing, position])
   @@index([userId])
 }
 
@@ -720,7 +715,7 @@ model SupplementLog {
   person    String // "cip" | "axy"
   key       String
   count     Int      @default(0)
-  updatedAt DateTime @updatedAt @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@unique([userId, day, person, key])
   @@index([day])
@@ -729,25 +724,27 @@ model SupplementLog {
 
 // Tracks Revolut CSVs that have already been processed (filename + line hash).
 model ImportBatch {
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   id          String   @id @default(cuid())
   filename    String
   rowsRead    Int
   rowsInsert  Int
   rowsSkipped Int
   createdAt   DateTime @default(now())
+
   @@index([userId])
 }
 
 // Auto-categorization rules: substring → category.
 model CategoryRule {
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  id        String @id @default(cuid())
-  keyword   String                  // lowercase substring matched against description
-  category  String
-  priority  Int    @default(100)    // lower = higher priority
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  keyword  String // lowercase substring matched against description
+  category String
+  priority Int    @default(100) // lower = higher priority
+
   @@unique([userId, keyword])
   @@index([userId])
 }
@@ -755,19 +752,48 @@ model CategoryRule {
 // WebAuthn / Passkey credentials. Single user so no FK — all passkeys belong
 // to "the owner". credentialId is the WebAuthn credential id (base64url).
 model Passkey {
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  id            String   @id @default(cuid())
-  label         String                          // user-friendly: "iPhone", "MacBook Touch ID"
-  credentialId  String   @unique                // base64url-encoded credential id
-  publicKey     Bytes                           // CBOR-encoded public key
-  counter       Int      @default(0)            // authenticator signature counter (for clone detection)
-  transports    String   @default("")           // comma-joined: "internal,hybrid,usb"
-  deviceType    String   @default("singleDevice") // "singleDevice" | "multiDevice" (synced cred)
-  backedUp      Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  lastUsedAt    DateTime @default(now())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  label        String // user-friendly: "iPhone", "MacBook Touch ID"
+  credentialId String   @unique // base64url-encoded credential id
+  publicKey    Bytes // CBOR-encoded public key
+  counter      Int      @default(0) // authenticator signature counter (for clone detection)
+  transports   String   @default("") // comma-joined: "internal,hybrid,usb"
+  deviceType   String   @default("singleDevice") // "singleDevice" | "multiDevice" (synced cred)
+  backedUp     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime @default(now())
 
   @@index([credentialId])
   @@index([userId])
+}
+
+/**
+ * Mesajele din Spatiul Privat Virtual: recipise, notificari, decizii, raspunsuri
+ * la solicitari, pentru toate firmele (si persoana fizica) la care are drepturi
+ * certificatul.
+ * Serviciul SPV (webserviced.anaf.ro/SPVWS2) se autentifica direct cu
+ * certificatul calificat, iar cheia lui nu iese niciodata de pe token. Deci nu
+ * aplicatia le aduce: le aduce `tools/anaf-spv-sync` de pe Mac-ul cu tokenul
+ * si le urca aici, prin /api/anaf/spv/*. Aplicatia doar le pastreaza si le
+ * arata, cu insigna pentru ce n-ai citit.
+ */
+model SpvMessage {
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  anafId        String // indexul de descarcare din listaMesaje
+  cif           String // CUI-ul sau CNP-ul pentru care e mesajul
+  kind          String // "tip" de la ANAF: RECIPISA, NOTIFICARE, ...
+  details       String
+  anafCreatedAt DateTime // data_creare, ora Bucurestiului
+  requestId     String? // id_solicitare, cand e raspuns la o cerere
+  pdf           Bytes? // PDF-ul din SPV; ANAF il tine doar ~60 de zile
+  readAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@unique([userId, anafId])
+  @@index([userId, readAt])
+  @@index([userId, anafCreatedAt])
 }
