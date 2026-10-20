@@ -7,8 +7,9 @@
 //
 // Pasii: listaMesaje pe ultimele 60 de zile -> POST /api/anaf/spv/sync, care
 // raspunde cu mesajele fara PDF -> descarcare?id= pentru fiecare -> PUT
-// /api/anaf/spv/pdf. Fara token in laptop iese linistit, fara eroare: launchd
-// il porneste la fiecare 15 minute, iar cand bagi tokenul la loc reia.
+// /api/anaf/spv/pdf. Ruleaza o data si se inchide: il porneste butonul Sync
+// din pagina ANAF, prin schema house-anaf-sync:// (vezi install.sh), sau il
+// rulezi tu din terminal. Fara token in laptop iese linistit.
 //
 // Configurare (vezi install.sh):
 //   ~/.config/anaf-spv-sync/token   tokenul de API din Settings -> API access
@@ -24,10 +25,20 @@ let subjectFilter = ProcessInfo.processInfo.environment["ANAF_SPV_SUBJECT"]?.upp
 let tokenPath = FileManager.default.homeDirectoryForCurrentUser
   .appendingPathComponent(".config/anaf-spv-sync/token")
 
+let logURL = FileManager.default.homeDirectoryForCurrentUser
+  .appendingPathComponent("Library/Logs/anaf-spv-sync.log")
+
+/// Pornit din browser n-are terminal, deci jurnalul merge si intr-un fisier.
 func log(_ s: String) {
-  let ts = ISO8601DateFormatter().string(from: Date())
-  print("\(ts) \(s)")
-  fflush(stdout)
+  let line = "\(ISO8601DateFormatter().string(from: Date())) \(s)\n"
+  FileHandle.standardOutput.write(Data(line.utf8))
+  if let h = try? FileHandle(forWritingTo: logURL) {
+    h.seekToEndOfFile()
+    h.write(Data(line.utf8))
+    try? h.close()
+  } else {
+    try? Data(line.utf8).write(to: logURL)
+  }
 }
 
 func fail(_ s: String) -> Never {

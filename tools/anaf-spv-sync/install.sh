@@ -1,26 +1,56 @@
 #!/bin/bash
-# Instaleaza sincronizarea SPV pe Mac: compileaza programul, pune tokenul de
-# API al aplicatiei intr-un fisier citibil doar de tine si porneste un
-# LaunchAgent care ruleaza la fiecare 15 minute. La final face o rulare in
-# fata ta, ca sa introduci PIN-ul tokenului.
+# Instaleaza ajutorul pentru butonul Sync din pagina ANAF.
+#
+# Compileaza programul, il pune intr-o aplicatie mica (fara iconita in Dock)
+# care raspunde la linkuri house-anaf-sync://, si pastreaza tokenul de API al
+# aplicatiei intr-un fisier citibil doar de tine. Nu ruleaza nimic singur, in
+# fundal: sincronizarea porneste doar cand apesi Sync. La final face o rulare
+# in fata ta, ca sa introduci PIN-ul tokenului.
 #
 #   bash tools/anaf-spv-sync/install.sh
 #
 # Dezinstalare:
-#   launchctl bootout gui/$(id -u)/com.house-cefani.anaf-spv-sync
-#   rm ~/Library/LaunchAgents/com.house-cefani.anaf-spv-sync.plist ~/.local/bin/anaf-spv-sync
+#   rm -rf ~/Applications/"ANAF SPV Sync.app" ~/.config/anaf-spv-sync
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
-bin="$HOME/.local/bin/anaf-spv-sync"
+app="$HOME/Applications/ANAF SPV Sync.app"
 conf="$HOME/.config/anaf-spv-sync"
-label="com.house-cefani.anaf-spv-sync"
-plist="$HOME/Library/LaunchAgents/$label.plist"
-logf="$HOME/Library/Logs/anaf-spv-sync.log"
+lsregister="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 
-mkdir -p "$HOME/.local/bin" "$conf" "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
-swiftc -O "$here/main.swift" -o "$bin"
-echo "Compilat: $bin"
+# Versiunea veche rula la 15 minute; acum sincronizarea porneste doar din buton.
+old="com.house-cefani.anaf-spv-sync"
+launchctl bootout "gui/$(id -u)/$old" 2>/dev/null || true
+rm -f "$HOME/Library/LaunchAgents/$old.plist" "$HOME/.local/bin/anaf-spv-sync"
+
+mkdir -p "$app/Contents/MacOS" "$conf" "$HOME/Library/Logs"
+swiftc -O "$here/main.swift" -o "$app/Contents/MacOS/anaf-spv-sync"
+
+cat > "$app/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key><string>com.house-cefani.anaf-spv-sync</string>
+  <key>CFBundleName</key><string>ANAF SPV Sync</string>
+  <key>CFBundleExecutable</key><string>anaf-spv-sync</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>LSUIElement</key><true/>
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key><string>House Cefani ANAF sync</string>
+      <key>CFBundleURLSchemes</key><array><string>house-anaf-sync</string></array>
+    </dict>
+  </array>
+</dict>
+</plist>
+PLIST
+
+codesign --force --sign - "$app" >/dev/null 2>&1 || true
+"$lsregister" -f "$app"
+echo "Instalat: $app (raspunde la house-anaf-sync://)"
 
 if [ ! -s "$conf/token" ]; then
   echo "Tokenul de API din aplicatie (Settings -> API access). Nu se afiseaza cand il lipesti:"
@@ -32,25 +62,6 @@ if [ ! -s "$conf/token" ]; then
 fi
 chmod 600 "$conf/token"
 
-cat > "$plist" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key><string>$label</string>
-  <key>ProgramArguments</key><array><string>$bin</string></array>
-  <key>StartInterval</key><integer>900</integer>
-  <key>RunAtLoad</key><true/>
-  <key>StandardOutPath</key><string>$logf</string>
-  <key>StandardErrorPath</key><string>$logf</string>
-</dict>
-</plist>
-PLIST
-
-launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
-
-echo "Prima rulare: daca apare fereastra SafeNet, introdu PIN-ul tokenului."
-"$bin"
-
-launchctl bootstrap "gui/$(id -u)" "$plist"
-echo "Gata. Ruleaza la fiecare 15 minute; jurnal: $logf"
+echo "Proba: daca apare fereastra SafeNet, introdu PIN-ul tokenului."
+"$app/Contents/MacOS/anaf-spv-sync"
+echo "Gata. De acum apesi Sync in pagina ANAF; jurnal: ~/Library/Logs/anaf-spv-sync.log"

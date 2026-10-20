@@ -540,6 +540,9 @@ model Settings {
   // pe facturile catre clienti din UE in locul CIF-ului. Nu face firma
   // platitoare de TVA. Certificat seria W nr. 10052639, valabil din 10.08.2026.
   issuerVatIntra  String  @default("")
+  // Ultima sincronizare SPV reusita, chiar si fara mesaje noi. Butonul din
+  // pagina ANAF asteapta s-o vada schimbata ca sa stie ca Mac-ul a terminat.
+  spvSyncedAt     DateTime?
   redThresholdRon Int     @default(5000) // 50 RON/day in bani → row turns red
   // Lower-bound month (defaults to Apr 2026 — start date in the Excel).
   startYear       Int     @default(2026)

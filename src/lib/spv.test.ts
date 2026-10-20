@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeSpv, isCnp, maskCnp, parseAnafDay } from "@/lib/spv";
+import { describeSpv, groupDue, isCnp, maskCnp, parseAnafDay, shortCompany } from "@/lib/spv";
 
 /*
  * Un mesaj citit gresit nu crapa nimic: o notificare cu termen apare ca
@@ -98,5 +98,37 @@ describe("CNP", () => {
     expect(isCnp("1900101000001")).toBe(true);
     expect(isCnp("10000001")).toBe(false);
     expect(maskCnp("1900101000001")).toBe("1••••••••0001");
+  });
+});
+
+describe("shortCompany", () => {
+  it.each([
+    ["PROJECT CIP S.R.L.", "PROJECT CIP"],
+    ["Aethra, S.A.", "Aethra"],
+    ["NETOP BUSINESS SOLUTIONS A/S", "NETOP BUSINESS SOLUTIONS A/S"],
+  ])("%s → %s", (a, b) => expect(shortCompany(a)).toBe(b));
+});
+
+describe("groupDue", () => {
+  const today = day("20.10.2026 00:00:00");
+  const note = (cif: string, received: string) => ({
+    cif,
+    info: describeSpv("NOTIFICARE", "Notificari pentru nedepunerea in termen", day(received)),
+  });
+
+  it("doua notificari identice din aceeasi zi devin una, cu numarul lor", () => {
+    const g = groupDue([note("1", "05.10.2026 x"), note("1", "05.10.2026 x")], today);
+    expect(g).toHaveLength(1);
+    expect(g[0].count).toBe(2);
+  });
+
+  it("firme diferite raman separate, iar termenele trecute nu mai apar", () => {
+    const g = groupDue([note("1", "05.10.2026 x"), note("2", "05.10.2026 x"), note("1", "01.09.2026 x")], today);
+    expect(g.map((x) => x.first.cif).sort()).toEqual(["1", "2"]);
+  });
+
+  it("recipisele nu intra in banda de termene", () => {
+    const r = { cif: "1", info: describeSpv("RECIPISA", "tip D112", day("19.10.2026 x")) };
+    expect(groupDue([r], today)).toHaveLength(0);
   });
 });
