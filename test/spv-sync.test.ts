@@ -79,6 +79,13 @@ describe.skipIf(!url)("sincronizarea SPV", () => {
     expect(again.needPdf).toEqual(["102"]);
   });
 
+  it("tine minte cand a sincronizat ultima data, chiar fara mesaje noi", async () => {
+    const before = Date.now();
+    await post(`tok-${A}`, { mesaje: [] });
+    const s = await runAsUser(A, () => db.settings.findUnique({ where: { userId: A }, select: { spvSyncedAt: true } }));
+    expect(s?.spvSyncedAt?.getTime()).toBeGreaterThanOrEqual(before - 1000);
+  });
+
   it("refuza ce nu e PDF, cum e eroarea JSON de la ANAF", async () => {
     const r = await pdf(`tok-${A}`, "102", '{"eroare":"Nu aveti dreptul"}');
     expect(r.status).toBe(400);

@@ -48,6 +48,11 @@ export async function POST(req: Request) {
         : [];
     });
     const created = await db.spvMessage.createMany({ data: rows, skipDuplicates: true });
+    await db.settings.upsert({
+      where: { userId },
+      update: { spvSyncedAt: new Date() },
+      create: { userId, spvSyncedAt: new Date() },
+    });
     const missing = await db.spvMessage.findMany({
       where: { anafId: { in: rows.map((r) => r.anafId) }, pdf: null },
       select: { anafId: true },

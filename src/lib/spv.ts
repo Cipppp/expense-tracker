@@ -101,3 +101,29 @@ export function isCnp(cif: string) {
 export function maskCnp(cnp: string) {
   return `${cnp.slice(0, 1)}••••••••${cnp.slice(-4)}`;
 }
+
+/** "PROJECT CIP S.R.L." → "PROJECT CIP": in lista, forma juridica doar ocupa loc. */
+export function shortCompany(name: string) {
+  return name.replace(/[\s,]+(S\.?\s?R\.?\s?L\.?|S\.?\s?A\.?|SRL|SA|PFA)\.?$/i, "").trim() || name;
+}
+
+/**
+ * Notificarile cu termen, o data pe fiecare problema. ANAF trimite adesea doua
+ * notificari identice in aceeasi zi (una pe declaratie); in banda de sus
+ * conteaza ce ai de facut si pana cand, nu de cate ori ti s-a spus.
+ */
+export function groupDue<T extends { cif: string; info: SpvInfo }>(items: T[], today: Date) {
+  const groups = new Map<string, { first: T; count: number }>();
+  for (const m of items) {
+    const { deadline, tone, title } = m.info;
+    if (!deadline || deadline.getTime() < today.getTime()) continue;
+    if (tone !== "danger" && tone !== "warn") continue;
+    const key = `${m.cif}|${title}|${deadline.toISOString().slice(0, 10)}`;
+    const g = groups.get(key);
+    if (g) g.count += 1;
+    else groups.set(key, { first: m, count: 1 });
+  }
+  return [...groups.values()].sort(
+    (a, b) => a.first.info.deadline!.getTime() - b.first.info.deadline!.getTime(),
+  );
+}
