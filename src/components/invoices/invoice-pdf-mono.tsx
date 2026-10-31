@@ -134,7 +134,7 @@ export function InvoicePdfMono({ issuer, invoice }: InvoicePdfProps) {
     <Document title={`${C.title} ${invoice.series} ${invoice.number}`} author={issuer.name} creator={issuer.name} producer={issuer.name}>
       <Page size="A4" style={s.page}>
         <View style={s.top}>
-          <View>
+          <View style={{ width: "64%" }}>
             <T style={s.title}>{C.title}</T>
             <View style={s.meta}>
               {metaRows.map(([k, v]) => (
