@@ -33,7 +33,10 @@ const s = StyleSheet.create({
   muted: { color: MUTED },
   table: { marginTop: 10, borderWidth: 1, borderColor: B, flexGrow: 1 },
   tr: { flexDirection: "row" },
-  th: { fontWeight: 700, borderBottomWidth: 0.8, borderColor: B },
+  th: { borderBottomWidth: 0.8, borderColor: B },
+  thCell: { justifyContent: "center", alignItems: "center", paddingVertical: 7 },
+  thText: { fontWeight: 700, textAlign: "center" },
+  thCur: { fontWeight: 700, textAlign: "center", fontSize: 7.2, marginTop: 1 },
   cell: { borderRightWidth: 0.8, borderColor: B, paddingHorizontal: 5, paddingVertical: 5 },
   last: { paddingHorizontal: 5, paddingVertical: 5 },
   cNo: { width: "6%", textAlign: "center" },
@@ -176,15 +179,22 @@ export function InvoicePdfBoxedLite({ issuer, invoice }: InvoicePdfProps) {
         </View>
 
         <View style={s.table}>
-          <View style={s.tr}>
-            <T style={[s.cell, s.th, s.cNo]}>{X.noCol}</T>
-            <T style={[s.cell, s.th, s.cDesc]}>{X.desc}</T>
-            <T style={[s.cell, s.th, s.cUnit]}>{X.unit}</T>
-            <T style={[s.cell, s.th, s.cQty]}>{X.qty}</T>
-            <T style={[s.cell, s.th, s.cPrice]}>{X.price}</T>
-            <T style={[s.last, s.th, s.cAmount]}>
-              {X.amount} {a.present}
-            </T>
+          {/* Capul de tabel ca la SmartBill: etichete centrate pe orizontala si
+              pe verticala, cu moneda pe randul de dedesubt la coloanele de bani. */}
+          <View style={[s.tr, s.th]}>
+            {[
+              [X.noCol, s.cNo, null],
+              [X.desc, s.cDesc, null],
+              [X.unit, s.cUnit, null],
+              [X.qty, s.cQty, null],
+              [X.price, s.cPrice, a.present],
+              [X.amount, s.cAmount, a.present],
+            ].map(([label, col, cur], i, all) => (
+              <View key={i} style={[i < all.length - 1 ? s.cell : s.last, { width: (col as { width: string }).width }, s.thCell]}>
+                <T style={s.thText}>{label as string}</T>
+                {cur ? <T style={s.thCur}>-{cur as string}-</T> : null}
+              </View>
+            ))}
           </View>
           <View style={[s.tr, s.body]}>
             {cols.map((col, ci) => (
