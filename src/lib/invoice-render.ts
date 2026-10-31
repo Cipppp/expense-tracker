@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { InvoicePdf, type InvoicePdfProps } from "@/components/invoices/invoice-pdf";
 import { InvoicePdfMono } from "@/components/invoices/invoice-pdf-mono";
 import { InvoicePdfBoxed } from "@/components/invoices/invoice-pdf-boxed";
+import { InvoicePdfBoxedLite } from "@/components/invoices/invoice-pdf-boxed-lite";
 import { InvoicePdfClean } from "@/components/invoices/invoice-pdf-clean";
 import { InvoicePdfSheet } from "@/components/invoices/invoice-pdf-sheet";
 import { invoiceTemplate, type InvoiceTemplate } from "@/lib/invoice-template";
@@ -49,6 +50,7 @@ export async function renderInvoicePdf(
     classic: InvoicePdf,
     mono: InvoicePdfMono,
     boxed: InvoicePdfBoxed,
+    "boxed-lite": InvoicePdfBoxedLite,
     clean: InvoicePdfClean,
     sheet: (p: InvoicePdfProps) => InvoicePdfSheet({ ...p, ruled: true }),
     "sheet-open": (p: InvoicePdfProps) => InvoicePdfSheet({ ...p, ruled: false }),

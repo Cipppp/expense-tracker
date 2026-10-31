@@ -1,4 +1,4 @@
-import { Document, Page, Rect, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
+import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/types";
 import { vatKindForInvoice } from "@/lib/vat";
 import { roCountyName } from "@/lib/anaf/scope";
@@ -6,7 +6,6 @@ import { legalMentions } from "@/lib/legal-mentions";
 import { INVOICE_LABELS, invoiceLabels, invoiceLanguage } from "@/lib/invoice-labels";
 import { INVOICE_FONT, groupIban, noHyphens } from "@/lib/invoice-fonts";
 import { fmtQty, invoiceAmounts } from "@/lib/invoice-amounts";
-import { epcMatrix } from "@/lib/epc-qr";
 import type { InvoicePdfProps } from "@/components/invoices/invoice-pdf";
 
 /*
@@ -19,16 +18,20 @@ import type { InvoicePdfProps } from "@/components/invoices/invoice-pdf";
  * `ruled` decide daca grila se vede (chenare, ca la SmartBill) sau ramane
  * doar in aliniere, cu cateva linii orizontale.
  *
- * Facturile in euro au un cod QR EPC: aplicatia bancii clientului completeaza
- * transferul SEPA cu IBAN-ul, suma si numarul facturii.
+ * Fara chenare, sectiunile se despart prin aer, nu prin linii: spatiu mare
+ * intre ele, o linie fina gri deasupra fiecareia, iar mentiunile legale jos,
+ * ca nota de subsol.
  */
 
 const INK = "#000000";
 const LABEL = "#555555";
 const PAD = 7;
+const HAIR = "#d6d6d6";
 
 const base = StyleSheet.create({
   page: { paddingTop: 36, paddingHorizontal: 36, paddingBottom: 40, fontFamily: INVOICE_FONT, fontSize: 7.8, lineHeight: 1.42, color: INK },
+  pageOpen: { paddingTop: 54, paddingHorizontal: 50, paddingBottom: 130, fontSize: 8, lineHeight: 1.5 },
+  footOpen: { position: "absolute", left: 50, right: 50, bottom: 40, borderTopWidth: 0.5, borderColor: HAIR, paddingTop: 10 },
   row: { flexDirection: "row" },
   label: { fontSize: 5.8, color: LABEL, letterSpacing: 0.9, textTransform: "uppercase", marginBottom: 4 },
   issuer: { fontSize: 13, fontWeight: 700, letterSpacing: -0.2 },
@@ -64,7 +67,6 @@ const SHEET_LABELS = {
     amount: "Valoare",
     payment: "Plata",
     reference: "Referinta",
-    scan: "Scaneaza pentru plata SEPA",
     subtotal: "Subtotal",
     totalDue: "Total de plata",
     notes: "Mentiuni",
@@ -87,7 +89,6 @@ const SHEET_LABELS = {
     amount: "Amount",
     payment: "Payment",
     reference: "Reference",
-    scan: "Scan to pay (SEPA)",
     subtotal: "Subtotal",
     totalDue: "Total due",
     notes: "Notes",
@@ -115,33 +116,6 @@ function KV({ k, v }: { k: string; v: string }) {
   );
 }
 
-/** Codul QR desenat vectorial: un dreptunghi pentru fiecare sir de module negre de pe un rand. */
-function Qr({ matrix, size }: { matrix: boolean[][]; size: number }) {
-  const n = matrix.length;
-  const quiet = 2;
-  const unit = size / (n + quiet * 2);
-  const runs: Array<{ x: number; y: number; w: number }> = [];
-  matrix.forEach((row, y) => {
-    let x = 0;
-    while (x < n) {
-      if (!row[x]) {
-        x++;
-        continue;
-      }
-      const start = x;
-      while (x < n && row[x]) x++;
-      runs.push({ x: start, y, w: x - start });
-    }
-  });
-  return (
-    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {runs.map((r, i) => (
-        <Rect key={i} x={(r.x + quiet) * unit} y={(r.y + quiet) * unit} width={r.w * unit + 0.05} height={unit + 0.05} fill={INK} />
-      ))}
-    </Svg>
-  );
-}
-
 export function InvoicePdfSheet({ issuer, invoice, ruled }: InvoicePdfProps & { ruled: boolean }) {
   const lang = invoiceLanguage(invoice.clientCountry);
   const L = invoiceLabels(invoice.clientCountry);
@@ -162,11 +136,6 @@ export function InvoicePdfSheet({ issuer, invoice, ruled }: InvoicePdfProps & { 
   const country = code && code !== "RO" && !names.some((c) => addr.includes(c.toLowerCase())) ? names[0] ?? code : null;
   const county = code === "RO" ? roCountyName(invoice.clientCounty) : null;
 
-  const qr =
-    a.present === "EUR" && issuer.swift
-      ? epcMatrix({ bic: issuer.swift, name: issuer.name, iban: issuer.iban, amount: a.totalGross, remittance: `${S.title} ${invoice.series} ${invoice.number}` })
-      : null;
-
   // Grila: cu chenare, fiecare casuta are bordura stanga/sus, iar tabelul
   // inchide dreapta si jos. Fara chenare raman doar liniile orizontale dintre
   // randurile mari.
@@ -178,14 +147,22 @@ export function InvoicePdfSheet({ issuer, invoice, ruled }: InvoicePdfProps & { 
     ...extra,
   });
   const band = (extra: Style = {}): Style =>
-    ruled ? extra : { borderTopWidth: 0.6, borderColor: INK, marginTop: 6, ...extra };
+    ruled ? extra : { borderTopWidth: 0.5, borderColor: HAIR, marginTop: 30, paddingTop: 8, ...extra };
+
+  const notes = (
+    <>
+      {mention ? <T style={base.note}>{mention.ro}</T> : null}
+      {mention ? <T style={base.note}>{mention.en}</T> : null}
+      {invoice.footerNote ? <T style={base.note}>{invoice.footerNote}</T> : null}
+    </>
+  );
 
   return (
     <Document title={`${S.title} ${invoice.series} ${invoice.number}`} author={issuer.name} creator={issuer.name} producer={issuer.name}>
-      <Page size="A4" style={base.page}>
+      <Page size="A4" style={ruled ? base.page : [base.page, base.pageOpen]}>
         <View style={ruled ? [frame, { borderLeftWidth: 0.4, borderTopWidth: 0.4, borderColor: INK }] : {}}>
           {/* Antet: cine emite si ce numar are factura. */}
-          <View style={[base.row, ruled ? {} : { borderBottomWidth: 1.4, borderColor: INK, paddingBottom: 4 }]}>
+          <View style={[base.row, ruled ? {} : { borderBottomWidth: 1.2, borderColor: INK, paddingBottom: 14 }]}>
             <View style={cell({ width: "75%", paddingVertical: 12 })}>
               <T style={base.issuer}>{issuer.name}</T>
               <T style={base.issuerSub}>{issuer.address}</T>
@@ -196,7 +173,7 @@ export function InvoicePdfSheet({ issuer, invoice, ruled }: InvoicePdfProps & { 
             </View>
           </View>
 
-          <View style={[base.row, ruled ? {} : { marginTop: 4 }]}>
+          <View style={[base.row, ruled ? {} : { marginTop: 14 }]}>
             {[
               [S.issued, invoice.issuedAt],
               [S.due, invoice.dueAt ?? "-"],
@@ -240,33 +217,25 @@ export function InvoicePdfSheet({ issuer, invoice, ruled }: InvoicePdfProps & { 
             </T>
           </View>
           {a.lines.map((l, i) => (
-            <View key={i} style={[base.row, ruled ? {} : { borderTopWidth: 0.4, borderColor: "#bdbdbd" }]} wrap={false}>
-              <T style={[cell({ width: "6%", paddingVertical: 9 })]}>{i + 1}</T>
-              <T style={[cell({ width: "52%", paddingVertical: 9 })]}>{l.description}</T>
-              <T style={[base.right, cell({ width: "11%", paddingVertical: 9 })]}>
+            <View key={i} style={[base.row, ruled ? {} : { borderTopWidth: 0.5, borderColor: HAIR }]} wrap={false}>
+              <T style={[cell({ width: "6%", paddingVertical: ruled ? 9 : 12 })]}>{i + 1}</T>
+              <T style={[cell({ width: "52%", paddingVertical: ruled ? 9 : 12 })]}>{l.description}</T>
+              <T style={[base.right, cell({ width: "11%", paddingVertical: ruled ? 9 : 12 })]}>
                 {fmtQty(l.quantity)} {l.unit}
               </T>
-              <T style={[base.right, cell({ width: "14%", paddingVertical: 9 })]}>{fmt(l.unitPrice)}</T>
-              <T style={[base.right, cell({ width: "17%", paddingVertical: 9 })]}>{fmt(l.net)}</T>
+              <T style={[base.right, cell({ width: "14%", paddingVertical: ruled ? 9 : 12 })]}>{fmt(l.unitPrice)}</T>
+              <T style={[base.right, cell({ width: "17%", paddingVertical: ruled ? 9 : 12 })]}>{fmt(l.net)}</T>
             </View>
           ))}
 
           {/* Plata si totalurile, pe acelasi rand. */}
           <View style={[base.row, band()]} wrap={false}>
-            <View style={cell({ width: "58%", flexDirection: "row", justifyContent: "space-between" })}>
-              <View style={{ flex: 1 }}>
-                <T style={base.label}>{S.payment}</T>
-                <KV k="IBAN" v={groupIban(issuer.iban)} />
-                {issuer.swift ? <KV k="SWIFT/BIC" v={issuer.swift} /> : null}
-                <KV k={L.bank} v={issuer.bank} />
-                <KV k={S.reference} v={number} />
-              </View>
-              {qr ? (
-                <View style={{ alignItems: "center", marginLeft: 8 }}>
-                  <Qr matrix={qr} size={66} />
-                  <T style={[base.label, { marginTop: 2, marginBottom: 0, letterSpacing: 0.4 }]}>{S.scan}</T>
-                </View>
-              ) : null}
+            <View style={cell({ width: "58%" })}>
+              <T style={base.label}>{S.payment}</T>
+              <KV k="IBAN" v={groupIban(issuer.iban)} />
+              {issuer.swift ? <KV k="SWIFT/BIC" v={issuer.swift} /> : null}
+              <KV k={L.bank} v={issuer.bank} />
+              <KV k={S.reference} v={number} />
             </View>
             <View style={cell({ width: "42%" })}>
               <View style={base.totLine}>
@@ -293,19 +262,24 @@ export function InvoicePdfSheet({ issuer, invoice, ruled }: InvoicePdfProps & { 
             </View>
           </View>
 
-          {mention || invoice.footerNote ? (
-            <View style={[base.row, band()]} wrap={false}>
+          {ruled && (mention || invoice.footerNote) ? (
+            <View style={base.row} wrap={false}>
               <View style={cell({ width: "100%" })}>
                 <T style={base.label}>{S.notes}</T>
-                {mention ? <T style={base.note}>{mention.ro}</T> : null}
-                {mention ? <T style={base.note}>{mention.en}</T> : null}
-                {invoice.footerNote ? <T style={base.note}>{invoice.footerNote}</T> : null}
+                {notes}
               </View>
             </View>
           ) : null}
         </View>
 
-        <T style={base.valid}>{L.validWithoutSignature}</T>
+        {ruled ? (
+          <T style={base.valid}>{L.validWithoutSignature}</T>
+        ) : (
+          <View style={base.footOpen} fixed>
+            {notes}
+            <T style={[base.note, { color: LABEL, marginBottom: 0 }]}>{L.validWithoutSignature}</T>
+          </View>
+        )}
       </Page>
     </Document>
   );
