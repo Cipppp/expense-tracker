@@ -1,298 +1,246 @@
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
-import type { Style } from "@react-pdf/types";
+import { Document, Page, StyleSheet, View } from "@react-pdf/renderer";
 import { vatKindForInvoice } from "@/lib/vat";
-import { roCountyName } from "@/lib/anaf/scope";
 import { legalMentions } from "@/lib/legal-mentions";
 import { invoiceLabels, invoiceLanguage } from "@/lib/invoice-labels";
-import type { InvoicePdfProps } from "@/components/invoices/invoice-pdf";
-import { INVOICE_FONT, groupIban, noHyphens } from "@/lib/invoice-fonts";
+import { INVOICE_FONT, groupIban } from "@/lib/invoice-fonts";
 import { fmtQty, invoiceAmounts } from "@/lib/invoice-amounts";
+import { KV, T, clientPlace } from "@/components/invoices/pdf-parts";
+import type { InvoicePdfProps } from "@/components/invoices/invoice-pdf";
 
 /*
- * Template-ul facturilor emise din 1 noiembrie 2026 (lib/invoice-template).
+ * Template-ul facturilor emise din 1 noiembrie 2026 (lib/invoice-template),
+ * in JetBrains Mono.
  *
- * Totul in JetBrains Mono (lib/invoice-fonts): pe o factura aproape tot e
- * cifre, coduri si identificatori, iar un font monospace le aliniaza pe
- * coloane fara efort.
+ * Asezarea e cea a facturilor Stripe, pe care clientii le primesc zilnic de
+ * la Anthropic, Cloudflare si restul SaaS-urilor: titlul si datele sus,
+ * furnizorul si clientul, o propozitie cu suma si scadenta, tabelul,
+ * totalurile si cum se plateste. Tot ce cauta cine plateste e unde se
+ * asteapta sa fie. Mentiunile legale stau jos, deasupra subsolului: sunt
+ * pentru contabilitate, nu pentru cine plateste.
+ *
+ * Sediul firmei apare o singura data, la furnizor; sus in dreapta e doar
+ * numele, ca pe hartia cu antet.
  */
 
-const FONT = INVOICE_FONT;
-
-const INK = "#141414";
-const MUTED = "#6b6b6b";
-const RULE = "#d4d4d4";
+const MUTED = "#5f6368";
+const RULE = "#d0d0d0";
 
 const s = StyleSheet.create({
-  page: {
-    paddingTop: 40,
-    paddingHorizontal: 44,
-    paddingBottom: 64,
-    fontFamily: FONT,
-    fontSize: 7.8,
-    lineHeight: 1.45,
-    color: INK,
-  },
-  head: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
-  brand: { fontSize: 12, fontWeight: 700, letterSpacing: -0.2 },
-  docTitle: { fontSize: 12, fontWeight: 700, textAlign: "right" },
-  heavyRule: { borderBottomWidth: 1.2, borderColor: INK, marginTop: 10 },
-  rule: { borderBottomWidth: 0.5, borderColor: RULE },
-  label: { fontSize: 6.2, color: MUTED, letterSpacing: 0.7, textTransform: "uppercase" },
-  meta: { flexDirection: "row", paddingVertical: 9 },
-  metaCell: { flex: 1 },
-  metaValue: { fontSize: 8.6, fontWeight: 500, marginTop: 2 },
-  parties: { flexDirection: "row", marginTop: 22 },
-  party: { flex: 1, paddingRight: 18 },
-  partyName: { fontSize: 9, fontWeight: 700, marginTop: 5, marginBottom: 4 },
-  kv: { flexDirection: "row", marginBottom: 1.5 },
-  kvKey: { color: MUTED },
-  due: { marginTop: 26, marginBottom: 18, lineHeight: 1.2 },
-  dueAmount: { fontSize: 20, fontWeight: 700, letterSpacing: -0.5 },
-  dueWhen: { fontSize: 9, fontWeight: 400, letterSpacing: 0, color: MUTED },
-  tr: { flexDirection: "row", paddingVertical: 5 },
-  th: { borderBottomWidth: 0.9, borderColor: INK, paddingBottom: 4 },
-  cNo: { width: "5%" },
-  cDesc: { width: "42%", paddingRight: 10 },
-  cQty: { width: "8%", textAlign: "right" },
-  cUnit: { width: "7%", textAlign: "center" },
-  cPrice: { width: "12%", textAlign: "right" },
+  page: { paddingTop: 46, paddingHorizontal: 48, paddingBottom: 66, fontFamily: INVOICE_FONT, fontSize: 8.4, lineHeight: 1.45, color: "#111", flexDirection: "column" },
+  top: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  title: { fontSize: 20, fontWeight: 700, lineHeight: 1 },
+  mark: { fontSize: 10, fontWeight: 700, textAlign: "right", lineHeight: 1.3 },
+  meta: { marginTop: 12 },
+  parties: { flexDirection: "row", marginTop: 26 },
+  party: { flex: 1, paddingRight: 20 },
+  partyTitle: { fontWeight: 700, marginBottom: 2 },
+  headline: { fontSize: 14, fontWeight: 700, marginTop: 30 },
+  thead: { flexDirection: "row", marginTop: 26, paddingBottom: 5, borderBottomWidth: 0.8, borderColor: "#111", color: MUTED, fontSize: 7.6 },
+  tr: { flexDirection: "row", paddingVertical: 8 },
+  cDesc: { width: "52%", paddingRight: 10 },
+  cQty: { width: "10%", textAlign: "right" },
+  cPrice: { width: "14%", textAlign: "right" },
+  cTax: { width: "9%", textAlign: "right" },
   cAmount: { width: "15%", textAlign: "right" },
-  cVat: { width: "11%", textAlign: "right" },
-  totals: { marginLeft: "auto", width: "46%", marginTop: 10 },
-  totalRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2.5 },
-  grandRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    borderTopWidth: 0.9,
-    borderColor: INK,
-    marginTop: 4,
-    paddingTop: 6,
-  },
-  grand: { fontSize: 10, fontWeight: 700 },
-  section: { marginTop: 26 },
-  sectionBody: { marginTop: 6 },
-  note: { fontSize: 7, color: "#333333", marginBottom: 5 },
-  footer: { position: "absolute", left: 44, right: 44, bottom: 26 },
-  footerRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
-  footText: { fontSize: 6.4, color: MUTED },
+  totals: { marginLeft: "auto", width: "50%", marginTop: 6 },
+  tot: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4, borderTopWidth: 0.5, borderColor: RULE },
+  bold: { fontWeight: 700 },
+  equiv: { textAlign: "right", fontSize: 7.2, color: MUTED, marginTop: 4 },
+  section: { marginTop: 28 },
+  sectionTitle: { fontWeight: 700, marginBottom: 4 },
+  notes: { marginTop: 28, paddingBottom: 6 },
+  note: { fontSize: 7.2, color: MUTED, marginBottom: 3 },
+  foot: { position: "absolute", left: 48, right: 48, bottom: 34, borderTopWidth: 0.5, borderColor: RULE, paddingTop: 6, fontSize: 7, color: MUTED },
 });
 
-/*
- * Textele noi ale template-ului. Restul (registru, CIF, adresa, coloanele,
- * mentiunea de echivalent) vin din lib/invoice-labels, ca factura sa
- * vorbeasca la fel ca previzualizarea si Oblio.
- */
-const MONO_LABELS = {
+const X = {
   ro: {
     title: "Factura",
-    currency: "Moneda",
+    number: "Numar factura",
     issued: "Data emiterii",
-    due: "Termen de plata",
-    vat: "TVA",
-    from: "Furnizor",
-    billTo: "Client",
-    dueOn: (d: string) => `scadenta ${d}`,
+    due: "Scadenta",
+    vatId: "Cod TVA furnizor",
+    billTo: "Facturat catre",
+    headline: (amt: string, due: string | null) => (due ? `${amt} de plata pana la ${due}` : `${amt} de plata`),
+    desc: "Descriere",
+    qty: "Cant.",
+    price: "Pret unitar",
+    tax: "TVA",
+    amount: "Valoare",
     subtotal: "Subtotal",
-    totalDue: "Total de plata",
-    payment: "Plata prin transfer bancar",
+    exTax: "Total fara TVA",
+    total: "Total",
+    amountDue: "De plata",
+    pay: (amt: string) => `Plata ${amt} prin transfer bancar`,
+    holder: "Titular",
+    bank: "Banca",
     reference: "Referinta",
-    notes: "Mentiuni",
+    reg: "Reg. com.",
+    capital: "Capital social",
   },
   en: {
     title: "Invoice",
-    currency: "Currency",
-    issued: "Issue date",
-    due: "Due date",
-    vat: "VAT",
-    from: "From",
+    number: "Invoice number",
+    issued: "Date of issue",
+    due: "Date due",
+    vatId: "VAT registration",
     billTo: "Bill to",
-    dueOn: (d: string) => `due ${d}`,
+    headline: (amt: string, due: string | null) => (due ? `${amt} due ${due}` : `${amt} due`),
+    desc: "Description",
+    qty: "Qty",
+    price: "Unit price",
+    tax: "Tax",
+    amount: "Amount",
     subtotal: "Subtotal",
-    totalDue: "Total due",
-    payment: "Pay by bank transfer",
+    exTax: "Total excluding tax",
+    total: "Total",
+    amountDue: "Amount due",
+    pay: (amt: string) => `Pay ${amt} by bank transfer`,
+    holder: "Account holder",
+    bank: "Bank",
     reference: "Reference",
-    notes: "Notes",
+    reg: "Reg. no.",
+    capital: "Share capital",
   },
 } as const;
 
-function T({ style, children }: { style?: Style | Style[]; children?: React.ReactNode }) {
-  return (
-    <Text style={style} hyphenationCallback={noHyphens}>
-      {children}
-    </Text>
-  );
-}
-
-function KV({ k, v, width }: { k: string; v: string; width: number }) {
-  return (
-    <View style={s.kv}>
-      <T style={[s.kvKey, { width }]}>{k}</T>
-      <T style={{ flex: 1 }}>{v}</T>
-    </View>
-  );
-}
-
 export function InvoicePdfMono({ issuer, invoice }: InvoicePdfProps) {
   const L = invoiceLabels(invoice.clientCountry);
-  const M = MONO_LABELS[invoiceLanguage(invoice.clientCountry)];
-  const fmtAmount = (n: number) =>
-    n.toLocaleString(L.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtRate = (n: number) =>
-    n.toLocaleString(L.locale, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+  const C = X[invoiceLanguage(invoice.clientCountry)];
+  const fmt = (n: number) => n.toLocaleString(L.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtRate = (n: number) => n.toLocaleString(L.locale, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
   const kind = vatKindForInvoice(invoice.clientCountry, invoice.vatRate, issuer.vatRegistered ?? true);
-
-  const { rate, present, lines, totalNet, totalVat, totalGross, showEquivalent, foreignCur, equivAmount, equivCur } =
-    invoiceAmounts(invoice);
-
-  const number = `${invoice.series} ${invoice.number}`;
+  const a = invoiceAmounts(invoice);
+  // Spatiu care nu se rupe: "CP 0035" ramane pe un rand.
+  const number = `${invoice.series} ${invoice.number}`;
   const vatLabel = L.vatKind[kind] || `${Math.round(invoice.vatRate * 100)}%`;
+  const taxCol = kind === "eu_reverse" || kind === "export" ? "0%" : `${Math.round(invoice.vatRate * 100)}%`;
   const mention = legalMentions(kind, { issuerVatIntra: issuer.vatIntra });
-  const countryLine =
-    invoice.clientCountry && invoice.clientCountry !== "RO"
-      ? { k: L.country, v: L.countryNames[invoice.clientCountry] ?? invoice.clientCountry }
-      : invoice.clientCountry === "RO" && roCountyName(invoice.clientCounty)
-        ? { k: L.county, v: roCountyName(invoice.clientCounty)! }
-        : null;
-  const KEY = 92;
+  // Catre UE, codul special de TVA (art. 317) e cel valabil in VIES.
+  const issuerVat = kind === "eu_reverse" && issuer.vatIntra ? issuer.vatIntra : issuer.cif;
+  const due = `${fmt(a.totalGross)} ${a.present}`;
+  const place = clientPlace(invoice);
+  const KEY = 128;
+  const metaRows: Array<[string, string]> = [
+    [C.number, number],
+    [C.issued, invoice.issuedAt],
+    ...(invoice.dueAt ? [[C.due, invoice.dueAt] as [string, string]] : []),
+    // "VAT registration" doar cand chiar e codul de TVA (art. 317, catre UE);
+    // in rest e CIF-ul, care nu e un cod de TVA.
+    [kind === "eu_reverse" && issuer.vatIntra ? C.vatId : L.taxId, issuerVat],
+  ];
 
   return (
-    <Document title={`${M.title} ${number}`} author={issuer.name} creator={issuer.name} producer={issuer.name}>
+    <Document title={`${C.title} ${invoice.series} ${invoice.number}`} author={issuer.name} creator={issuer.name} producer={issuer.name}>
       <Page size="A4" style={s.page}>
-        <View style={s.head}>
-          <T style={s.brand}>{issuer.name}</T>
-          <T style={s.docTitle}>
-            {M.title} {number}
-          </T>
-        </View>
-        <View style={s.heavyRule} />
-
-        <View style={s.meta}>
-          {[
-            [M.issued, invoice.issuedAt],
-            [M.due, invoice.dueAt ?? "-"],
-            [M.currency, present],
-            [M.vat, vatLabel],
-          ].map(([k, v]) => (
-            <View key={k} style={s.metaCell}>
-              <T style={s.label}>{k}</T>
-              <T style={s.metaValue}>{v}</T>
+        <View style={s.top}>
+          <View>
+            <T style={s.title}>{C.title}</T>
+            <View style={s.meta}>
+              {metaRows.map(([k, v]) => (
+                <KV key={k} width={98} keyStyle={{ color: MUTED }} k={k} v={v} />
+              ))}
             </View>
-          ))}
+          </View>
+          <T style={s.mark}>{issuer.name}</T>
         </View>
-        <View style={s.rule} />
 
         <View style={s.parties}>
           <View style={s.party}>
-            <T style={s.label}>{M.from}</T>
-            <T style={s.partyName}>{issuer.name}</T>
-            <KV width={KEY} k={L.regCom} v={issuer.reg} />
-            {/* Catre UE, codul special de TVA (art. 317) e cel valabil in VIES. */}
-            {kind === "eu_reverse" && issuer.vatIntra ? (
-              <KV width={KEY} k={L.euVatId} v={issuer.vatIntra} />
-            ) : (
-              <KV width={KEY} k={L.taxId} v={issuer.cif} />
-            )}
-            <KV width={KEY} k={L.address} v={issuer.address} />
-            <KV width={KEY} k={L.capital} v={issuer.capital} />
+            <T style={s.partyTitle}>{issuer.name}</T>
+            <T>{issuer.address}</T>
+            <T>
+              {C.reg} {issuer.reg}
+            </T>
+            <T>
+              {C.capital} {issuer.capital}
+            </T>
           </View>
           <View style={s.party}>
-            <T style={s.label}>{M.billTo}</T>
-            <T style={s.partyName}>{invoice.clientCompany}</T>
-            {invoice.clientReg ? <KV width={KEY} k={L.regCom} v={invoice.clientReg} /> : null}
-            {invoice.clientCui ? <KV width={KEY} k={L.taxId} v={invoice.clientCui} /> : null}
-            {invoice.clientAddress ? <KV width={KEY} k={L.address} v={invoice.clientAddress} /> : null}
-            {countryLine ? <KV width={KEY} k={countryLine.k} v={countryLine.v} /> : null}
+            <T style={s.partyTitle}>{C.billTo}</T>
+            <T>{invoice.clientCompany}</T>
+            {invoice.clientAddress ? <T>{invoice.clientAddress}</T> : null}
+            {place ? <T>{place}</T> : null}
+            {invoice.clientCui ? <T>{invoice.clientCui}</T> : null}
           </View>
         </View>
 
-        <Text style={s.due} hyphenationCallback={noHyphens}>
-          <Text style={s.dueAmount}>
-            {fmtAmount(totalGross)} {present}
-          </Text>
-          {invoice.dueAt ? <Text style={s.dueWhen}>{"   "}{M.dueOn(invoice.dueAt)}</Text> : null}
-        </Text>
+        <T style={s.headline}>{C.headline(due, invoice.dueAt ?? null)}</T>
 
-        <View style={[s.tr, s.th]}>
-          <T style={[s.label, s.cNo]}>#</T>
-          <T style={[s.label, s.cDesc]}>{L.colDescShort}</T>
-          <T style={[s.label, s.cQty]}>{L.colQty}</T>
-          <T style={[s.label, s.cUnit]}>{L.colUnit}</T>
-          <T style={[s.label, s.cPrice]}>{L.colUnitPriceShort}</T>
-          <T style={[s.label, s.cAmount]}>
-            {L.colAmount} {present}
-          </T>
-          <T style={[s.label, s.cVat]}>{M.vat}</T>
+        <View style={s.thead}>
+          <T style={s.cDesc}>{C.desc}</T>
+          <T style={s.cQty}>{C.qty}</T>
+          <T style={s.cPrice}>{C.price}</T>
+          <T style={s.cTax}>{C.tax}</T>
+          <T style={s.cAmount}>{C.amount}</T>
         </View>
-        {lines.map((l, i) => (
-          <View key={i} style={[s.tr, s.rule]} wrap={false}>
-            <T style={[s.cNo, { color: MUTED }]}>{String(i + 1).padStart(2, "0")}</T>
+        {a.lines.map((l, i) => (
+          <View key={i} style={s.tr} wrap={false}>
             <T style={s.cDesc}>{l.description}</T>
-            <T style={s.cQty}>{fmtQty(l.quantity)}</T>
-            <T style={s.cUnit}>{l.unit}</T>
-            <T style={s.cPrice}>{fmtAmount(l.unitPrice)}</T>
-            <T style={s.cAmount}>{fmtAmount(l.net)}</T>
-            <T style={s.cVat}>{fmtAmount(l.vat)}</T>
+            <T style={s.cQty}>
+              {fmtQty(l.quantity)} {l.unit}
+            </T>
+            <T style={s.cPrice}>{fmt(l.unitPrice)}</T>
+            <T style={s.cTax}>{taxCol}</T>
+            <T style={s.cAmount}>{fmt(l.net)}</T>
           </View>
         ))}
 
         <View style={s.totals} wrap={false}>
-          <View style={s.totalRow}>
-            <T style={{ color: MUTED }}>{M.subtotal}</T>
-            <T>{fmtAmount(totalNet)}</T>
+          <View style={s.tot}>
+            <T>{C.subtotal}</T>
+            <T>{fmt(a.totalNet)}</T>
           </View>
-          <View style={s.totalRow}>
-            <T style={{ color: MUTED }}>
-              {M.vat} {vatLabel}
+          <View style={s.tot}>
+            <T>{C.exTax}</T>
+            <T>{fmt(a.totalNet)}</T>
+          </View>
+          <View style={s.tot}>
+            <T>
+              {L.vatRate} ({vatLabel})
             </T>
-            <T>{fmtAmount(totalVat)}</T>
+            <T>{fmt(a.totalVat)}</T>
           </View>
-          <View style={s.grandRow}>
-            <T style={s.grand}>{M.totalDue}</T>
-            <T style={s.grand}>
-              {fmtAmount(totalGross)} {present}
+          <View style={s.tot}>
+            <T>{C.total}</T>
+            <T>{fmt(a.totalGross)}</T>
+          </View>
+          <View style={s.tot}>
+            <T style={s.bold}>{C.amountDue}</T>
+            <T style={s.bold}>{due}</T>
+          </View>
+          {a.showEquivalent ? (
+            <T style={s.equiv}>
+              {fmt(a.equivAmount)} {a.equivCur} · BNR {invoice.issuedAt.replace(/\//g, ".")}: 1 {a.foreignCur} = {fmtRate(a.rate)} RON
             </T>
-          </View>
+          ) : null}
         </View>
 
         <View style={s.section} wrap={false}>
-          <T style={s.label}>{M.payment}</T>
-          <View style={s.sectionBody}>
-            <KV width={KEY} k={L.iban} v={groupIban(issuer.iban)} />
-            {issuer.swift ? <KV width={KEY} k={L.swift} v={issuer.swift} /> : null}
-            <KV width={KEY} k={L.bank} v={issuer.bank} />
-            <KV width={KEY} k={M.reference} v={number} />
-          </View>
+          <T style={s.sectionTitle}>{C.pay(due)}</T>
+          <KV width={KEY} k={C.holder} v={issuer.name} />
+          <KV width={KEY} k="IBAN" v={groupIban(issuer.iban)} />
+          {issuer.swift ? <KV width={KEY} k="SWIFT/BIC" v={issuer.swift} /> : null}
+          <KV width={KEY} k={C.bank} v={issuer.bank} />
+          <KV width={KEY} k={C.reference} v={number} />
         </View>
 
-        {showEquivalent || mention || invoice.footerNote ? (
-          <View style={s.section} wrap={false}>
-            <T style={s.label}>{M.notes}</T>
-            <View style={s.sectionBody}>
-              {showEquivalent ? (
-                <T style={s.note}>
-                  {L.equivalent(fmtAmount(equivAmount), equivCur, invoice.issuedAt.replace(/\//g, "."), foreignCur, fmtRate(rate))}
-                </T>
-              ) : null}
-              {/* Mentiunea de TVA ramane in ambele limbi, ca in Oblio si in XML. */}
-              {mention ? <T style={s.note}>{mention.ro}</T> : null}
-              {mention ? <T style={s.note}>{mention.en}</T> : null}
-              {invoice.footerNote ? <T style={s.note}>{invoice.footerNote}</T> : null}
-            </View>
+        <View style={{ flexGrow: 1 }} />
+        {mention || invoice.footerNote ? (
+          <View style={s.notes} wrap={false}>
+            {mention ? <T style={s.note}>{mention.ro}</T> : null}
+            {mention ? <T style={s.note}>{mention.en}</T> : null}
+            {invoice.footerNote ? <T style={s.note}>{invoice.footerNote}</T> : null}
           </View>
         ) : null}
 
-        {/* Subsolul se repeta pe fiecare pagina. Fara numar de pagina: in
-            react-pdf 4 un Text cu `render` nu se mai deseneaza deloc cand
-            pagina foloseste un font inregistrat, iar factura are o pagina. */}
-        <View style={s.footer} fixed>
-          <View style={s.rule} />
-          <View style={s.footerRow}>
-            <T style={s.footText}>
-              {L.preparedBy}: {issuer.signer}
-            </T>
-            <T style={s.footText}>{number}</T>
-          </View>
-          <T style={[s.footText, { marginTop: 2 }]}>{L.validWithoutSignature}</T>
+        {/* Fara numar de pagina: in react-pdf 4 un Text cu `render` nu se
+            deseneaza deloc cand pagina foloseste un font inregistrat. */}
+        <View style={s.foot} fixed>
+          <T>
+            {number} · {C.headline(due, invoice.dueAt ?? null)}
+          </T>
+          <T>{L.validWithoutSignature}</T>
         </View>
       </Page>
     </Document>

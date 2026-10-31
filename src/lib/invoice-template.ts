@@ -8,20 +8,7 @@
  * iar de atunci incolo se foloseste "mono", in JetBrains Mono.
  */
 
-/** boxed*, clean si sheet* sunt variante in proba; data emiterii alege doar intre classic si mono. */
-export type InvoiceTemplate =
-  | "classic"
-  | "mono"
-  | "boxed"
-  | "boxed-lite"
-  | "clean"
-  | "sheet"
-  | "sheet-open"
-  | "stripe"
-  | "stripe-b"
-  | "stripe-c"
-  | "summary"
-  | "letter";
+export type InvoiceTemplate = "classic" | "mono";
 
 /** Prima zi (UTC) de la care facturile ies pe template-ul nou. */
 export const MONO_TEMPLATE_FROM = "2026-11-01";

@@ -2,15 +2,8 @@ import { getSettings } from "@/lib/queries";
 import "server-only";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { db } from "@/lib/db";
-import { InvoicePdf, type InvoicePdfProps } from "@/components/invoices/invoice-pdf";
+import { InvoicePdf } from "@/components/invoices/invoice-pdf";
 import { InvoicePdfMono } from "@/components/invoices/invoice-pdf-mono";
-import { InvoicePdfBoxed } from "@/components/invoices/invoice-pdf-boxed";
-import { InvoicePdfBoxedLite } from "@/components/invoices/invoice-pdf-boxed-lite";
-import { InvoicePdfClean } from "@/components/invoices/invoice-pdf-clean";
-import { InvoicePdfSheet } from "@/components/invoices/invoice-pdf-sheet";
-import { InvoicePdfStripe } from "@/components/invoices/invoice-pdf-stripe";
-import { InvoicePdfSummary } from "@/components/invoices/invoice-pdf-summary";
-import { InvoicePdfLetter } from "@/components/invoices/invoice-pdf-letter";
 import { invoiceTemplate, type InvoiceTemplate } from "@/lib/invoice-template";
 import { pickIssuerIban } from "@/lib/invoice";
 import { buildActivityReport, type ActivityEntry } from "@/lib/activity-report";
@@ -49,20 +42,7 @@ export async function renderInvoicePdf(
   const settings = await getSettings();
 
   const template = opts.template ?? invoiceTemplate(invoice.issuedAt);
-  const Pdf = {
-    classic: InvoicePdf,
-    mono: InvoicePdfMono,
-    boxed: InvoicePdfBoxed,
-    "boxed-lite": InvoicePdfBoxedLite,
-    clean: InvoicePdfClean,
-    sheet: (p: InvoicePdfProps) => InvoicePdfSheet({ ...p, ruled: true }),
-    "sheet-open": (p: InvoicePdfProps) => InvoicePdfSheet({ ...p, ruled: false }),
-    stripe: InvoicePdfStripe,
-    "stripe-b": (p: InvoicePdfProps) => InvoicePdfStripe({ ...p, head: "b" }),
-    "stripe-c": (p: InvoicePdfProps) => InvoicePdfStripe({ ...p, head: "c" }),
-    summary: InvoicePdfSummary,
-    letter: InvoicePdfLetter,
-  }[template];
+  const Pdf = template === "mono" ? InvoicePdfMono : InvoicePdf;
   const buffer = await renderToBuffer(
     Pdf({
       issuer: {
