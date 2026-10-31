@@ -1,36 +1,22 @@
-import path from "node:path";
-import { Document, Font, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/types";
 import { vatKindForInvoice } from "@/lib/vat";
 import { roCountyName } from "@/lib/anaf/scope";
 import { legalMentions } from "@/lib/legal-mentions";
 import { invoiceLabels, invoiceLanguage } from "@/lib/invoice-labels";
 import type { InvoicePdfProps } from "@/components/invoices/invoice-pdf";
+import { INVOICE_FONT, groupIban, noHyphens } from "@/lib/invoice-fonts";
+import { fmtQty, invoiceAmounts } from "@/lib/invoice-amounts";
 
 /*
  * Template-ul facturilor emise din 1 noiembrie 2026 (lib/invoice-template).
  *
- * Totul in JetBrains Mono: pe o factura aproape tot e cifre, coduri si
- * identificatori, iar un font monospace le aliniaza pe coloane fara efort.
- * Varianta NL, fara ligaturi, ca "->" sau "!=" dintr-o descriere sa ramana
- * caractere separate. Fontul are si diacriticele romanesti, pe care
- * Helvetica din template-ul vechi nu le avea.
- *
- * Calculul sumelor e copiat din invoice-pdf.tsx, nu mutat de acolo: facturile
- * vechi se randeaza in continuare cu codul lor, neatins.
+ * Totul in JetBrains Mono (lib/invoice-fonts): pe o factura aproape tot e
+ * cifre, coduri si identificatori, iar un font monospace le aliniaza pe
+ * coloane fara efort.
  */
 
-const FONT = "JetBrains Mono";
-const fontFile = (weight: string) =>
-  path.join(process.cwd(), "src/assets/fonts/jetbrains-mono", `JetBrainsMonoNL-${weight}.ttf`);
-Font.register({
-  family: FONT,
-  fonts: [
-    { src: fontFile("Regular"), fontWeight: 400 },
-    { src: fontFile("Medium"), fontWeight: 500 },
-    { src: fontFile("Bold"), fontWeight: 700 },
-  ],
-});
+const FONT = INVOICE_FONT;
 
 const INK = "#141414";
 const MUTED = "#6b6b6b";
@@ -129,9 +115,6 @@ const MONO_LABELS = {
   },
 } as const;
 
-/** Fara despartire in silabe: un cod, un IBAN sau un nume nu se rup cu cratima. */
-const noHyphens = (word: string) => [word];
-
 function T({ style, children }: { style?: Style | Style[]; children?: React.ReactNode }) {
   return (
     <Text style={style} hyphenationCallback={noHyphens}>
@@ -149,38 +132,17 @@ function KV({ k, v, width }: { k: string; v: string; width: number }) {
   );
 }
 
-/** RO53INGB0000... in grupe de cate patru, cum se citeste si se dicteaza. */
-function groupIban(iban: string): string {
-  return iban.replace(/\s+/g, "").replace(/(.{4})(?=.)/g, "$1 ");
-}
-
 export function InvoicePdfMono({ issuer, invoice }: InvoicePdfProps) {
   const L = invoiceLabels(invoice.clientCountry);
   const M = MONO_LABELS[invoiceLanguage(invoice.clientCountry)];
-  const rate = invoice.bnrRate ?? 1;
   const fmtAmount = (n: number) =>
     n.toLocaleString(L.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fmtRate = (n: number) =>
     n.toLocaleString(L.locale, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
   const kind = vatKindForInvoice(invoice.clientCountry, invoice.vatRate, issuer.vatRegistered ?? true);
 
-  // Aceeasi regula ca in template-ul vechi: clientii romani vad lei, ceilalti
-  // moneda contractului, cu echivalentul in cealalta moneda la cursul BNR.
-  const present = invoice.clientCountry === "RO" ? "RON" : invoice.invoiceCurrency;
-  const factor = present === invoice.invoiceCurrency ? 1 : rate;
-  const round2 = (n: number) => Math.round(n * 100) / 100;
-  const lines = invoice.lines.map((l) => {
-    const net = round2(l.amount * factor);
-    return { ...l, unitPrice: round2(l.unitPrice * factor), net, vat: round2(net * invoice.vatRate) };
-  });
-  const totalNet = round2(lines.reduce((a, l) => a + l.net, 0));
-  const totalVat = round2(lines.reduce((a, l) => a + l.vat, 0));
-  const totalGross = round2(totalNet + totalVat);
-
-  const showEquivalent = !(present === "RON" && invoice.invoiceCurrency === "RON");
-  const foreignCur = present === "RON" ? invoice.invoiceCurrency : present;
-  const equivAmount = present === "RON" ? totalGross / (rate || 1) : totalGross * rate;
-  const equivCur = present === "RON" ? foreignCur : "RON";
+  const { rate, present, lines, totalNet, totalVat, totalGross, showEquivalent, foreignCur, equivAmount, equivCur } =
+    invoiceAmounts(invoice);
 
   const number = `${invoice.series} ${invoice.number}`;
   const vatLabel = L.vatKind[kind] || `${Math.round(invoice.vatRate * 100)}%`;
@@ -265,7 +227,7 @@ export function InvoicePdfMono({ issuer, invoice }: InvoicePdfProps) {
           <View key={i} style={[s.tr, s.rule]} wrap={false}>
             <T style={[s.cNo, { color: MUTED }]}>{String(i + 1).padStart(2, "0")}</T>
             <T style={s.cDesc}>{l.description}</T>
-            <T style={s.cQty}>{fmtNum(l.quantity)}</T>
+            <T style={s.cQty}>{fmtQty(l.quantity)}</T>
             <T style={s.cUnit}>{l.unit}</T>
             <T style={s.cPrice}>{fmtAmount(l.unitPrice)}</T>
             <T style={s.cAmount}>{fmtAmount(l.net)}</T>
@@ -335,8 +297,4 @@ export function InvoicePdfMono({ issuer, invoice }: InvoicePdfProps) {
       </Page>
     </Document>
   );
-}
-
-function fmtNum(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(2);
 }
