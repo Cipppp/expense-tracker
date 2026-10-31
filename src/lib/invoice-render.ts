@@ -3,6 +3,8 @@ import "server-only";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { db } from "@/lib/db";
 import { InvoicePdf } from "@/components/invoices/invoice-pdf";
+import { InvoicePdfMono } from "@/components/invoices/invoice-pdf-mono";
+import { invoiceTemplate, type InvoiceTemplate } from "@/lib/invoice-template";
 import { pickIssuerIban } from "@/lib/invoice";
 import { buildActivityReport, type ActivityEntry } from "@/lib/activity-report";
 
@@ -18,6 +20,8 @@ type Rendered = { buffer: Buffer; filename: string };
  */
 export async function renderInvoicePdf(
   invoiceId: string,
+  // Doar pentru previzualizari: aspectul real il decide data emiterii.
+  opts: { template?: InvoiceTemplate } = {},
 ): Promise<Rendered | { error: string; status: number }> {
   const invoice = await db.invoice.findUnique({
     where: { id: invoiceId },
@@ -37,8 +41,10 @@ export async function renderInvoicePdf(
 
   const settings = await getSettings();
 
+  const template = opts.template ?? invoiceTemplate(invoice.issuedAt);
+  const Pdf = template === "mono" ? InvoicePdfMono : InvoicePdf;
   const buffer = await renderToBuffer(
-    InvoicePdf({
+    Pdf({
       issuer: {
         name: settings.issuerName,
         cif: settings.issuerCif,
