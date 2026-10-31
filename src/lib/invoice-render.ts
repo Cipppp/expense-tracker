@@ -8,6 +8,9 @@ import { InvoicePdfBoxed } from "@/components/invoices/invoice-pdf-boxed";
 import { InvoicePdfBoxedLite } from "@/components/invoices/invoice-pdf-boxed-lite";
 import { InvoicePdfClean } from "@/components/invoices/invoice-pdf-clean";
 import { InvoicePdfSheet } from "@/components/invoices/invoice-pdf-sheet";
+import { InvoicePdfStripe } from "@/components/invoices/invoice-pdf-stripe";
+import { InvoicePdfSummary } from "@/components/invoices/invoice-pdf-summary";
+import { InvoicePdfLetter } from "@/components/invoices/invoice-pdf-letter";
 import { invoiceTemplate, type InvoiceTemplate } from "@/lib/invoice-template";
 import { pickIssuerIban } from "@/lib/invoice";
 import { buildActivityReport, type ActivityEntry } from "@/lib/activity-report";
@@ -54,6 +57,9 @@ export async function renderInvoicePdf(
     clean: InvoicePdfClean,
     sheet: (p: InvoicePdfProps) => InvoicePdfSheet({ ...p, ruled: true }),
     "sheet-open": (p: InvoicePdfProps) => InvoicePdfSheet({ ...p, ruled: false }),
+    stripe: InvoicePdfStripe,
+    summary: InvoicePdfSummary,
+    letter: InvoicePdfLetter,
   }[template];
   const buffer = await renderToBuffer(
     Pdf({

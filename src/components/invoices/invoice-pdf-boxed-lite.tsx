@@ -20,16 +20,18 @@ const B = "#000";
 const MUTED = "#555555";
 
 const s = StyleSheet.create({
-  page: { padding: 32, fontFamily: INVOICE_FONT, fontSize: 7.8, lineHeight: 1.42, color: "#111" },
+  // Pagina e o coloana flex: tabelul creste cat e nevoie ca subsolul sa
+  // ajunga jos, ca la SmartBill, oricate linii ar avea factura.
+  page: { padding: 32, paddingBottom: 30, fontFamily: INVOICE_FONT, fontSize: 8.2, lineHeight: 1.42, color: "#111", flexDirection: "column" },
   head: { flexDirection: "row", borderWidth: 1, borderColor: B },
   party: { width: "37%", padding: 8 },
   center: { width: "26%", padding: 8, borderLeftWidth: 0.8, borderRightWidth: 0.8, borderColor: B, alignItems: "center" },
   name: { fontWeight: 700, fontSize: 8.4, marginBottom: 4 },
-  title: { fontSize: 12, fontWeight: 700, marginBottom: 6 },
+  title: { fontSize: 13, fontWeight: 700, marginBottom: 6, textAlign: "center" },
   meta: { width: "100%", borderWidth: 0.8, borderColor: B, paddingVertical: 4, paddingHorizontal: 6 },
   metaRow: { flexDirection: "row", justifyContent: "space-between" },
   muted: { color: MUTED },
-  table: { marginTop: 10, borderWidth: 1, borderColor: B },
+  table: { marginTop: 10, borderWidth: 1, borderColor: B, flexGrow: 1 },
   tr: { flexDirection: "row" },
   th: { fontWeight: 700, borderBottomWidth: 0.8, borderColor: B },
   cell: { borderRightWidth: 0.8, borderColor: B, paddingHorizontal: 5, paddingVertical: 5 },
@@ -40,7 +42,7 @@ const s = StyleSheet.create({
   cQty: { width: "9%", textAlign: "right" },
   cPrice: { width: "12%", textAlign: "right" },
   cAmount: { width: "15%", textAlign: "right" },
-  body: { minHeight: 230 },
+  body: { flexGrow: 1 },
   foot: { flexDirection: "row", borderWidth: 1, borderTopWidth: 0, borderColor: B },
   pay: { width: "55%", padding: 8, borderRightWidth: 0.8, borderColor: B },
   totals: { width: "45%" },

@@ -9,7 +9,17 @@
  */
 
 /** boxed*, clean si sheet* sunt variante in proba; data emiterii alege doar intre classic si mono. */
-export type InvoiceTemplate = "classic" | "mono" | "boxed" | "boxed-lite" | "clean" | "sheet" | "sheet-open";
+export type InvoiceTemplate =
+  | "classic"
+  | "mono"
+  | "boxed"
+  | "boxed-lite"
+  | "clean"
+  | "sheet"
+  | "sheet-open"
+  | "stripe"
+  | "summary"
+  | "letter";
 
 /** Prima zi (UTC) de la care facturile ies pe template-ul nou. */
 export const MONO_TEMPLATE_FROM = "2026-11-01";
