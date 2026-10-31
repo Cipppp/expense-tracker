@@ -29,7 +29,7 @@ const invoice = (over: Partial<EfacturaInput["invoice"]> = {}): EfacturaInput["i
   ...over,
 });
 
-const supplierOf = (xml: string) => xml.match(/<cac:AccountingSupplierParty>[\s\S]*?<\/cac:AccountingSupplierParty>/)![0];
+const supplierOf = (xml: string) => xml.match(/<cac:AccountingSupplierParty>[\s\S]*?<\/cac:AccountingSupplierParty>/)?.[0] ?? "";
 
 describe("buildEfacturaDocument, EU reverse charge", () => {
   /*
@@ -86,7 +86,7 @@ describe("buildEfacturaDocument, item name", () => {
       issuer,
       invoice: invoice({ lines: [{ description, unit: "h", quantity: 1, unitPrice: 25, amount: 25 }] }),
     });
-    const name = xml.match(/<cbc:Name>([^<]*)<\/cbc:Name>/)![1];
+    const name = xml.match(/<cbc:Name>([^<]*)<\/cbc:Name>/)?.[1] ?? "";
 
     expect(name.length).toBeLessThanOrEqual(100);
     expect(name.endsWith("as per Services")).toBe(true);
