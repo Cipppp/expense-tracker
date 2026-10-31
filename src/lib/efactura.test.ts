@@ -77,3 +77,19 @@ describe("buildEfacturaDocument, outside the EU", () => {
     expect(doc.xml).not.toContain("<cbc:Note>");
   });
 });
+
+describe("buildEfacturaDocument, item name", () => {
+  it("cuts a long name at a word and keeps the full text in the description", () => {
+    const description =
+      "IT consulting services - curiaself.ch platform - 10 August to 31 October 2026, as per Services Agreement v2.1";
+    const { xml } = buildEfacturaDocument({
+      issuer,
+      invoice: invoice({ lines: [{ description, unit: "h", quantity: 1, unitPrice: 25, amount: 25 }] }),
+    });
+    const name = xml.match(/<cbc:Name>([^<]*)<\/cbc:Name>/)![1];
+
+    expect(name.length).toBeLessThanOrEqual(100);
+    expect(name.endsWith("as per Services")).toBe(true);
+    expect(xml).toContain(`<cbc:Description>${description}</cbc:Description>`);
+  });
+});

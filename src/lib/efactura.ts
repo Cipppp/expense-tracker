@@ -109,6 +109,13 @@ const money = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
 const qty = (n: number) => (Math.round(n * 10000) / 10000).toString();
 const cap = (s: string, n: number) => (s.length > n ? s.slice(0, n) : s);
 
+/** Like cap, but backs off to the last space so the name doesn't end mid-word. */
+const capWords = (s: string, n: number) => {
+  if (s.length <= n) return s;
+  const cut = s.slice(0, n + 1).lastIndexOf(" ");
+  return (cut > n / 2 ? s.slice(0, cut) : s.slice(0, n)).replace(/[\s,;:-]+$/, "");
+};
+
 /** Codurile ISO 3166-2:RO acceptate de validator pentru CountrySubentity. */
 export const RO_COUNTIES = new Set([
   "RO-AB", "RO-AR", "RO-AG", "RO-BC", "RO-BH", "RO-BN", "RO-BT", "RO-BV", "RO-BR", "RO-B",
@@ -430,7 +437,7 @@ ${taxCategoryXml("      ")}
   const linesXml = lines
     .map((l, i) => {
       const desc = l.description.trim();
-      const name = cap(desc, 100);
+      const name = capWords(desc, 100);
       const overflow = desc.length > 100 ? cap(desc, 200) : "";
       return `  <cac:InvoiceLine>
     <cbc:ID>${i + 1}</cbc:ID>
