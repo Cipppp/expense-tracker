@@ -194,6 +194,8 @@ type Party = {
   county?: string | null;
   /** Sub PartyTaxScheme/VAT — doar daca `allowVatScheme` si e in format valid. */
   vatId?: string | null;
+  /** BT-32: PartyTaxScheme without the VAT scheme. Used only when no VAT id is emitted. */
+  taxRegId?: string | null;
   /** PartyLegalEntity/CompanyID (BT-30 vanzator / BT-47 cumparator). */
   legalId?: string | null;
   /** PartyLegalEntity/CompanyLegalForm (BT-33). */
@@ -252,7 +254,12 @@ function partyXml(
         <cbc:CompanyID>${esc(vat)}</cbc:CompanyID>
         <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
       </cac:PartyTaxScheme>`
-          : ""
+          : p.taxRegId
+            ? `\n      <cac:PartyTaxScheme>
+        <cbc:CompanyID>${esc(p.taxRegId)}</cbc:CompanyID>
+        <cac:TaxScheme/>
+      </cac:PartyTaxScheme>`
+            : ""
       }
       <cac:PartyLegalEntity>
         <cbc:RegistrationName>${esc(cap(p.name, 200))}</cbc:RegistrationName>${
@@ -331,13 +338,21 @@ export function buildEfacturaDocument(input: EfacturaInput): EfacturaDocument {
   }
   const allowVatScheme = cat.id !== "O";
 
-  // Identificatorul de TVA al vanzatorului (BT-31), doar sub S / AE.
+  // Identificatorul de TVA al vanzatorului (BT-31), doar sub S.
   const issuerCifDigits = stripRo(normId(issuer.cif));
   let issuerVat: string | null = null;
   if (cat.id === "S") issuerVat = normId(issuer.vatId) || `RO${issuerCifDigits}`;
-  if (cat.id === "AE") {
-    issuerVat = normId(issuer.vatId);
-    if (!issuerVat) blockers.push("Intra-community invoice without the art. 317 VAT code (Settings → issuerVatIntra)");
+  /*
+   * Under AE the art. 317 code stays out of BT-31. ANAF takes the issuer from
+   * BT-31 when it is present, so RO55415170 there made the upload (filed under
+   * CUI 51711091) fail with "CUI-ul emitentului declarat la incarcare=51711091
+   * nu corespunde cu cel identificat in factura=55415170". The CUI goes in
+   * BT-32 instead, which satisfies BR-AE-02 and BR-RO-065 (same as Oblio's
+   * XML), and the art. 317 code goes in the BT-22 note.
+   */
+  const issuerVatIntra = cat.id === "AE" ? normId(issuer.vatId) : "";
+  if (cat.id === "AE" && !issuerVatIntra) {
+    blockers.push("Intra-community invoice without the art. 317 VAT code (Settings → issuerVatIntra)");
   }
 
   // Cumparatorul: unde ii punem identificatorul depinde de categorie.
@@ -445,6 +460,7 @@ ${taxCategoryXml("      ")}
       postalZone: issuer.postalZone,
       county: issuer.county ?? null,
       vatId: issuerVat,
+      taxRegId: cat.id === "AE" ? issuerCifDigits : null,
       legalId: issuerCifDigits,
       legalForm: issuer.reg || null,
       identification: issuerCifDigits,
@@ -468,12 +484,13 @@ ${taxCategoryXml("      ")}
   );
   blockers.push(...partyProblems);
 
-  const note =
+  const noteText =
     kind === "exempt_310"
-      ? `\n  <cbc:Note>${esc(
-          "Neplatitor de TVA - regim special de scutire pentru intreprinderile mici, art. 310 Legea nr. 227/2015",
-        )}</cbc:Note>`
-      : "";
+      ? "Neplatitor de TVA - regim special de scutire pentru intreprinderile mici, art. 310 Legea nr. 227/2015"
+      : cat.id === "AE" && issuerVatIntra
+        ? `Taxare inversa - art. 196 Directiva 2006/112/CE / Reverse charge - art. 196 Directive 2006/112/EC. Cod TVA furnizor (art. 317 Cod fiscal) / Supplier VAT number: ${issuerVatIntra}`
+        : "";
+  const note = noteText ? `\n  <cbc:Note>${esc(noteText)}</cbc:Note>` : "";
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
