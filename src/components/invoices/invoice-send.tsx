@@ -125,7 +125,7 @@ export function InvoiceSend({
                   onChange={(e) => setIncludeReport(e.target.checked)}
                   className="accent-accent"
                 />
-                Attach activity report (.xlsx)
+                Attach activity report
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input

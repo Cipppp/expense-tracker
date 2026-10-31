@@ -7,11 +7,12 @@ import { InvoicePdfMono } from "@/components/invoices/invoice-pdf-mono";
 import { invoiceTemplate, type InvoiceTemplate } from "@/lib/invoice-template";
 import { pickIssuerIban } from "@/lib/invoice";
 import { buildActivityReport, type ActivityEntry } from "@/lib/activity-report";
+import { ActivityReportPdf } from "@/components/invoices/activity-report-pdf";
 
 const fmtDate = (d: Date) =>
   `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 
-type Rendered = { buffer: Buffer; filename: string };
+type Rendered = { buffer: Buffer; filename: string; contentType: string };
 
 /**
  * Render an invoice to a PDF buffer. Shared by the /pdf download route and the
@@ -89,16 +90,22 @@ export async function renderInvoicePdf(
   return {
     buffer: Buffer.from(buffer),
     filename: `${settings.issuerName.replace(/\s+/g, "-")}_${invoice.series}${invoice.number}.pdf`,
+    contentType: "application/pdf",
   };
 }
 
 /**
- * Render the Clockify-style activity-report .xlsx for an invoice. Entries come
- * from those linked to the invoice, falling back to the client's hours in the
- * issue month. Returns null only when the invoice doesn't exist.
+ * Render the activity report for an invoice. Entries come from those linked
+ * to the invoice, falling back to the client's hours in the issue month.
+ * Returns null only when the invoice doesn't exist.
+ *
+ * Invoices on the new template get a PDF in the same look as the invoice
+ * (the .xlsx stays available with `format: "xlsx"`); older ones keep the
+ * Clockify-style .xlsx they were sent with.
  */
 export async function renderActivityReport(
   invoiceId: string,
+  opts: { format?: "pdf" | "xlsx" } = {},
 ): Promise<Rendered | null> {
   const invoice = await db.invoice.findUnique({
     where: { id: invoiceId },
@@ -154,7 +161,7 @@ export async function renderActivityReport(
     const first = entries[0].date;
     const last = entries[entries.length - 1].date;
     const fmt = (d: Date) =>
-      d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+      `${String(d.getUTCDate()).padStart(2, "0")} ${d.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })} ${d.getUTCFullYear()}`;
     periodLabel =
       first.getMonth() === last.getMonth() && first.getFullYear() === last.getFullYear()
         ? first.toLocaleDateString("en-GB", { month: "long", year: "numeric" })
@@ -167,19 +174,27 @@ export async function renderActivityReport(
   const rate = snapshotRate ?? invoice.job?.rateUsd ?? 0;
   const currency = invoice.invoiceCurrency || invoice.job?.defaultCurrency || "USD";
 
-  const buffer = await buildActivityReport({
+  const mono = invoiceTemplate(invoice.issuedAt) === "mono";
+  const data = {
     supplier: settings.issuerName,
     client: invoice.clientCompany,
     invoiceLabel: `${invoice.series} ${invoice.number}`,
     periodLabel,
-    generatedAt: new Date(),
+    issuedAt: invoice.issuedAt,
+    style: mono ? ("mono" as const) : ("classic" as const),
     currency,
     rate,
     entries,
-  });
+  };
+  const base = `Activity-report_${invoice.series}${invoice.number}_${invoice.clientCompany.replace(/[^A-Za-z0-9]+/g, "-")}`;
 
+  if ((opts.format ?? (mono ? "pdf" : "xlsx")) === "pdf") {
+    const buffer = await renderToBuffer(ActivityReportPdf({ data }));
+    return { buffer: Buffer.from(buffer), filename: `${base}.pdf`, contentType: "application/pdf" };
+  }
   return {
-    buffer,
-    filename: `Activity-report_${invoice.series}${invoice.number}_${invoice.clientCompany.replace(/[^A-Za-z0-9]+/g, "-")}.xlsx`,
+    buffer: await buildActivityReport(data),
+    filename: `${base}.xlsx`,
+    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   };
 }
