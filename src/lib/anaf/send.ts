@@ -112,8 +112,12 @@ const errMsg = (err: unknown, fallback: string) =>
   err instanceof AnafApiError ? err.messages : [err instanceof Error ? err.message : fallback];
 const envOf = (s: { env: string }): AnafEnv => (s.env === "prod" ? "prod" : "test");
 
-/** Factura era draft si a ajuns la ANAF: transmiterea E emiterea. Idempotent. */
-async function promoteDraft(invoiceId: string) {
+/**
+ * Factura era draft si a ajuns la ANAF: transmiterea E emiterea. Idempotent.
+ * Only on prod: a TEST upload issues nothing, so the draft stays a draft.
+ */
+async function promoteDraft(invoiceId: string, env: AnafEnv) {
+  if (env !== "prod") return;
   await db.invoice.updateMany({ where: { id: invoiceId, status: "draft" }, data: { status: "issued" } });
 }
 
@@ -145,7 +149,8 @@ export async function sendInvoice(
   const { invoice, settings, doc } = built;
 
   // Un draft se poate trimite: transmiterea la ANAF ESTE emiterea, asa ca la
-  // upload reusit statusul trece singur pe "issued". Void nu se trimite.
+  // upload reusit statusul trece singur pe "issued" (prod only; a TEST send
+  // leaves it a draft). Void nu se trimite.
   if (invoice.status === "void") {
     return { ok: false, status: 409, code: "status", error: "Invoice is void; it cannot be sent." };
   }
@@ -285,12 +290,17 @@ export async function sendInvoice(
   }
 
   // Indexul si emiterea, impreuna: o factura ajunsa la ANAF nu ramane draft.
+  // On TEST nothing is issued, so only the index is saved.
+  const promote =
+    env === "prod"
+      ? [db.invoice.updateMany({ where: { id: invoice.id, status: "draft" }, data: { status: "issued" } })]
+      : [];
   const [sub0] = await db.$transaction([
     db.efacturaSubmission.update({
       where: { id: created.id },
       data: { indexIncarcare, uploadedAt: new Date(), state: "in_prelucrare", errors: [] },
     }),
-    db.invoice.updateMany({ where: { id: invoice.id, status: "draft" }, data: { status: "issued" } }),
+    ...promote,
   ]);
   let sub = sub0;
 
@@ -355,7 +365,7 @@ export async function checkSubmission(sub: SubmissionRow): Promise<SubmissionRow
         ...(state === "in_prelucrare" ? {} : { errors: [] }),
       },
     });
-    if (state === "in_prelucrare" || state === "ok") await promoteDraft(sub.invoiceId);
+    if (state === "in_prelucrare" || state === "ok") await promoteDraft(sub.invoiceId, envOf(sub));
   }
   if (needsArchive(sub)) sub = await downloadAndArchive(sub);
   return sub;
@@ -543,7 +553,7 @@ export async function reconcileStuck(
       // P2002: indexul a fost adoptat intre timp de alt rand. Nu e al nostru.
       return null;
     }
-    await promoteDraft(sub.invoiceId);
+    await promoteDraft(sub.invoiceId, envOf(sub));
     const archived = await downloadAndArchive(adopted, fetched ?? undefined);
     return { sub: archived, note: `${num}: reconciled with ANAF index ${m.id_solicitare} (${m.tip}, ${how}).` };
   };

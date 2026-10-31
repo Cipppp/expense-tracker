@@ -90,6 +90,7 @@ persoane juridice": 1.000–2.500 lei / lună calendaristică. Sărbătorile leg
 - **EIN american sub schema VAT pică BR-CO-09** → merge în BT-47, unde nu e verificat.
 - Nume articol ≤ 100 (BR-RO-L100), cu restul în `Description`; `PostalZone` omis când e gol.
 - UE (AE): vânzătorul cu CIF-ul în BT-32 (`PartyTaxScheme` fără schema VAT) și codul art. 317 `RO55415170` în nota BT-22, cumpărătorul cu cod TVA cu prefix — altfel blocaj. Codul art. 317 nu merge în BT-31: ANAF ia emitentul de acolo și respinge upload-ul făcut pe CUI 51711091 („CUI-ul emitentului declarat la incarcare … nu corespunde").
+- Un upload pe TEST nu schimbă statusul facturii; doar unul pe prod o trece din draft în issued.
 
 ## Testare pe `ANAF_ENV=test` înainte de prod
 
