@@ -18,6 +18,8 @@ export type InvoiceTemplate =
   | "sheet"
   | "sheet-open"
   | "stripe"
+  | "stripe-b"
+  | "stripe-c"
   | "summary"
   | "letter";
 

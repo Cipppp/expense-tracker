@@ -58,6 +58,8 @@ export async function renderInvoicePdf(
     sheet: (p: InvoicePdfProps) => InvoicePdfSheet({ ...p, ruled: true }),
     "sheet-open": (p: InvoicePdfProps) => InvoicePdfSheet({ ...p, ruled: false }),
     stripe: InvoicePdfStripe,
+    "stripe-b": (p: InvoicePdfProps) => InvoicePdfStripe({ ...p, head: "b" }),
+    "stripe-c": (p: InvoicePdfProps) => InvoicePdfStripe({ ...p, head: "c" }),
     summary: InvoicePdfSummary,
     letter: InvoicePdfLetter,
   }[template];

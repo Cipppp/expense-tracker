@@ -21,10 +21,15 @@ const RULE = "#d0d0d0";
 const s = StyleSheet.create({
   page: { paddingTop: 46, paddingHorizontal: 48, paddingBottom: 66, fontFamily: INVOICE_FONT, fontSize: 8.4, lineHeight: 1.45, color: "#111", flexDirection: "column" },
   top: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  title: { fontSize: 18, fontWeight: 700 },
-  mark: { fontSize: 9.5, fontWeight: 700, textAlign: "right" },
-  meta: { marginTop: 14 },
-  metaKey: { fontWeight: 700 },
+  titleA: { fontSize: 20, fontWeight: 700, lineHeight: 1 },
+  titleB: { fontSize: 20, fontWeight: 700, lineHeight: 1 },
+  markB: { fontSize: 10, fontWeight: 700, textAlign: "right", lineHeight: 1.3 },
+  mutedRight: { color: MUTED, textAlign: "right", fontSize: 7.8 },
+  bar: { flexDirection: "row", justifyContent: "space-between", backgroundColor: "#111", paddingHorizontal: 12, paddingVertical: 10 },
+  barTitle: { color: "#ffffff", fontSize: 13, fontWeight: 700, letterSpacing: 0.6, lineHeight: 1 },
+  strip: { flexDirection: "row", marginTop: 14, paddingVertical: 9, borderTopWidth: 1.2, borderBottomWidth: 0.5, borderColor: "#111" },
+  stripKey: { fontSize: 7, color: MUTED },
+  stripVal: { fontSize: 9, fontWeight: 500, marginTop: 2 },
   parties: { flexDirection: "row", marginTop: 26 },
   party: { flex: 1, paddingRight: 20 },
   partyTitle: { fontWeight: 700, marginBottom: 2 },
@@ -100,7 +105,14 @@ const X = {
   },
 } as const;
 
-export function InvoicePdfStripe({ issuer, invoice }: InvoicePdfProps) {
+/**
+ * Antetul, in proba: "a" titlul si numarul pe acelasi rand cu datele pe o
+ * banda dedesubt, "b" lista de date cu firma si adresa in dreapta ca pe o
+ * hartie cu antet, "c" o bara neagra cu titlul si numarul.
+ */
+export type StripeHead = "a" | "b" | "c";
+
+export function InvoicePdfStripe({ issuer, invoice, head = "a" }: InvoicePdfProps & { head?: StripeHead }) {
   const L = invoiceLabels(invoice.clientCountry);
   const C = X[invoiceLanguage(invoice.clientCountry)];
   const fmt = (n: number) => n.toLocaleString(L.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -115,21 +127,54 @@ export function InvoicePdfStripe({ issuer, invoice }: InvoicePdfProps) {
   const due = `${fmt(a.totalGross)} ${a.present}`;
   const place = clientPlace(invoice);
   const KEY = 128;
+  const metaRows: Array<[string, string]> = [
+    [C.number, number],
+    [C.issued, invoice.issuedAt],
+    ...(invoice.dueAt ? [[C.due, invoice.dueAt] as [string, string]] : []),
+    [C.vatId, issuerVat],
+  ];
 
   return (
     <Document title={`${C.title} ${invoice.series} ${invoice.number}`} author={issuer.name} creator={issuer.name} producer={issuer.name}>
       <Page size="A4" style={s.page}>
-        <View style={s.top}>
-          <T style={s.title}>{C.title}</T>
-          <T style={s.mark}>{issuer.name}</T>
-        </View>
-
-        <View style={s.meta}>
-          <KV width={KEY} keyStyle={s.metaKey} k={C.number} v={number} />
-          <KV width={KEY} keyStyle={s.metaKey} k={C.issued} v={invoice.issuedAt} />
-          {invoice.dueAt ? <KV width={KEY} keyStyle={s.metaKey} k={C.due} v={invoice.dueAt} /> : null}
-          <KV width={KEY} keyStyle={s.metaKey} k={C.vatId} v={issuerVat} />
-        </View>
+        {head === "b" ? (
+          <View style={s.top}>
+            <View>
+              <T style={s.titleB}>{C.title}</T>
+              <View style={{ marginTop: 12 }}>
+                {metaRows.map(([k, v]) => (
+                  <KV key={k} width={98} keyStyle={{ color: MUTED }} k={k} v={v} />
+                ))}
+              </View>
+            </View>
+            <View style={{ alignItems: "flex-end", width: "42%" }}>
+              <T style={s.markB}>{issuer.name}</T>
+              <T style={[s.mutedRight, { marginTop: 3 }]}>{issuer.address}</T>
+            </View>
+          </View>
+        ) : (
+          <>
+            {head === "c" ? (
+              <View style={s.bar}>
+                <T style={s.barTitle}>{C.title.toUpperCase()}</T>
+                <T style={s.barTitle}>{number}</T>
+              </View>
+            ) : (
+              <View style={[s.top, { alignItems: "flex-end" }]}>
+                <T style={s.titleA}>{C.title}</T>
+                <T style={s.titleA}>{number}</T>
+              </View>
+            )}
+            <View style={[s.strip, head === "c" ? { borderTopWidth: 0 } : {}]}>
+              {metaRows.slice(1).map(([k, v]) => (
+                <View key={k} style={{ flex: 1 }}>
+                  <T style={s.stripKey}>{k}</T>
+                  <T style={s.stripVal}>{v}</T>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
 
         <View style={s.parties}>
           <View style={s.party}>
