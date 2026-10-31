@@ -19,7 +19,7 @@ const MUTED = "#5f6368";
 const RULE = "#d0d0d0";
 
 const s = StyleSheet.create({
-  page: { paddingTop: 46, paddingHorizontal: 48, paddingBottom: 70, fontFamily: INVOICE_FONT, fontSize: 8.4, lineHeight: 1.45, color: "#111" },
+  page: { paddingTop: 46, paddingHorizontal: 48, paddingBottom: 66, fontFamily: INVOICE_FONT, fontSize: 8.4, lineHeight: 1.45, color: "#111", flexDirection: "column" },
   top: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   title: { fontSize: 18, fontWeight: 700 },
   mark: { fontSize: 9.5, fontWeight: 700, textAlign: "right" },
@@ -42,6 +42,7 @@ const s = StyleSheet.create({
   equiv: { textAlign: "right", fontSize: 7.2, color: MUTED, marginTop: 4 },
   section: { marginTop: 28 },
   sectionTitle: { fontWeight: 700, marginBottom: 4 },
+  notes: { marginTop: 28, paddingBottom: 6 },
   note: { fontSize: 7.2, color: MUTED, marginBottom: 3 },
   foot: { position: "absolute", left: 48, right: 48, bottom: 34, borderTopWidth: 0.5, borderColor: RULE, paddingTop: 6, fontSize: 7, color: MUTED },
 });
@@ -210,8 +211,11 @@ export function InvoicePdfStripe({ issuer, invoice }: InvoicePdfProps) {
           <KV width={KEY} k={C.reference} v={number} />
         </View>
 
+        {/* Mentiunile legale coboara la baza paginii, chiar deasupra subsolului:
+            sunt pentru contabilitate, nu pentru cine plateste. */}
+        <View style={{ flexGrow: 1 }} />
         {mention || invoice.footerNote ? (
-          <View style={s.section} wrap={false}>
+          <View style={s.notes} wrap={false}>
             {mention ? <T style={s.note}>{mention.ro}</T> : null}
             {mention ? <T style={s.note}>{mention.en}</T> : null}
             {invoice.footerNote ? <T style={s.note}>{invoice.footerNote}</T> : null}
