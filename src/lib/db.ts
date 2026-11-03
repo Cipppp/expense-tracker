@@ -22,6 +22,7 @@ const SCOPED = new Set([
   "CompanyPayout", "Holding", "SavingsAccount", "NetWorthSnapshot", "Settings",
   "Chore", "ChoreWeek", "GratitudeItem", "Supplement", "SupplementLog",
   "ImportBatch", "CategoryRule", "Passkey", "AnafToken", "SpvMessage",
+  "MealChoice",
 ]);
 
 /** Operațiile care citesc sau ating rânduri existente — toate primesc filtrul. */

@@ -204,6 +204,21 @@ describe.skipIf(!url)("izolarea între utilizatori", () => {
     });
   });
 
+  describe("meniul săptămânii", () => {
+    // Same day, same person, same meal in both accounts: the unique key is per account.
+    it("fiecare cont își vede doar alegerile lui", async () => {
+      const row = { day: "2026-11-02", person: "cip", meal: "lunch" };
+      await runAsUser(A, () => db.mealChoice.create({ data: { userId: A, ...row, variant: "v1" } }));
+      await runAsUser(B, () => db.mealChoice.create({ data: { userId: B, ...row, variant: "v2" } }));
+
+      const aleLuiA = await runAsUser(A, () => db.mealChoice.findMany());
+      expect(aleLuiA.map((c) => c.variant)).toEqual(["v1"]);
+
+      await runAsUser(A, () => db.mealChoice.deleteMany({ where: row }));
+      expect(await runAsUser(B, () => db.mealChoice.count())).toBe(1);
+    });
+  });
+
   describe("fără niciun cont", () => {
     /*
      * Alternativa — interogarea să meargă nescopată — ar însemna ca un bug de
