@@ -20,6 +20,7 @@ import {
   Sparkle,
   Pill,
   Bank,
+  ForkKnife,
 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -70,6 +71,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
       { href: "/chores", label: "Chores", icon: Broom },
       { href: "/gratitude", label: "Gratitude", icon: Sparkle },
       { href: "/supplements", label: "Supplements", icon: Pill },
+      { href: "/meals", label: "Meals", icon: ForkKnife },
     ],
   },
   {
