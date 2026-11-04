@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Check } from "@/lib/icons";
+import { Check, Info } from "@/lib/icons";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { People, PersonKey } from "@/lib/chores";
 import { cn } from "@/lib/utils";
 import { shoppingList, type FoodKey, type MealKey, type ShoppingItem } from "@/lib/meal-plan";
@@ -133,29 +134,46 @@ export function ShoppingList({
               {gr.items.map((it) => {
                 const on = checked.has(it.food);
                 return (
-                  <li key={it.food}>
+                  <li key={it.food} className="flex items-start">
                     <button
                       type="button"
                       onClick={() => toggle(it.food)}
                       aria-pressed={on}
-                      className="flex w-full items-start gap-3 px-4 py-2 text-left transition-colors hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                      className="flex min-w-0 flex-1 items-center gap-3 py-2 pl-4 pr-2 text-left transition-colors hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                     >
                       <span
                         className={cn(
-                          "mt-px grid h-5 w-5 shrink-0 place-items-center rounded-full border transition-colors duration-150",
+                          "grid h-5 w-5 shrink-0 place-items-center rounded-full border transition-colors duration-150",
                           on ? "border-success bg-success text-white" : "border-border text-transparent",
                         )}
                       >
                         <Check weight="bold" className="h-3 w-3" />
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className={cn("block text-[13px]", on && "text-muted-foreground line-through decoration-success/60")}>
-                          {it.name}
-                        </span>
-                        {it.buy && <span className="block text-[11.5px] leading-snug text-muted-foreground">{it.buy}</span>}
+                      <span className={cn("min-w-0 flex-1 text-[13px]", on && "text-muted-foreground line-through decoration-success/60")}>
+                        {it.name}
                       </span>
-                      <span className="shrink-0 pt-px text-[12px] tabular-nums text-muted-foreground">{amount(it)}</span>
+                      <span className="shrink-0 text-[12px] tabular-nums text-muted-foreground">{amount(it)}</span>
                     </button>
+                    {/* Where to buy stays behind a tap: most trips only need the name and the amount. */}
+                    <span className="grid w-9 shrink-0 place-items-center self-stretch pr-2">
+                      {it.buy && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              aria-label={`De unde iei ${it.name}`}
+                              className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                              <Info className="h-4 w-4" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" className="w-72 p-3 text-[12.5px] leading-snug">
+                            <div className="font-medium">{it.name}</div>
+                            <p className="mt-1 text-muted-foreground">{it.buy}</p>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </span>
                   </li>
                 );
               })}

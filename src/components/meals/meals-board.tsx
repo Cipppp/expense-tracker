@@ -840,7 +840,8 @@ function RecipeBody({ recipe, portions }: { recipe: RecipeKey; portions: number 
   );
 }
 
-function ItemRow({ item }: { item: Item }) {
+/** `recipeOpen`: show the recipe outright, with no toggle of its own. */
+function ItemRow({ item, recipeOpen = false }: { item: Item; recipeOpen?: boolean }) {
   const [open, setOpen] = useState(false);
   const x = itemMacros(item);
   if (!("recipe" in item)) {
@@ -848,6 +849,17 @@ function ItemRow({ item }: { item: Item }) {
       <li className="flex items-baseline justify-between gap-3">
         <span className="min-w-0">{itemLabel(item)}</span>
         <span className="shrink-0 tabular-nums text-muted-foreground">{kcal(x)} kcal</span>
+      </li>
+    );
+  }
+  if (recipeOpen) {
+    return (
+      <li>
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="min-w-0">{itemLabel(item)}</span>
+          <span className="shrink-0 tabular-nums text-muted-foreground">{kcal(x)} kcal</span>
+        </div>
+        <RecipeBody recipe={item.recipe} portions={item.portions} />
       </li>
     );
   }
@@ -880,13 +892,13 @@ function ItemRow({ item }: { item: Item }) {
 }
 
 /** Ingredients with grams, recipes inline, tips. The title row is drawn by the caller. */
-function VariantBody({ v, className }: { v: Variant; className?: string }) {
+function VariantBody({ v, className, recipesOpen = false }: { v: Variant; className?: string; recipesOpen?: boolean }) {
   return (
     <div className={className}>
       <MacroLine x={variantMacros(v)} className="text-[11px]" />
       <ul className="mt-1.5 space-y-0.5 text-[12px]">
         {v.items.map((it, j) => (
-          <ItemRow key={j} item={it} />
+          <ItemRow key={j} item={it} recipeOpen={recipesOpen} />
         ))}
         {v.extras?.map((e) => (
           <li key={e} className="text-muted-foreground">
@@ -970,7 +982,7 @@ function PlanDetails({ person, name }: { person: PersonKey; name: string }) {
                       )}
                     />
                   </button>
-                  {isOpen && <VariantBody v={v} className="-mt-1 px-3.5 pb-3 pl-[3.25rem]" />}
+                  {isOpen && <VariantBody v={v} recipesOpen className="-mt-1 px-3.5 pb-3 pl-[3.25rem]" />}
                 </div>
               );
             })}
