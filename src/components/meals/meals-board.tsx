@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight } from "@/lib/icons";
+import { ChevronDown, ChevronLeft, ChevronRight } from "@/lib/icons";
 import { PEOPLE, type People, type PersonKey } from "@/lib/chores";
 import { cn } from "@/lib/utils";
 import {
-  FOODS,
   MEALS,
   PLANS,
   RECIPES,
@@ -22,7 +21,6 @@ import {
   recipeMacros,
   variantMacros,
   type Choices,
-  type FoodKey,
   type Item,
   type Macros,
   type MealKey,
@@ -69,6 +67,15 @@ export function MealsBoard({
   );
   const [person, setPerson] = useState<PersonKey>("cip");
   const [saving, setSaving] = useState(false);
+  // Today's row starts open, so the page answers "what do I eat today" without a click.
+  const [open, setOpen] = useState<Set<string>>(() => new Set(days.includes(today) ? [today] : []));
+  const toggleDay = (day: string) =>
+    setOpen((prev) => {
+      const n = new Set(prev);
+      if (n.has(day)) n.delete(day);
+      else n.add(day);
+      return n;
+    });
 
   useEffect(() => {
     try {
@@ -134,6 +141,8 @@ export function MealsBoard({
   function choose(day: string, meal: MealKey, variant: string) {
     const key = ck(day, person, meal);
     const next = choices.get(key) === variant ? "" : variant; // tapping the chosen one clears it
+    // Picking opens the day, so the choice shows what's in it right away.
+    if (next) setOpen((prev) => (prev.has(day) ? prev : new Set(prev).add(day)));
     void apply([{ day, person, meal, variant: next }]);
   }
 
@@ -273,6 +282,8 @@ export function MealsBoard({
             const total = dayMacros(person, c);
             const picked = MEALS.filter(({ key }) => c[key]).length;
             const isToday = day === today;
+            const isOpen = open.has(day);
+            const panelId = `ziua-${day}`;
             const totalText = (
               <>
                 <div className="text-[13px] font-medium tabular-nums">{picked ? `${kcal(total)} kcal` : "–"}</div>
@@ -290,13 +301,27 @@ export function MealsBoard({
                 )}
               >
                 <div className="flex items-start justify-between gap-3 lg:block">
-                  <div>
-                    <div className="text-[13px] font-medium capitalize">{weekday(day)}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {shortDate(day)}
-                      {isToday && <span className="ml-1.5 font-medium text-accent">azi</span>}
-                    </div>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleDay(day)}
+                    aria-expanded={isOpen}
+                    aria-controls={panelId}
+                    className="group -mx-1.5 -my-1 flex items-start gap-1.5 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <ChevronDown
+                      className={cn(
+                        "mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200 ease-out",
+                        !isOpen && "-rotate-90",
+                      )}
+                    />
+                    <span>
+                      <span className="block text-[13px] font-medium capitalize">{weekday(day)}</span>
+                      <span className="block text-[11px] text-muted-foreground">
+                        {shortDate(day)}
+                        {isToday && <span className="ml-1.5 font-medium text-accent">azi</span>}
+                      </span>
+                    </span>
+                  </button>
                   <div className="text-right lg:hidden">{totalText}</div>
                 </div>
                 {MEALS.map((ml) => (
@@ -308,10 +333,33 @@ export function MealsBoard({
                     color={people[person].color}
                     soft={people[person].soft}
                     onChoose={(v) => choose(day, ml.key, v)}
+                    onShow={() => !isOpen && toggleDay(day)}
                     groupLabel={`${ml.label}, ${weekday(day)} ${shortDate(day)}`}
                   />
                 ))}
                 <div className="hidden text-right lg:block">{totalText}</div>
+
+                {isOpen && (
+                  <div id={panelId} className="border-t border-border pt-4 pb-1 lg:col-span-full">
+                    <div className="grid gap-x-8 gap-y-6 md:grid-cols-2 xl:grid-cols-4">
+                      {MEALS.map((ml) => {
+                        const v = c[ml.key] ? plan.meals[ml.key].find((x) => x.key === c[ml.key]) : undefined;
+                        return (
+                          <div key={ml.key} className="min-w-0">
+                            <div className="text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground">{ml.label}</div>
+                            {v ? (
+                              <VariantDetail v={v} className="mt-1.5" />
+                            ) : (
+                              <p className="mt-1.5 text-[12.5px] text-muted-foreground">
+                                Nealeasă. Alege o variantă din rândul de mai sus.
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </li>
             );
           })}
@@ -339,6 +387,7 @@ function MealCell({
   color,
   soft,
   onChoose,
+  onShow,
   groupLabel,
 }: {
   mealLabel: string;
@@ -347,6 +396,8 @@ function MealCell({
   color: string;
   soft: string;
   onChoose: (key: string) => void;
+  /** Opens the day's details; the chosen dish's name is the way in. */
+  onShow: () => void;
   groupLabel: string;
 }) {
   const v = chosen ? variants.find((x) => x.key === chosen) : undefined;
@@ -378,10 +429,14 @@ function MealCell({
         </div>
         <div className="mt-1 text-[12px] leading-snug">
           {v ? (
-            <>
-              <div className="truncate">{v.title}</div>
-              <div className="tabular-nums text-muted-foreground">{kcal(variantMacros(v))} kcal</div>
-            </>
+            <button
+              type="button"
+              onClick={onShow}
+              className="block max-w-full rounded-sm text-right underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:text-left"
+            >
+              <span className="block truncate">{v.title}</span>
+              <span className="block tabular-nums text-muted-foreground">{kcal(variantMacros(v))} kcal</span>
+            </button>
           ) : (
             <div className="text-muted-foreground/70">nealeasă</div>
           )}
@@ -401,41 +456,104 @@ function MacroLine({ x, className }: { x: Macros; className?: string }) {
   );
 }
 
-function ItemRow({ item }: { item: Item }) {
-  const x = itemMacros(item);
+/** A recipe in full, for one portion: what goes in, how much, and the steps. */
+function RecipeBody({ recipe, portions }: { recipe: RecipeKey; portions: number }) {
+  const r = RECIPES[recipe];
+  const x = recipeMacros(recipe);
   return (
-    <li className="flex items-baseline justify-between gap-3">
-      <span className="min-w-0">
-        {itemLabel(item)}
-        {"recipe" in item && (
-          <a href={`#reteta-${item.recipe}`} className="ml-1.5 text-[11.5px] text-accent underline-offset-2 hover:underline">
-            rețeta
-          </a>
-        )}
-      </span>
-      <span className="shrink-0 tabular-nums text-muted-foreground">{kcal(x)} kcal</span>
+    <div className="mt-1.5 space-y-2.5 rounded-md bg-secondary/60 px-3 py-2.5 text-[12px]">
+      <div className="text-muted-foreground">
+        {r.servings === 1
+          ? "Cantitățile sunt pentru o porție."
+          : `Cantitățile sunt pentru ${r.servings} porții; mănânci ${portions === 1 ? "una" : g(portions)}.`}{" "}
+        <span className="tabular-nums">O porție: {kcal(x)} kcal, {g(x.protein)} g proteină.</span>
+      </div>
+      <ul className="space-y-0.5">
+        {r.ingredients.map((ing, j) => (
+          <li key={j} className="flex items-baseline justify-between gap-3">
+            <span className="min-w-0">{itemLabel(ing)}</span>
+            <span className="shrink-0 tabular-nums text-muted-foreground">
+              {"count" in ing || "label" in ing ? `${g(ingredientGrams(ing))} g · ` : ""}
+              {kcal(ingredientMacros(ing))} kcal
+            </span>
+          </li>
+        ))}
+      </ul>
+      <ol className="list-decimal space-y-1 pl-4 leading-snug">
+        {r.steps.map((st) => (
+          <li key={st}>{st}</li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function ItemRow({ item }: { item: Item }) {
+  const [open, setOpen] = useState(false);
+  const x = itemMacros(item);
+  if (!("recipe" in item)) {
+    return (
+      <li className="flex items-baseline justify-between gap-3">
+        <span className="min-w-0">{itemLabel(item)}</span>
+        <span className="shrink-0 tabular-nums text-muted-foreground">{kcal(x)} kcal</span>
+      </li>
+    );
+  }
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="-mx-1 flex w-[calc(100%+0.5rem)] items-baseline justify-between gap-3 rounded-sm px-1 text-left hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {/* Inline, not flex: in a narrow column the label wraps like text instead of splitting into columns. */}
+        <span className="min-w-0">
+          <ChevronDown
+            className={cn(
+              "mr-1 inline h-3 w-3 align-[-1px] text-muted-foreground transition-transform duration-200 ease-out",
+              !open && "-rotate-90",
+            )}
+          />
+          {itemLabel(item)}
+          <span className="ml-1.5 whitespace-nowrap text-[11.5px] text-muted-foreground">
+            {open ? "ascunde rețeta" : "vezi rețeta"}
+          </span>
+        </span>
+        <span className="shrink-0 tabular-nums text-muted-foreground">{kcal(x)} kcal</span>
+      </button>
+      {open && <RecipeBody recipe={item.recipe} portions={item.portions} />}
     </li>
+  );
+}
+
+/** Everything about one dish: totals, ingredients with grams, recipes inline, tips. */
+function VariantDetail({ v, className }: { v: Variant; className?: string }) {
+  const x = variantMacros(v);
+  return (
+    <div className={className}>
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="text-[13.5px] font-medium">{v.title}</div>
+        <div className="shrink-0 text-[13px] font-medium tabular-nums">{kcal(x)} kcal</div>
+      </div>
+      <MacroLine x={x} className="mt-0.5 text-[11.5px]" />
+      <ul className="mt-2.5 space-y-1 text-[12.5px]">
+        {v.items.map((it, j) => (
+          <ItemRow key={j} item={it} />
+        ))}
+        {v.extras?.map((e) => (
+          <li key={e} className="text-muted-foreground">
+            {e}
+          </li>
+        ))}
+      </ul>
+      {v.tip && <p className="mt-2.5 text-[12px] leading-snug text-muted-foreground">{v.tip}</p>}
+    </div>
   );
 }
 
 function PlanDetails({ person, name }: { person: PersonKey; name: string }) {
   const plan = PLANS[person];
-  const recipes = useMemo(() => {
-    const used = new Set<RecipeKey>();
-    for (const { key } of MEALS)
-      for (const v of plan.meals[key]) for (const i of v.items) if ("recipe" in i) used.add(i.recipe);
-    return [...used];
-  }, [plan]);
-  const foods = useMemo(() => {
-    const used = new Set<FoodKey>();
-    const addIng = (i: Item) => {
-      if ("recipe" in i) RECIPES[i.recipe].ingredients.forEach((r) => used.add(r.food));
-      else used.add(i.food);
-    };
-    for (const { key } of MEALS) for (const v of plan.meals[key]) v.items.forEach(addIng);
-    return [...used].sort((a, b) => FOODS[a].name.localeCompare(FOODS[b].name, "ro"));
-  }, [plan]);
-
   return (
     <section className="space-y-6 pt-2">
       <div>
@@ -450,77 +568,15 @@ function PlanDetails({ person, name }: { person: PersonKey; name: string }) {
         <div key={key} className="space-y-2">
           <h3 className="text-[13px] font-medium">{label}</h3>
           <div className="grid items-start gap-2 md:grid-cols-2">
-            {plan.meals[key].map((v, i) => {
-              const x = variantMacros(v);
-              return (
-                <div key={v.key} id={`${person}-${key}-${v.key}`} className="rounded-lg border border-border bg-card px-3.5 py-3">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <div className="text-[13.5px] font-medium">
-                      <span className="mr-1.5 tabular-nums text-muted-foreground">{i + 1}</span>
-                      {v.title}
-                    </div>
-                    <div className="shrink-0 text-[13px] font-medium tabular-nums">{kcal(x)} kcal</div>
-                  </div>
-                  <MacroLine x={x} className="mt-0.5 text-[11.5px]" />
-                  <ul className="mt-2.5 space-y-1 text-[12.5px]">
-                    {v.items.map((it, j) => (
-                      <ItemRow key={j} item={it} />
-                    ))}
-                    {v.extras?.map((e) => (
-                      <li key={e} className="text-muted-foreground">
-                        {e}
-                      </li>
-                    ))}
-                  </ul>
-                  {v.tip && <p className="mt-2.5 text-[12px] leading-snug text-muted-foreground">{v.tip}</p>}
-                </div>
-              );
-            })}
+            {plan.meals[key].map((v, i) => (
+              <div key={v.key} className="rounded-lg border border-border bg-card px-3.5 py-3">
+                <div className="mb-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">Varianta {i + 1}</div>
+                <VariantDetail v={v} />
+              </div>
+            ))}
           </div>
         </div>
       ))}
-
-      <div className="space-y-2">
-        <h3 className="text-[13px] font-medium">Rețete</h3>
-        <div className="divide-y divide-border rounded-lg border border-border bg-card">
-          {recipes.map((rk) => {
-            const r = RECIPES[rk];
-            const x = recipeMacros(rk);
-            return (
-              <details key={rk} id={`reteta-${rk}`} className="group px-3.5 py-2.5">
-                <summary className="flex cursor-pointer list-none items-baseline justify-between gap-3 text-[13px] [&::-webkit-details-marker]:hidden">
-                  <span>
-                    <span className="font-medium">{r.name}</span>
-                    <span className="text-muted-foreground">
-                      {" "}
-                      · {r.servings === 1 ? "1 porție" : `${r.servings} porții`}
-                    </span>
-                  </span>
-                  <span className="shrink-0 tabular-nums text-muted-foreground">{kcal(x)} kcal / porție</span>
-                </summary>
-                <div className="mt-2 space-y-2.5 pb-1 text-[12.5px]">
-                  <MacroLine x={x} className="text-[11.5px]" />
-                  <ul className="space-y-1">
-                    {r.ingredients.map((ing, j) => (
-                      <li key={j} className="flex items-baseline justify-between gap-3">
-                        <span>{itemLabel(ing)}</span>
-                        <span className="shrink-0 tabular-nums text-muted-foreground">
-                          {g(ingredientGrams(ing))} g · {kcal(ingredientMacros(ing))} kcal
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                  <ol className="list-decimal space-y-1 pl-4 text-muted-foreground">
-                    {r.steps.map((s) => (
-                      <li key={s}>{s}</li>
-                    ))}
-                  </ol>
-                </div>
-              </details>
-            );
-          })}
-        </div>
-      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-2">
@@ -534,55 +590,12 @@ function PlanDetails({ person, name }: { person: PersonKey; name: string }) {
         <div className="space-y-2">
           <h3 className="text-[13px] font-medium">Echivalențe</h3>
           <ul className="list-disc space-y-1 pl-4 text-[12.5px] leading-snug text-muted-foreground">
-            {SWAPS.map((s) => (
-              <li key={s}>{s}</li>
+            {SWAPS.map((sw) => (
+              <li key={sw}>{sw}</li>
             ))}
           </ul>
         </div>
       </div>
-
-      <details className="rounded-lg border border-border bg-card px-3.5 py-2.5">
-        <summary className="cursor-pointer list-none text-[13px] font-medium [&::-webkit-details-marker]:hidden">
-          De unde vin caloriile
-          <span className="font-normal text-muted-foreground"> · valorile la 100 g pentru fiecare aliment</span>
-        </summary>
-        <div className="mt-2 overflow-x-auto">
-          <table className="w-full min-w-[560px] text-[12px]">
-            <thead className="text-left text-muted-foreground">
-              <tr>
-                <th className="py-1 pr-3 font-medium">Aliment</th>
-                <th className="py-1 pr-3 text-right font-medium">kcal</th>
-                <th className="py-1 pr-3 text-right font-medium">Proteine</th>
-                <th className="py-1 pr-3 text-right font-medium">Carbo</th>
-                <th className="py-1 pr-3 text-right font-medium">Grăsimi</th>
-                <th className="py-1 font-medium">Sursa</th>
-              </tr>
-            </thead>
-            <tbody className="tabular-nums">
-              {foods.map((f) => {
-                const food: { name: string; per100: Macros; unit?: { one: string; grams: number }; source: string } = FOODS[f];
-                const p = food.per100;
-                return (
-                  <tr key={f} className="border-t border-border">
-                    <td className="py-1 pr-3">
-                      {food.name}
-                      {food.unit && (
-                        <span className="text-muted-foreground"> · 1 {food.unit.one} = {food.unit.grams.toLocaleString("ro-RO")} g</span>
-                      )}
-                    </td>
-                    <td className="py-1 pr-3 text-right">{g(p.kcal)}</td>
-                    <td className="py-1 pr-3 text-right">{p.protein.toLocaleString("ro-RO")}</td>
-                    <td className="py-1 pr-3 text-right">{p.carbs.toLocaleString("ro-RO")}</td>
-                    <td className="py-1 pr-3 text-right">{p.fat.toLocaleString("ro-RO")}</td>
-                    <td className="py-1 text-muted-foreground">{food.source}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </details>
     </section>
   );
 }
-
