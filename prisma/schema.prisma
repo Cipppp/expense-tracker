@@ -50,6 +50,7 @@ model User {
   passkeys       Passkey[]
   anafTokens     AnafToken[]
   spvMessages    SpvMessage[]
+  mealChoices    MealChoice[]
 }
 
 model Expense {
@@ -722,6 +723,25 @@ model SupplementLog {
 
   @@unique([userId, day, person, key])
   @@index([day])
+  @@index([userId])
+}
+
+/**
+ * What each person eats on a given day, one row per meal. `variant` points
+ * into the plans in src/lib/meal-plan.ts ("v1"…"v4"), so a plan can change its
+ * gram counts without rewriting these rows. No row = nothing picked yet.
+ */
+model MealChoice {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  day       String // Bucharest-local "yyyy-mm-dd"
+  person    String // "cip" | "axy"
+  meal      String // breakfast | lunch | snack | dinner
+  variant   String
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([userId, day, person, meal])
   @@index([userId])
 }
 
