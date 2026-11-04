@@ -757,6 +757,10 @@ model MealCheckIn {
   day       String // "yyyy-mm-dd"
   weightKg  Float?
   waistCm   Float?
+  hipsCm    Float? // fesieri
+  chestCm   Float?
+  thighCm   Float? // coapsă
+  armCm     Float? // braț
   note      String   @default("")
   updatedAt DateTime @default(now()) @updatedAt
 
