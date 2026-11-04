@@ -901,14 +901,39 @@ function VariantBody({ v, className }: { v: Variant; className?: string }) {
 
 function PlanDetails({ person, name }: { person: PersonKey; name: string }) {
   const plan = PLANS[person];
+  /*
+   * Dishes start folded: a folded card is the same height as its neighbours,
+   * so the grid has no holes, and the page reads as a menu first. Opening one
+   * shows its ingredients and recipes.
+   */
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
+  const allKeys = MEALS.flatMap(({ key }) => plan.meals[key].map((v) => `${key}-${v.key}`));
+  const allOpen = allKeys.every((k) => open.has(k));
+  const toggle = (k: string) =>
+    setOpen((prev) => {
+      const n = new Set(prev);
+      if (n.has(k)) n.delete(k);
+      else n.add(k);
+      return n;
+    });
   return (
     <section className="space-y-6 pt-2">
-      <div>
-        <h2 className="text-[22px] leading-tight">
-          {plan.title}
-          <span className="text-muted-foreground"> · {name}</span>
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">{plan.byline}</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-[22px] leading-tight">
+            {plan.title}
+            <span className="text-muted-foreground"> · {name}</span>
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">{plan.byline}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen(allOpen ? new Set() : new Set(allKeys))}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200 ease-out", allOpen && "rotate-180")} />
+          {allOpen ? "Închide tot" : "Deschide tot"}
+        </button>
       </div>
 
       {MEALS.map(({ key, label }) => (
@@ -918,21 +943,37 @@ function PlanDetails({ person, name }: { person: PersonKey; name: string }) {
             {label}
           </h3>
           <div className="grid items-start gap-2 md:grid-cols-2 2xl:grid-cols-3">
-            {plan.meals[key].map((v, i) => (
-              <div key={v.key} className="rounded-lg border border-border bg-card px-3.5 py-3">
-                <div className="flex items-center gap-2">
-                  <Tile meal={key} icon={DISH_ICON[v.icon]} />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[10.5px] font-medium tabular-nums text-muted-foreground">Varianta {i + 1}</div>
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="truncate text-[13px] font-medium">{v.title}</span>
-                      <span className="shrink-0 text-[12px] font-medium tabular-nums">{kcal(variantMacros(v))} kcal</span>
-                    </div>
-                  </div>
+            {plan.meals[key].map((v, i) => {
+              const k = `${key}-${v.key}`;
+              const isOpen = open.has(k);
+              return (
+                <div key={v.key} className="rounded-lg border border-border bg-card">
+                  <button
+                    type="button"
+                    onClick={() => toggle(k)}
+                    aria-expanded={isOpen}
+                    className="flex w-full items-center gap-2 rounded-lg px-3.5 py-3 text-left transition-colors hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  >
+                    <Tile meal={key} icon={DISH_ICON[v.icon]} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[10.5px] font-medium tabular-nums text-muted-foreground">Varianta {i + 1}</span>
+                      <span className="flex items-baseline justify-between gap-2">
+                        <span className="truncate text-[13px] font-medium">{v.title}</span>
+                        <span className="shrink-0 text-[12px] font-medium tabular-nums">{kcal(variantMacros(v))} kcal</span>
+                      </span>
+                      {!isOpen && <MacroLine x={variantMacros(v)} className="mt-0.5 truncate text-[11px]" />}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ease-out",
+                        isOpen && "rotate-180",
+                      )}
+                    />
+                  </button>
+                  {isOpen && <VariantBody v={v} className="-mt-1 px-3.5 pb-3 pl-[3.25rem]" />}
                 </div>
-                <VariantBody v={v} className="mt-2 pl-9" />
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}
