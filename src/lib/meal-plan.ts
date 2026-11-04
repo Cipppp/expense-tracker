@@ -21,6 +21,8 @@ type Food = {
   /** For things eaten by the piece (an egg, a bar): what one piece weighs. */
   unit?: { one: string; many: string; grams: number };
   source: string;
+  /** Where to buy it and under which shelf name; prices from Lidl's daily list, 04.11.2026. */
+  buy?: string;
 };
 
 const m = (kcal: number, protein: number, carbs: number, fat: number, fiber = 0): Macros => ({
@@ -48,25 +50,47 @@ export const FOODS = {
   eggWhite: { name: "albuș", per100: m(52, 10.9, 0.7, 0.2), source: USDA },
   whey: { name: "pudră proteică", per100: m(400, 78, 7, 6), source: "whey concentrat, medie de etichete" },
   greekYogurt: { name: "iaurt grecesc 2%", per100: m(66, 8, 3.9, 2), source: "Eridanous Stragghisto 2% (Lidl); Olympus 2% are aproape la fel" },
-  smokedChicken: { name: "piept de pui afumat Pikok", per100: m(109, 21, 1.8, 2), source: "Open Food Facts, poza etichetei" },
-  chickenHam: { name: "șuncă din piept de pui Sissi", per100: m(94, 18, 2.2, 1.5), source: "eticheta de pe sezamo.ro" },
-  proteinCheese: { name: "cașcaval proteic Milbona", per100: m(214, 31, 0.1, 10), source: "Open Food Facts, poza etichetei" },
+  smokedChicken: {
+    name: "piept de pui afumat Pikok",
+    per100: m(109, 21, 1.8, 2),
+    source: "Open Food Facts, poza etichetei",
+    buy: "Lidl, sortiment permanent: Pikok piept de pui afumat, la kg, 38,90 lei/kg",
+  },
+  chickenHam: {
+    name: "șuncă din piept de pui Sissi",
+    per100: m(94, 18, 2.2, 1.5),
+    source: "eticheta de pe sezamo.ro",
+    buy: "Nu e la Lidl: sezamo.ro, 15,79 lei / 170 g. La Lidl înlocuitorul e Pikok șuncă din piept de pui, 500 g, 16,29 lei",
+  },
+  proteinCheese: {
+    name: "cașcaval proteic Milbona",
+    per100: m(214, 31, 0.1, 10),
+    source: "Open Food Facts, poza etichetei",
+    buy: "Lidl: „Milbona Cheddar High Pro feliat”, 160 g, 13,29 lei (nu „Cheddar Felii” de 9,99, acela e obișnuit)",
+  },
   parmesan: { name: "parmezan", per100: m(392, 33, 0, 28), source: "etichetă Parmigiano Reggiano" },
   proteinPudding: {
     name: "budincă proteică Milbona",
     per100: m(76, 10, 5.2, 1.5),
     unit: { one: "budincă", many: "budinci", grams: 200 },
     source: "Open Food Facts, poza etichetei (ciocolată; vanilie 75 kcal)",
+    buy: "La Lidl doar în oferte. Permanent: Pilos Budincă High Protein, 200 g, 4,99 lei",
   },
   proteinBar: {
     name: "baton proteic Sportyfeel",
     per100: m(380, 50, 29.3, 11.4),
     unit: { one: "baton proteic", many: "batoane proteice", grams: 45 },
     source: "Open Food Facts, poza etichetei; carbohidrații includ 25 g polioli",
+    buy: "Lidl, permanent: „Sportyfeel Baton proteic 50%”, 3 × 45 g, 14,99 lei",
   },
 
   // Carbohidrați
-  oatCream: { name: "cremă de ovăz The Rice Dealer", per100: m(392, 13, 68, 6.9, 8), source: "etichetă The Rice Dealer, vanilie (nu există variantă simplă)" },
+  oatCream: {
+    name: "cremă de ovăz The Rice Dealer",
+    per100: m(392, 13, 68, 6.9, 8),
+    source: "etichetă The Rice Dealer, vanilie (nu există variantă simplă)",
+    buy: "Site-ul The Rice Dealer e în mentenanță și n-am găsit-o în magazine. Planul acceptă aceeași cantitate de fulgi de ovăz",
+  },
   oats: { name: "fulgi de ovăz", per100: m(372, 13.5, 58.7, 7, 10), source: EU },
   pasta: { name: "paste", per100: m(359, 12.5, 71, 2, 3), source: "etichetă Barilla" },
   rice: { name: "orez alb", per100: m(365, 7.1, 80, 0.7, 1.3), source: USDA },
@@ -76,9 +100,15 @@ export const FOODS = {
     per100: m(301, 9.3, 48, 6.3, 7.7),
     unit: { one: "tortilla", many: "tortilla", grams: 61.7 },
     source: "Open Food Facts, poza etichetei (pachet de 370 g, 6 bucăți)",
+    buy: "Lidl, permanent: „Snack Day Tortilla Wraps Integrale”, 370 g, 4,19 lei (nu cele simple de 4,99)",
   },
   riceCake: { name: "rondele de orez expandat", per100: m(387, 8.2, 81.5, 2.8, 4.2), source: USDA },
-  puffedQuinoa: { name: "quinoa expandată", per100: m(370, 11, 68, 4.5, 5.5), source: "estimat, media mărcilor de pe Open Food Facts" },
+  puffedQuinoa: {
+    name: "quinoa expandată",
+    per100: m(370, 11, 68, 4.5, 5.5),
+    source: "estimat, media mărcilor de pe Open Food Facts",
+    buy: "Nu e la Lidl; caut-o în magazinele bio sau naturiste",
+  },
   breadcrumbs: { name: "pesmet", per100: m(395, 13.4, 72, 5.3, 4.5), source: USDA },
 
   // Fructe
@@ -125,6 +155,7 @@ export const FOODS = {
     per100: m(487, 6.3, 61, 23),
     unit: { one: "rondea cu ciocolată", many: "rondele cu ciocolată", grams: 16.7 },
     source: "Open Food Facts, poza etichetei (ciocolată neagră, 6 bucăți la 100 g)",
+    buy: "Lidl, permanent: „Sondey Rondele de orez bio cu ciocolată”, 100 g, 10,15 lei",
   },
 } satisfies Record<string, Food>;
 
@@ -752,7 +783,13 @@ const AISLE: Record<FoodKey, Aisle> = {
   proteinBar: "Dulciuri și gustări",
 };
 
-export type ShoppingItem = { food: FoodKey; name: string; grams: number; pieces?: { count: number; one: string; many: string } };
+export type ShoppingItem = {
+  food: FoodKey;
+  name: string;
+  grams: number;
+  pieces?: { count: number; one: string; many: string };
+  buy?: string;
+};
 
 /**
  * Everything the chosen meals need, summed per food and grouped by aisle.
@@ -786,6 +823,7 @@ export function shoppingList(
           name: f.name,
           grams: gr,
           pieces: f.unit ? { count: Math.ceil(gr / f.unit.grams - 0.05), one: f.unit.one, many: f.unit.many } : undefined,
+          buy: f.buy,
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name, "ro")),

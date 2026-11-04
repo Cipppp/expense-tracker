@@ -119,9 +119,13 @@ export function ShoppingList({
         </div>
       </div>
 
-      <div className="grid items-start gap-3 md:grid-cols-2 2xl:grid-cols-3">
+      {/*
+       * Columns, not a grid: aisles differ a lot in length (3 items vs 15), and
+       * grid rows sized to the tallest card left large holes under the short ones.
+       */}
+      <div className="gap-3 md:columns-2 2xl:columns-3">
         {groups.map((gr) => (
-          <section key={gr.aisle} className="rounded-xl border border-border bg-card">
+          <section key={gr.aisle} className="mb-3 break-inside-avoid rounded-xl border border-border bg-card">
             <h3 className="border-b border-border px-4 py-2 text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground">
               {gr.aisle}
             </h3>
@@ -134,20 +138,23 @@ export function ShoppingList({
                       type="button"
                       onClick={() => toggle(it.food)}
                       aria-pressed={on}
-                      className="flex w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                      className="flex w-full items-start gap-3 px-4 py-2 text-left transition-colors hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                     >
                       <span
                         className={cn(
-                          "grid h-5 w-5 shrink-0 place-items-center rounded-full border transition-colors duration-150",
+                          "mt-px grid h-5 w-5 shrink-0 place-items-center rounded-full border transition-colors duration-150",
                           on ? "border-success bg-success text-white" : "border-border text-transparent",
                         )}
                       >
                         <Check weight="bold" className="h-3 w-3" />
                       </span>
-                      <span className={cn("min-w-0 flex-1 text-[13px]", on && "text-muted-foreground line-through decoration-success/60")}>
-                        {it.name}
+                      <span className="min-w-0 flex-1">
+                        <span className={cn("block text-[13px]", on && "text-muted-foreground line-through decoration-success/60")}>
+                          {it.name}
+                        </span>
+                        {it.buy && <span className="block text-[11.5px] leading-snug text-muted-foreground">{it.buy}</span>}
                       </span>
-                      <span className="shrink-0 text-[12px] tabular-nums text-muted-foreground">{amount(it)}</span>
+                      <span className="shrink-0 pt-px text-[12px] tabular-nums text-muted-foreground">{amount(it)}</span>
                     </button>
                   </li>
                 );
