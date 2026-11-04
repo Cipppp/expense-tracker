@@ -156,20 +156,34 @@ export function ShoppingList({
                     </button>
                     {/* Where to buy stays behind a tap: most trips only need the name and the amount. */}
                     <span className="grid w-9 shrink-0 place-items-center self-stretch pr-2">
-                      {it.buy && (
+                      {(it.buy || it.lidlAlt) && (
                         <Popover>
                           <PopoverTrigger asChild>
                             <button
                               type="button"
-                              aria-label={`De unde iei ${it.name}`}
-                              className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              aria-label={it.lidlAlt ? `${it.name}: nu e la Lidl, vezi alternativa` : `De unde iei ${it.name}`}
+                              className={cn(
+                                "grid h-7 w-7 place-items-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                // Amber marks the items you won't find at Lidl, so they stand out before the trip.
+                                it.lidlAlt
+                                  ? "text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
+                                  : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                              )}
                             >
-                              <Info className="h-4 w-4" />
+                              <Info weight={it.lidlAlt ? "fill" : "regular"} className="h-4 w-4" />
                             </button>
                           </PopoverTrigger>
-                          <PopoverContent align="end" className="w-72 p-3 text-[12.5px] leading-snug">
+                          <PopoverContent align="end" className="w-80 p-3 text-[12.5px] leading-snug">
                             <div className="font-medium">{it.name}</div>
-                            <p className="mt-1 text-muted-foreground">{it.buy}</p>
+                            {it.buy && <p className="mt-1 text-muted-foreground">{it.buy}</p>}
+                            {it.lidlAlt && (
+                              <div className="mt-2.5 rounded-md bg-amber-500/10 px-2.5 py-2">
+                                <div className="text-[11px] font-medium uppercase tracking-[0.07em] text-amber-700 dark:text-amber-400">
+                                  Alternativă la Lidl
+                                </div>
+                                <p className="mt-0.5">{it.lidlAlt}</p>
+                              </div>
+                            )}
                           </PopoverContent>
                         </Popover>
                       )}
