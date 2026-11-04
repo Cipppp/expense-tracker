@@ -70,6 +70,8 @@ import { Bell as PBell } from "@phosphor-icons/react/dist/ssr/Bell";
 import { FilePdf as PFilePdf } from "@phosphor-icons/react/dist/ssr/FilePdf";
 import { BellSlash as PBellSlash } from "@phosphor-icons/react/dist/ssr/BellSlash";
 // Food, for the meals page.
+import { Scales as PScales } from "@phosphor-icons/react/dist/ssr/Scales";
+import { Copy as PCopy } from "@phosphor-icons/react/dist/ssr/Copy";
 import { SunHorizon as PSunHorizon } from "@phosphor-icons/react/dist/ssr/SunHorizon";
 import { BowlFood as PBowlFood } from "@phosphor-icons/react/dist/ssr/BowlFood";
 import { BowlSteam as PBowlSteam } from "@phosphor-icons/react/dist/ssr/BowlSteam";
@@ -166,3 +168,5 @@ export const Cookie = PCookie;
 export const Shrimp = PShrimp;
 export const Carrot = PCarrot;
 export const Cheese = PCheese;
+export const Scales = PScales;
+export const Copy = PCopy;

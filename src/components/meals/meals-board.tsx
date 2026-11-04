@@ -11,20 +11,27 @@ import {
   Carrot,
   Cheese,
   Cherries,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Cookie,
   CookingPot,
+  Copy,
   Egg,
   Hamburger,
   MoonStars,
+  Scales,
+  ShoppingCart,
   Shrimp,
   SunHorizon,
 } from "@/lib/icons";
 import { PEOPLE, type People, type PersonKey } from "@/lib/chores";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CheckIns, type CheckIn } from "@/components/meals/check-ins";
+import { ShoppingList } from "@/components/meals/shopping-list";
 import {
   MEALS,
   PLANS,
@@ -32,6 +39,7 @@ import {
   SWAPS,
   addDays,
   dayMacros,
+  findVariant,
   ingredientGrams,
   ingredientMacros,
   itemLabel,
@@ -49,7 +57,7 @@ import {
   type Variant,
 } from "@/lib/meal-plan";
 
-export type ChoiceRow = { day: string; person: PersonKey; meal: MealKey; variant: string };
+export type ChoiceRow = { day: string; person: PersonKey; meal: MealKey; variant: string; eaten?: boolean };
 
 const AUTHOR_KEY = "gratitude:author"; // the same "who am I" as gratitude and supplements
 
@@ -141,15 +149,23 @@ export function MealsBoard({
   today,
   thisWeek,
   initialChoices,
+  initialCheckIns,
+  initialShopping,
 }: {
   people?: People;
   days: string[];
   today: string;
   thisWeek: string;
   initialChoices: ChoiceRow[];
+  initialCheckIns: CheckIn[];
+  initialShopping: string[];
 }) {
   const [choices, setChoices] = useState<Map<string, string>>(
     () => new Map(initialChoices.map((c) => [ck(c.day, c.person, c.meal), c.variant])),
+  );
+  // Meals ticked as actually eaten, same keys as `choices`.
+  const [eaten, setEaten] = useState<Set<string>>(
+    () => new Set(initialChoices.filter((c) => c.eaten).map((c) => ck(c.day, c.person, c.meal))),
   );
   const [person, setPerson] = useState<PersonKey>("cip");
   const [saving, setSaving] = useState(false);
@@ -193,6 +209,15 @@ export function MealsBoard({
   async function apply(rows: ChoiceRow[]) {
     const keys = rows.map((r) => ck(r.day, r.person, r.meal));
     const before = new Map(keys.map((k) => [k, choices.get(k)]));
+    // A new or cleared dish isn't eaten yet; the server resets the flag the same way.
+    const eatenBefore = keys.filter((k) => eaten.has(k));
+    setEaten((prev) => {
+      const n = new Set(prev);
+      rows.forEach((r, i) => {
+        if (r.variant !== choices.get(keys[i])) n.delete(keys[i]);
+      });
+      return n;
+    });
     setChoices((prev) => {
       const n = new Map(prev);
       rows.forEach((r, i) => {
@@ -218,6 +243,7 @@ export function MealsBoard({
         }
         return n;
       });
+      setEaten((prev) => new Set([...prev, ...eatenBefore]));
       toast.error("N-am putut salva alegerea. Încearcă din nou.");
     } finally {
       setSaving(false);
@@ -230,6 +256,48 @@ export function MealsBoard({
     // The side panel follows the day you're editing; on a narrow screen nothing pops up.
     setSelected(day);
     void apply([{ day, person, meal, variant: next }]);
+  }
+
+  async function toggleEaten(day: string, meal: MealKey) {
+    const key = ck(day, person, meal);
+    const next = !eaten.has(key);
+    const flip = (on: boolean) =>
+      setEaten((prev) => {
+        const n = new Set(prev);
+        if (on) n.add(key);
+        else n.delete(key);
+        return n;
+      });
+    flip(next);
+    const res = await fetch("/api/meals", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ day, person, meal, eaten: next }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      flip(!next);
+      toast.error("N-am putut bifa masa. Încearcă din nou.");
+    }
+  }
+
+  /** Copies last week's picks onto the same weekdays, only where this week is still empty. */
+  async function copyLastWeek() {
+    const from = addDays(days[0], -7);
+    const res = await fetch(`/api/meals?from=${from}&to=${addDays(from, 6)}`, { cache: "no-store" }).catch(() => null);
+    const data = res?.ok ? ((await res.json()) as { choices: ChoiceRow[] }) : null;
+    if (!data) {
+      toast.error("N-am putut citi săptămâna trecută.");
+      return;
+    }
+    const rows = data.choices
+      .filter((c) => c.person === person)
+      .map((c) => ({ day: addDays(c.day, 7), person, meal: c.meal, variant: c.variant }))
+      .filter((c) => !choices.has(ck(c.day, person, c.meal)) && findVariant(person, c.meal, c.variant));
+    if (!rows.length) {
+      toast.info(data.choices.some((c) => c.person === person) ? "Mesele goale de săptămâna asta n-au corespondent în cea trecută." : "Săptămâna trecută n-are nimic ales.");
+      return;
+    }
+    void apply(rows);
   }
 
   /*
@@ -271,7 +339,18 @@ export function MealsBoard({
       isToday={selected === today}
       plan={plan}
       choices={dayChoicesFor(choices, selected, person)}
+      eaten={(meal) => eaten.has(ck(selected, person, meal))}
+      onToggleEaten={(meal) => void toggleEaten(selected, meal)}
     />
+  );
+
+  const picks = useMemo(
+    () =>
+      [...choices].map(([k, variant]) => {
+        const [day, p, meal] = k.split("|");
+        return { day, person: p as PersonKey, meal: meal as MealKey, variant };
+      }),
+    [choices],
   );
 
   return (
@@ -334,136 +413,185 @@ export function MealsBoard({
         </div>
       </div>
 
-      {/* Week summary */}
-      <div className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-[13px] leading-relaxed">
-          {week.avg ? (
-            <>
-              <span className="font-medium tabular-nums">
-                {g(week.avg.kcal)} kcal · {g(week.avg.protein)} g proteină
-              </span>{" "}
-              <span className="text-muted-foreground">
-                în medie, pe {week.n === 1 ? "o zi completă" : `${week.n} zile complete`}.
-              </span>{" "}
-            </>
-          ) : (
-            <span className="text-muted-foreground">Nicio zi completă încă. </span>
-          )}
-          <span className="text-muted-foreground">
-            {plan.target
-              ? `Ținta: ${g(plan.target.kcal)} kcal și ${g(plan.target.protein)} g proteină.`
-              : `Planul dă între ${kcal(range.min)} și ${kcal(range.max)} kcal pe zi.`}
-          </span>
-        </p>
-        <button
-          type="button"
-          onClick={fillWeek}
-          disabled={week.empty === 0 || saving}
-          className="shrink-0 rounded-md border border-border px-3 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-secondary disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {week.empty === 0
-            ? "Săptămâna e completă"
-            : `Completează ${week.empty === 1 ? "masa goală" : `cele ${week.empty} mese goale`}`}
-        </button>
-      </div>
+      <Tabs defaultValue="week" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="week" className="gap-1.5">
+            <SunHorizon weight="duotone" className="h-4 w-4" /> Săptămâna
+          </TabsTrigger>
+          <TabsTrigger value="shopping" className="gap-1.5">
+            <ShoppingCart weight="duotone" className="h-4 w-4" /> Cumpărături
+          </TabsTrigger>
+          <TabsTrigger value="checkin" className="gap-1.5">
+            <Scales weight="duotone" className="h-4 w-4" /> Check-in
+          </TabsTrigger>
+          <TabsTrigger value="plan" className="gap-1.5">
+            <BowlFood weight="duotone" className="h-4 w-4" /> Planul
+          </TabsTrigger>
+        </TabsList>
 
-      <div className="2xl:grid 2xl:grid-cols-[minmax(0,1fr)_380px] 2xl:items-start 2xl:gap-5">
-        {/* Week grid */}
-        <section aria-label="Alegerile pe zile" className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="hidden border-b border-border px-4 py-2 lg:grid lg:grid-cols-[6.5rem_repeat(4,minmax(0,1fr))_5.5rem] lg:items-center lg:gap-4">
-            <span className="text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground">Ziua</span>
-            {MEALS.map((ml) => (
-              <span key={ml.key} className="flex items-center gap-1.5">
-                <Tile meal={ml.key} size="sm" />
-                <span className="text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground">{ml.label}</span>
-              </span>
-            ))}
-            <span className="text-right text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground">Total</span>
-          </div>
-          <ul className="divide-y divide-border">
-            {days.map((day) => {
-              const c = dayChoicesFor(choices, day, person);
-              const total = dayMacros(person, c);
-              const picked = MEALS.filter(({ key }) => c[key]).length;
-              const isToday = day === today;
-              const isSelected = day === selected;
-              const hit = picked === 4 ? onTarget(total, plan) : null;
-              const totalText = (
+        <TabsContent value="week" className="mt-0 space-y-4">
+          {/* Week summary */}
+          <div className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-[13px] leading-relaxed">
+              {week.avg ? (
                 <>
-                  <div
-                    className={cn(
-                      "text-[13px] font-medium tabular-nums",
-                      hit === true && "text-success",
-                      hit === false && "text-amber-600 dark:text-amber-400",
-                    )}
-                  >
-                    {picked ? `${kcal(total)} kcal` : "–"}
-                  </div>
-                  <div className="text-[11px] tabular-nums text-muted-foreground">
-                    {picked === 4 ? `${g(total.protein)} g proteină` : picked ? `${picked} din 4 mese` : "nimic ales"}
-                  </div>
+                  <span className="font-medium tabular-nums">
+                    {g(week.avg.kcal)} kcal · {g(week.avg.protein)} g proteină
+                  </span>{" "}
+                  <span className="text-muted-foreground">
+                    în medie, pe {week.n === 1 ? "o zi completă" : `${week.n} zile complete`}.
+                  </span>{" "}
                 </>
-              );
-              return (
-                <li
-                  key={day}
-                  className="grid grid-cols-1 gap-2.5 px-4 py-2.5 transition-colors duration-150 lg:grid-cols-[6.5rem_repeat(4,minmax(0,1fr))_5.5rem] lg:items-start lg:gap-4"
-                  style={isSelected ? { backgroundColor: accent.soft } : undefined}
+              ) : (
+                <span className="text-muted-foreground">Nicio zi completă încă. </span>
+              )}
+              <span className="text-muted-foreground">
+                {plan.target
+                  ? `Ținta: ${g(plan.target.kcal)} kcal și ${g(plan.target.protein)} g proteină.`
+                  : `Planul dă între ${kcal(range.min)} și ${kcal(range.max)} kcal pe zi.`}
+              </span>
+            </p>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={fillWeek}
+                disabled={week.empty === 0 || saving}
+                className="shrink-0 rounded-md border border-border px-3 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-secondary disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {week.empty === 0
+                  ? "Săptămâna e completă"
+                  : `Completează ${week.empty === 1 ? "masa goală" : `cele ${week.empty} mese goale`}`}
+              </button>
+              {week.empty > 0 && (
+                <button
+                  type="button"
+                  onClick={() => void copyLastWeek()}
+                  disabled={saving}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-secondary disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <div className="flex items-start justify-between gap-3 lg:block">
-                    <button
-                      type="button"
-                      onClick={() => showDay(day)}
-                      aria-pressed={isSelected}
-                      className="-mx-1.5 -my-1 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  <Copy className="h-3.5 w-3.5" /> Copiază săptămâna trecută
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="2xl:grid 2xl:grid-cols-[minmax(0,1fr)_380px] 2xl:items-start 2xl:gap-5">
+            {/* Week grid */}
+            <section aria-label="Alegerile pe zile" className="overflow-hidden rounded-xl border border-border bg-card">
+              <div className="hidden border-b border-border px-4 py-2 lg:grid lg:grid-cols-[6.5rem_repeat(4,minmax(0,1fr))_5.5rem] lg:items-center lg:gap-4">
+                <span className="text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground">Ziua</span>
+                {MEALS.map((ml) => (
+                  <span key={ml.key} className="flex items-center gap-1.5">
+                    <Tile meal={ml.key} size="sm" />
+                    <span className="text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground">{ml.label}</span>
+                  </span>
+                ))}
+                <span className="text-right text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground">Total</span>
+              </div>
+              <ul className="divide-y divide-border">
+                {days.map((day) => {
+                  const c = dayChoicesFor(choices, day, person);
+                  const total = dayMacros(person, c);
+                  const picked = MEALS.filter(({ key }) => c[key]).length;
+                  const isToday = day === today;
+                  const isSelected = day === selected;
+                  const hit = picked === 4 ? onTarget(total, plan) : null;
+                  const totalText = (
+                    <>
+                      <div
+                        className={cn(
+                          "text-[13px] font-medium tabular-nums",
+                          hit === true && "text-success",
+                          hit === false && "text-amber-600 dark:text-amber-400",
+                        )}
+                      >
+                        {picked ? `${kcal(total)} kcal` : "–"}
+                      </div>
+                      <div className="text-[11px] tabular-nums text-muted-foreground">
+                        {picked === 4 ? `${g(total.protein)} g proteină` : picked ? `${picked} din 4 mese` : "nimic ales"}
+                      </div>
+                    </>
+                  );
+                  return (
+                    <li
+                      key={day}
+                      className="grid grid-cols-1 gap-2.5 px-4 py-2.5 transition-colors duration-150 lg:grid-cols-[6.5rem_repeat(4,minmax(0,1fr))_5.5rem] lg:items-start lg:gap-4"
+                      style={isSelected ? { backgroundColor: accent.soft } : undefined}
                     >
-                      <span className="block text-[13px] font-medium capitalize">{weekday(day)}</span>
-                      <span className="block text-[11px] text-muted-foreground">
-                        {shortDate(day)}
-                        {isToday && <span className="ml-1.5 font-medium text-accent">azi</span>}
-                      </span>
-                    </button>
-                    <div className="text-right lg:hidden">{totalText}</div>
-                  </div>
-                  {MEALS.map((ml) => (
-                    <MealCell
-                      key={ml.key}
-                      meal={ml.key}
-                      mealLabel={ml.label}
-                      variants={plan.meals[ml.key]}
-                      chosen={c[ml.key]}
-                      color={accent.color}
-                      soft={accent.soft}
-                      onChoose={(v) => choose(day, ml.key, v)}
-                      onShow={() => showDay(day)}
-                      groupLabel={`${ml.label}, ${weekday(day)} ${shortDate(day)}`}
-                    />
-                  ))}
-                  <div className="hidden text-right lg:block">{totalText}</div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+                      <div className="flex items-start justify-between gap-3 lg:block">
+                        <button
+                          type="button"
+                          onClick={() => showDay(day)}
+                          aria-pressed={isSelected}
+                          className="-mx-1.5 -my-1 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <span className="block text-[13px] font-medium capitalize">{weekday(day)}</span>
+                          <span className="block text-[11px] text-muted-foreground">
+                            {shortDate(day)}
+                            {isToday && <span className="ml-1.5 font-medium text-accent">azi</span>}
+                          </span>
+                        </button>
+                        <div className="text-right lg:hidden">{totalText}</div>
+                      </div>
+                      {MEALS.map((ml) => (
+                        <MealCell
+                          key={ml.key}
+                          meal={ml.key}
+                          mealLabel={ml.label}
+                          variants={plan.meals[ml.key]}
+                          chosen={c[ml.key]}
+                          eaten={eaten.has(ck(day, person, ml.key))}
+                          color={accent.color}
+                          soft={accent.soft}
+                          onChoose={(v) => choose(day, ml.key, v)}
+                          onShow={() => showDay(day)}
+                          groupLabel={`${ml.label}, ${weekday(day)} ${shortDate(day)}`}
+                        />
+                      ))}
+                      <div className="hidden text-right lg:block">{totalText}</div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
 
-        <aside
-          aria-label="Ziua aleasă"
-          className="sticky top-4 hidden max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-xl border border-border bg-card 2xl:block"
-        >
-          {detail}
-        </aside>
-      </div>
+            <aside
+              aria-label="Ziua aleasă"
+              className="sticky top-4 hidden max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-xl border border-border bg-card 2xl:block"
+            >
+              {detail}
+            </aside>
+          </div>
 
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-[420px] max-w-[92vw] gap-0 overflow-y-auto p-0">
-          <SheetTitle className="sr-only">
-            {weekday(selected)} {shortDate(selected)}
-          </SheetTitle>
-          {detail}
-        </SheetContent>
-      </Sheet>
+          <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+            <SheetContent className="w-[420px] max-w-[92vw] gap-0 overflow-y-auto p-0">
+              <SheetTitle className="sr-only">
+                {weekday(selected)} {shortDate(selected)}
+              </SheetTitle>
+              {detail}
+            </SheetContent>
+          </Sheet>
 
-      <PlanDetails person={person} name={people[person].name} />
+        </TabsContent>
+
+        <TabsContent value="shopping" className="mt-0">
+          <ShoppingList week={days[0]} picks={picks} people={people} initialChecked={initialShopping} />
+        </TabsContent>
+
+        <TabsContent value="checkin" className="mt-0">
+          <CheckIns
+            key={person}
+            person={people[person]}
+            today={today}
+            initial={initialCheckIns}
+            targetRate={plan.target ? { min: 0.5, max: 0.8 } : null}
+          />
+        </TabsContent>
+
+        <TabsContent value="plan" className="mt-0">
+          <PlanDetails person={person} name={people[person].name} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -473,6 +601,7 @@ function MealCell({
   mealLabel,
   variants,
   chosen,
+  eaten,
   color,
   soft,
   onChoose,
@@ -483,6 +612,7 @@ function MealCell({
   mealLabel: string;
   variants: Variant[];
   chosen?: string;
+  eaten: boolean;
   color: string;
   soft: string;
   onChoose: (key: string) => void;
@@ -531,7 +661,14 @@ function MealCell({
               <DishI weight="duotone" className={cn("h-3.5 w-3.5 shrink-0", MEAL_STYLE[meal].fg)} />
               <span className="min-w-0 text-right lg:text-left">
                 <span className="block truncate underline-offset-2 hover:underline">{v.title}</span>
-                <span className="block tabular-nums text-[11px] text-muted-foreground">{kcal(variantMacros(v))} kcal</span>
+                <span className="block tabular-nums text-[11px] text-muted-foreground">
+                  {kcal(variantMacros(v))} kcal
+                  {eaten && (
+                    <span className="ml-1.5 inline-flex items-center gap-0.5 font-medium text-success">
+                      <Check weight="bold" className="h-3 w-3" /> mâncat
+                    </span>
+                  )}
+                </span>
               </span>
             </button>
           ) : (
@@ -550,11 +687,15 @@ function DayDetail({
   isToday,
   plan,
   choices,
+  eaten,
+  onToggleEaten,
 }: {
   day: string;
   isToday: boolean;
   plan: Plan;
   choices: Choices;
+  eaten: (meal: MealKey) => boolean;
+  onToggleEaten: (meal: MealKey) => void;
 }) {
   const chosen = MEALS.flatMap(({ key }) => {
     const v = choices[key] ? plan.meals[key].find((x) => x.key === choices[key]) : undefined;
@@ -571,6 +712,12 @@ function DayDetail({
     { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
   );
   const picked = chosen.length;
+  const ate = MEALS.reduce((a, { key }) => {
+    const v = choices[key] && eaten(key) ? plan.meals[key].find((x) => x.key === choices[key]) : undefined;
+    return v ? a + variantMacros(v).kcal : a;
+  }, 0);
+  // What's left today: against the target when the plan has one, otherwise against what was planned.
+  const goal = plan.target?.kcal ?? total.kcal;
   return (
     <div>
       <div className="sticky top-0 border-b border-border bg-card px-4 py-3">
@@ -587,6 +734,22 @@ function DayDetail({
             ? "Nicio masă aleasă pentru ziua asta."
             : `${g(total.protein)} g proteină · ${g(total.carbs)} g carbohidrați · ${g(total.fat)} g grăsimi${picked < 4 ? ` · ${picked} din 4 mese` : ""}`}
         </div>
+        {ate > 0 && (
+          <div className="mt-2">
+            <div className="flex items-baseline justify-between text-[11.5px] tabular-nums">
+              <span>
+                Mâncat <span className="font-medium">{g(ate)} kcal</span>
+              </span>
+              <span className="text-muted-foreground">
+                {goal - ate > 0 ? `mai ai ${g(goal - ate)} kcal` : `peste cu ${g(ate - goal)} kcal`}
+                {plan.target ? " până la țintă" : " din cât ai planificat"}
+              </span>
+            </div>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-secondary" aria-hidden>
+              <div className="h-full rounded-full bg-success transition-[width] duration-300 ease-out" style={{ width: `${Math.min(100, (ate / goal) * 100)}%` }} />
+            </div>
+          </div>
+        )}
       </div>
       <ul className="divide-y divide-border">
         {MEALS.map(({ key, label }) => {
@@ -606,6 +769,23 @@ function DayDetail({
                     <div className="text-[12px] text-muted-foreground">Nealeasă</div>
                   )}
                 </div>
+                {v && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleEaten(key)}
+                    aria-pressed={eaten(key)}
+                    aria-label={eaten(key) ? `${label}: debifează` : `${label}: am mâncat`}
+                    className={cn(
+                      "inline-flex h-7 shrink-0 items-center gap-1 rounded-full border px-2 text-[11.5px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      eaten(key)
+                        ? "border-success bg-success text-white"
+                        : "border-border text-muted-foreground hover:border-success/60 hover:text-foreground",
+                    )}
+                  >
+                    <Check weight="bold" className="h-3 w-3" />
+                    {eaten(key) ? "Mâncat" : "Am mâncat"}
+                  </button>
+                )}
               </div>
               {v && <VariantBody v={v} className="mt-2 pl-9" />}
             </li>
