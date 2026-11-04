@@ -20,7 +20,7 @@ export async function GET(req: Request) {
   }
   const choices = await db.mealChoice.findMany({
     where: { day: { gte: from, lte: to } },
-    select: { day: true, person: true, meal: true, variant: true },
+    select: { day: true, person: true, meal: true, variant: true, eaten: true },
   });
   return NextResponse.json({ choices }, { headers: { "Cache-Control": "no-store" } });
 }
@@ -59,10 +59,27 @@ export async function PUT(req: Request) {
         ? db.mealChoice.deleteMany({ where: { day, person, meal } })
         : db.mealChoice.upsert({
             where: { userId_day_person_meal: { userId, day, person, meal } },
-            update: { variant },
+            // A different dish hasn't been eaten yet, whatever the old one was.
+            update: { variant, eaten: false },
             create: { userId, day, person, meal, variant },
           }),
     ),
   );
+  return NextResponse.json({ ok: true });
+}
+
+const Eaten = z.object({ day: Day, person: Person, meal: Meal, eaten: z.boolean() });
+
+// PATCH { day, person, meal, eaten } — ticks a chosen meal as eaten (or not).
+export async function PATCH(req: Request) {
+  const parsed = Eaten.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+  const { day, person, meal, eaten } = parsed.data;
+  const { count } = await db.mealChoice.updateMany({ where: { day, person, meal }, data: { eaten } });
+  if (count === 0) {
+    return NextResponse.json({ error: "Masa nu e aleasă" }, { status: 404 });
+  }
   return NextResponse.json({ ok: true });
 }

@@ -51,6 +51,8 @@ model User {
   anafTokens     AnafToken[]
   spvMessages    SpvMessage[]
   mealChoices    MealChoice[]
+  mealCheckIns   MealCheckIn[]
+  mealShopping   MealShoppingWeek[]
 }
 
 model Expense {
@@ -739,10 +741,38 @@ model MealChoice {
   person    String // "cip" | "axy"
   meal      String // breakfast | lunch | snack | dinner
   variant   String
+  eaten     Boolean  @default(false) // ticked as actually eaten; reset when the variant changes
   updatedAt DateTime @default(now()) @updatedAt
 
   @@unique([userId, day, person, meal])
   @@index([userId])
+}
+
+/// Weigh-ins, one per person per day (Saturday by habit, any day allowed).
+model MealCheckIn {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  person    String // "cip" | "axy"
+  day       String // "yyyy-mm-dd"
+  weightKg  Float?
+  waistCm   Float?
+  note      String   @default("")
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([userId, person, day])
+  @@index([userId])
+}
+
+/// Ticked shopping-list items for one week, keyed by its Monday. Same shape as ChoreWeek.
+model MealShoppingWeek {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  week      String // Monday, "yyyy-mm-dd"
+  checked   String[] @default([])
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@id([userId, week])
 }
 
 // Tracks Revolut CSVs that have already been processed (filename + line hash).
