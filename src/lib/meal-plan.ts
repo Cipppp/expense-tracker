@@ -40,18 +40,45 @@ const EU = "valori tipice de pe etichete din UE";
 
 export const FOODS = {
   // Proteine
-  chickenBreast: { name: "piept de pui", per100: m(120, 22.5, 0, 2.6), source: USDA },
-  porkTenderloin: { name: "mușchiuleț de porc", per100: m(120, 20.7, 0, 3.5), source: USDA },
-  shrimp: { name: "creveți decorticați", per100: m(85, 20.1, 0, 0.5), source: USDA },
+  chickenBreast: {
+    name: "piept de pui",
+    per100: m(120, 22.5, 0, 2.6),
+    source: USDA,
+    buy: "Lidl, permanent: „Piept de pui dezosat fără piele”, la kg, 29,90 lei/kg (sau caserola de 650 g, 21,49 lei)",
+  },
+  porkTenderloin: {
+    name: "mușchiuleț de porc",
+    per100: m(120, 20.7, 0, 3.5),
+    source: USDA,
+    buy: "Lidl, permanent: „Mușchiuleț de porc”, la kg, 39,90 lei/kg",
+  },
+  shrimp: {
+    name: "creveți decorticați",
+    per100: m(85, 20.1, 0, 0.5),
+    source: USDA,
+    buy: "Lidl, la congelate: Ocean Sea „Creveți decorticați”, 200 g (180 g fără glazură), 18,69 lei. Cântărește-i după decongelare.",
+  },
   egg: {
     name: "ou",
     per100: m(143, 12.6, 0.7, 9.5),
     unit: { one: "ou", many: "ouă", grams: 50 },
     source: `${USDA}; un ou M/L are ~50 g fără coajă`,
+    buy: "Lidl: „30 Ouă M de la găini crescute la sol”, 29,99 lei (sau 10 ouă M, 10,99 lei)",
   },
-  eggWhite: { name: "albuș", per100: m(52, 10.9, 0.7, 0.2), source: USDA },
+  eggWhite: {
+    name: "albuș",
+    per100: m(52, 10.9, 0.7, 0.2),
+    source: USDA,
+    buy: "Lidl: Optisana „Albuș de ou”, 500 g, 11,19 lei",
+  },
   whey: { name: "pudră proteică", per100: m(400, 78, 7, 6), source: "whey concentrat, medie de etichete" },
-  greekYogurt: { name: "iaurt grecesc 2%", per100: m(66, 8, 3.9, 2), source: "Eridanous Stragghisto 2% (Lidl); Olympus 2% are aproape la fel" },
+  greekYogurt: {
+    name: "iaurt grecesc 2%",
+    per100: m(66, 8, 3.9, 2),
+    source: "Eridanous Stragghisto 2% (Lidl); Olympus 2% are aproape la fel",
+    buy: "Eridanous 2% apare la Lidl doar în oferte, nu e în sortimentul permanent.",
+    lidlAlt: "Milbona „Iaurt High Protein”, 200 g, 3,99 lei. ~65 kcal și ~10 g proteină la 100 g, deci chiar puțin mai bun. Ia-l pe cel natur dacă îl găsești; cele cu arome au câteva grame de zahăr în plus. Nu lua Pilos „în stil grecesc 2%”: are doar ~3,6 g proteină.",
+  },
   smokedChicken: {
     name: "piept de pui afumat Pikok",
     per100: m(109, 21, 1.8, 2),
@@ -71,7 +98,12 @@ export const FOODS = {
     source: "Open Food Facts, poza etichetei",
     buy: "Lidl: „Milbona Cheddar High Pro feliat”, 160 g, 13,29 lei (nu „Cheddar Felii” de 9,99, acela e obișnuit)",
   },
-  parmesan: { name: "parmezan", per100: m(392, 33, 0, 28), source: "etichetă Parmigiano Reggiano" },
+  parmesan: {
+    name: "parmezan",
+    per100: m(392, 33, 0, 28),
+    source: "etichetă Parmigiano Reggiano",
+    buy: "Lidl: Milbona „Parmigiano Reggiano DOP fâșii”, 125 g, 15,99 lei (Grana Padano Milbona are aproape aceleași valori)",
+  },
   proteinPudding: {
     name: "budincă proteică Milbona",
     per100: m(76, 10, 5.2, 1.5),
@@ -96,9 +128,24 @@ export const FOODS = {
     buy: "Site-ul The Rice Dealer e în mentenanță și n-am găsit-o în magazine.",
     lidlAlt: "Crownfield „Fulgi de ovăz bio”, 500 g, 6,99 lei. Dați la blender devin cremă; ~371 kcal și 13 g proteină la 100 g, practic la fel. Nu lua „diverse sortimente” (15,99 lei, au arome).",
   },
-  oats: { name: "fulgi de ovăz", per100: m(372, 13.5, 58.7, 7, 10), source: EU },
-  pasta: { name: "paste", per100: m(359, 12.5, 71, 2, 3), source: "etichetă Barilla" },
-  rice: { name: "orez alb", per100: m(365, 7.1, 80, 0.7, 1.3), source: USDA },
+  oats: {
+    name: "fulgi de ovăz",
+    per100: m(372, 13.5, 58.7, 7, 10),
+    source: EU,
+    buy: "Lidl: Crownfield „Fulgi de ovăz bio”, 500 g, 6,99 lei (nu „diverse sortimente”, acelea au arome)",
+  },
+  pasta: {
+    name: "paste",
+    per100: m(359, 12.5, 71, 2, 3),
+    source: "etichetă Barilla",
+    buy: "Lidl: Barilla „Penne Rigate”, 500 g, 5,29 lei (sau Fusilli, Spaghete nr. 5). Valorile din plan sunt de pe eticheta Barilla.",
+  },
+  rice: {
+    name: "orez alb",
+    per100: m(365, 7.1, 80, 0.7, 1.3),
+    source: USDA,
+    buy: "Lidl: Golden Sun „Orez bob lung”, 1 kg, 4,79 lei (nu cel prefiert)",
+  },
   potato: { name: "cartof", per100: m(77, 2, 17.5, 0.1, 2.1), source: USDA },
   tortilla: {
     name: "tortilla integrală Snack Day",
@@ -107,7 +154,12 @@ export const FOODS = {
     source: "Open Food Facts, poza etichetei (pachet de 370 g, 6 bucăți)",
     buy: "Lidl, permanent: „Snack Day Tortilla Wraps Integrale”, 370 g, 4,19 lei (nu cele simple de 4,99)",
   },
-  riceCake: { name: "rondele de orez expandat", per100: m(387, 8.2, 81.5, 2.8, 4.2), source: USDA },
+  riceCake: {
+    name: "rondele de orez expandat",
+    per100: m(387, 8.2, 81.5, 2.8, 4.2),
+    source: USDA,
+    buy: "Lidl: Sondey „Rondele de orez BIO”, 135 g, 4,29 lei",
+  },
   puffedQuinoa: {
     name: "quinoa expandată",
     per100: m(370, 11, 68, 4.5, 5.5),
@@ -115,7 +167,13 @@ export const FOODS = {
     buy: "Nu se găsește la Lidl; în magazinele bio sau naturiste.",
     lidlAlt: "Sondey „Rondele de orez BIO”, 135 g, 4,29 lei, sfărâmate. ~375 kcal la 100 g, aproape la fel; Lidl n-are orez sau amarant expandat simplu.",
   },
-  breadcrumbs: { name: "pesmet", per100: m(395, 13.4, 72, 5.3, 4.5), source: USDA },
+  breadcrumbs: {
+    name: "pesmet",
+    per100: m(395, 13.4, 72, 5.3, 4.5),
+    source: USDA,
+    buy: "Pesmetul nu e în sortimentul permanent Lidl.",
+    lidlAlt: "Crownfield „Fulgi de ovăz bio” dați la blender, aceeași cantitate (2 linguri). Leagă chiftelele la fel, cu calorii aproape egale (~372 față de ~395 kcal la 100 g).",
+  },
 
   // Fructe
   apple: { name: "măr", per100: m(52, 0.3, 13.8, 0.2, 2.4), source: USDA },
@@ -135,26 +193,71 @@ export const FOODS = {
   herbs: { name: "mărar, pătrunjel, cimbru", per100: m(40, 3, 7, 0.8, 3), source: USDA },
 
   // Grăsimi și dulciuri
-  butter: { name: "unt", per100: m(740, 0.7, 0.7, 82), source: "unt 82%, " + EU },
-  milk: { name: "lapte 1,5%", per100: m(46, 3.4, 4.8, 1.5), source: EU },
-  oliveOil: { name: "ulei de măsline", per100: m(884, 0, 0, 100), source: USDA },
+  butter: {
+    name: "unt",
+    per100: m(740, 0.7, 0.7, 82),
+    source: "unt 82%, " + EU,
+    buy: "Lidl: Pilos „Unt german 82% grăsime”, 250 g, 7,99 lei (nu cel de 65%)",
+  },
+  milk: {
+    name: "lapte 1,5%",
+    per100: m(46, 3.4, 4.8, 1.5),
+    source: EU,
+    buy: "Lidl: Pilos „Lapte proaspăt 1,5%”, 1,5 l, 8,59 lei",
+  },
+  oliveOil: {
+    name: "ulei de măsline",
+    per100: m(884, 0, 0, 100),
+    source: USDA,
+    buy: "Lidl: Primadonna „Ulei de măsline extravirgin”, 1 l, 39,99 lei. Pentru „un puf din spray”: Primadonna spray ulei de măsline, 200 ml, 14,99 lei.",
+  },
   peanutButter: { name: "unt de arahide", per100: m(588, 25, 20, 50, 6), source: USDA },
-  seedMix: { name: "semințe de susan și in", per100: m(553, 18, 26, 46, 19.5), source: `${USDA}, medie 50/50` },
-  darkChocolate: { name: "ciocolată neagră 85%", per100: m(580, 12.5, 19, 46, 13), source: "etichetă Lindt 85%" },
-  cocoa: { name: "cacao neîndulcită", per100: m(340, 20, 12, 11, 30), source: "cacao degresată, " + EU },
-  erythritol: { name: "eritritol", per100: m(0, 0, 0, 0), source: "eritritolul nu se metabolizează" },
-  bakingPowder: { name: "praf de copt", per100: m(53, 0, 28, 0, 0.2), source: USDA },
+  seedMix: {
+    name: "semințe de susan și in",
+    per100: m(553, 18, 26, 46, 19.5),
+    source: `${USDA}, medie 50/50`,
+    buy: "Lidl: Furnicuța „Susan”, 200 g, 4,35 lei. Inul nu e în sortimentul permanent.",
+    lidlAlt: "Pune doar susan, sau jumătate susan și jumătate Naturiva „Chia”, 250 g, 12,99 lei. La 50 g pe săptămână, diferența de calorii e neglijabilă.",
+  },
+  darkChocolate: {
+    name: "ciocolată neagră 85%",
+    per100: m(580, 12.5, 19, 46, 13),
+    source: "etichetă Lindt 85%",
+    buy: "Lidl: J.D. Gross „Ciocolată neagră 85%”, 125 g, 12,49 lei; valori apropiate de Lindt 85%",
+  },
+  cocoa: {
+    name: "cacao neîndulcită",
+    per100: m(340, 20, 12, 11, 30),
+    source: "cacao degresată, " + EU,
+    buy: "Lidl: Belbake „Cacao pudră”, 200 g, 11,39 lei (nu Hopa Cao, aceea e cacao instant cu zahăr)",
+  },
+  erythritol: {
+    name: "eritritol",
+    per100: m(0, 0, 0, 0),
+    source: "eritritolul nu se metabolizează",
+    buy: "Eritritolul nu e la Lidl.",
+    lidlAlt: "Belbake „Îndulcitor lichid”, 300 ml, 4,99 lei, tot fără calorii. Câteva picături în loc de 15 g, după gust.",
+  },
+  bakingPowder: {
+    name: "praf de copt",
+    per100: m(53, 0, 28, 0, 0.2),
+    source: USDA,
+    buy: "Lidl: Belbake „Praf de copt”, 5 × 10 g, 1,49 lei",
+  },
   kinderCard: {
     name: "Kinder Card",
     per100: m(510, 11.5, 55.9, 26.3),
     unit: { one: "Kinder Card (2 foi)", many: "Kinder Card", grams: 25.6 },
     source: "etichetă kinder.com/ro",
+    buy: "Kinder Card nu e la Lidl.",
+    lidlAlt: "Kinder „Felie de lapte”, 3 × 28 g, 7,35 lei, la frigider. O felie are ~118 kcal, față de ~131 la un Kinder Card.",
   },
   kinderPingui: {
     name: "Kinder Pingui",
     per100: m(450, 7, 37.8, 29.7),
     unit: { one: "Kinder Pingui", many: "Kinder Pingui", grams: 30 },
     source: "etichetă kinder.com/ro",
+    buy: "Lidl: Kinder „Prăjitură Pinguin” (Pingui), 4 × 30 g, 13,49 lei, la frigider",
   },
   chocRiceCake: {
     name: "rondea de orez cu ciocolată Sondey",
