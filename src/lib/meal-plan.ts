@@ -61,7 +61,7 @@ export const FOODS = {
   proteinBar: {
     name: "baton proteic Sportyfeel",
     per100: m(380, 50, 29.3, 11.4),
-    unit: { one: "baton", many: "batoane", grams: 45 },
+    unit: { one: "baton proteic", many: "batoane proteice", grams: 45 },
     source: "Open Food Facts, poza etichetei; carbohidrații includ 25 g polioli",
   },
 
@@ -237,9 +237,15 @@ export const MEALS: { key: MealKey; label: string }[] = [
   { key: "dinner", label: "Cină" },
 ];
 
+/** Which small picture the dish gets on the page (mapped to an icon there). */
+export type DishIcon =
+  | "porridge" | "bread" | "egg" | "cake" | "bowl" | "pot" | "sandwich"
+  | "cookie" | "fruit" | "shrimp" | "veg" | "cheese";
+
 export type Variant = {
   key: string;
   title: string;
+  icon: DishIcon;
   items: Item[];
   /** Things in the dish that don't count (spices, "după gust"). */
   extras?: string[];
@@ -277,6 +283,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v1",
           title: "Cremă de ovăz cu măr",
+          icon: "porridge",
           items: [
             { food: "oatCream", grams: 50 },
             { food: "whey", grams: 20 },
@@ -285,21 +292,23 @@ export const PLANS: Record<PersonKey, Plan> = {
           ],
           tip: OAT_TIP,
         },
-        { key: "v2", title: "Banana bread", items: [{ recipe: "bananaBread", portions: 1 }] },
+        { key: "v2", title: "Banana bread", icon: "bread", items: [{ recipe: "bananaBread", portions: 1 }] },
         {
           key: "v3",
           title: "Clătite proteice cu afine",
+          icon: "egg",
           items: [
             { recipe: "pancakes", portions: 1 },
             { food: "blueberries", grams: 50 },
           ],
         },
-        { key: "v4", title: "Prăjitură fit", items: [{ recipe: "fitCake", portions: 1 }] },
+        { key: "v4", title: "Prăjitură fit", icon: "cake", items: [{ recipe: "fitCake", portions: 1 }] },
       ],
       lunch: [
         {
           key: "v1",
           title: "Pui cu piure",
+          icon: "bowl",
           items: [
             { food: "chickenBreast", grams: 150 },
             { recipe: "mash", portions: 1 },
@@ -309,6 +318,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v2",
           title: "Porc cu ciuperci",
+          icon: "pot",
           items: [
             { food: "porkTenderloin", grams: 180, label: "180 g mușchi de porc slab" },
             { food: "mushrooms", grams: 250 },
@@ -321,6 +331,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v3",
           title: "Sandviș cu pui afumat",
+          icon: "sandwich",
           items: [
             { food: "tortilla", count: 1 },
             { food: "smokedChicken", grams: 150 },
@@ -333,6 +344,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v1",
           title: "Ciocolată și banană",
+          icon: "cookie",
           items: [
             { food: "darkChocolate", grams: 10 },
             { food: "banana", grams: 50 },
@@ -341,6 +353,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v2",
           title: "Ciocolată și afine",
+          icon: "cookie",
           items: [
             { food: "darkChocolate", grams: 10 },
             { food: "blueberries", grams: 80 },
@@ -349,6 +362,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v3",
           title: "Unt de arahide și banană",
+          icon: "fruit",
           items: [
             { food: "peanutButter", grams: 10 },
             { food: "banana", grams: 50 },
@@ -357,6 +371,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v4",
           title: "Unt de arahide și afine",
+          icon: "fruit",
           items: [
             { food: "peanutButter", grams: 10 },
             { food: "blueberries", grams: 80 },
@@ -367,6 +382,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v1",
           title: "Paste cu creveți",
+          icon: "shrimp",
           items: [
             { food: "shrimp", grams: 175 },
             { food: "butter", grams: 10 },
@@ -380,6 +396,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v2",
           title: "Chiftele de pui cu salată",
+          icon: "veg",
           items: [
             { recipe: "meatballs", portions: 1 },
             { food: "tomato", grams: 200 },
@@ -392,6 +409,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v3",
           title: "Paste cu șuncă și ciuperci",
+          icon: "cheese",
           items: [
             { food: "pasta", grams: 50 },
             { food: "chickenHam", grams: 180 },
@@ -421,6 +439,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v1",
           title: "Cremă de ovăz cu măr",
+          icon: "porridge",
           items: [
             { food: "oatCream", grams: 60 },
             { food: "whey", grams: 35 },
@@ -432,6 +451,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v2",
           title: "Banana bread cu iaurt",
+          icon: "bread",
           items: [
             { recipe: "bananaBread", portions: 1 },
             { food: "whey", grams: 10, label: "10 g pudră proteică în plus, în aluat" },
@@ -441,6 +461,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v3",
           title: "Clătite proteice cu afine",
+          icon: "egg",
           items: [
             { recipe: "pancakes", portions: 1 },
             { food: "egg", count: 1, label: "1 ou în plus, în aluat" },
@@ -451,6 +472,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v4",
           title: "Prăjitură fit cu iaurt",
+          icon: "cake",
           items: [
             { recipe: "fitCake", portions: 1 },
             { food: "greekYogurt", grams: 150 },
@@ -462,6 +484,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v1",
           title: "Pui cu piure și fasole verde",
+          icon: "bowl",
           items: [
             { food: "chickenBreast", grams: 200 },
             { recipe: "mash", portions: 1 },
@@ -472,6 +495,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v2",
           title: "Porc cu ciuperci și orez",
+          icon: "pot",
           items: [
             { food: "porkTenderloin", grams: 220 },
             { food: "mushrooms", grams: 250 },
@@ -485,6 +509,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v3",
           title: "Sandviș cu pui",
+          icon: "sandwich",
           items: [
             { food: "tortilla", count: 1 },
             { food: "chickenBreast", grams: 200, label: "200 g piept de pui gătit (sau afumat Pikok, nu zilnic)" },
@@ -499,6 +524,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v1",
           title: "Iaurt grecesc cu afine",
+          icon: "fruit",
           items: [
             { food: "greekYogurt", grams: 200 },
             { food: "blueberries", grams: 80 },
@@ -507,6 +533,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v2",
           title: "Iaurt grecesc cu banană",
+          icon: "fruit",
           items: [
             { food: "greekYogurt", grams: 200 },
             { food: "banana", grams: 50 },
@@ -517,6 +544,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v1",
           title: "Paste cu creveți",
+          icon: "shrimp",
           items: [
             { food: "shrimp", grams: 250 },
             { food: "butter", grams: 10 },
@@ -530,6 +558,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v2",
           title: "Chiftele de pui cu salată",
+          icon: "veg",
           items: [
             { recipe: "meatballs", portions: 1 },
             { food: "tomato", grams: 200 },
@@ -542,6 +571,7 @@ export const PLANS: Record<PersonKey, Plan> = {
         {
           key: "v3",
           title: "Paste cu șuncă și ciuperci",
+          icon: "cheese",
           items: [
             { food: "pasta", grams: 70 },
             { food: "chickenHam", grams: 180, label: "180 g șuncă de pui Sissi (sau 200 g piept de pui, mai puțină sare)" },

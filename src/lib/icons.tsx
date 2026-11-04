@@ -69,6 +69,21 @@ import { Bank as PBank } from "@phosphor-icons/react/dist/ssr/Bank";
 import { Bell as PBell } from "@phosphor-icons/react/dist/ssr/Bell";
 import { FilePdf as PFilePdf } from "@phosphor-icons/react/dist/ssr/FilePdf";
 import { BellSlash as PBellSlash } from "@phosphor-icons/react/dist/ssr/BellSlash";
+// Food, for the meals page.
+import { SunHorizon as PSunHorizon } from "@phosphor-icons/react/dist/ssr/SunHorizon";
+import { BowlFood as PBowlFood } from "@phosphor-icons/react/dist/ssr/BowlFood";
+import { BowlSteam as PBowlSteam } from "@phosphor-icons/react/dist/ssr/BowlSteam";
+import { Cherries as PCherries } from "@phosphor-icons/react/dist/ssr/Cherries";
+import { MoonStars as PMoonStars } from "@phosphor-icons/react/dist/ssr/MoonStars";
+import { Bread as PBread } from "@phosphor-icons/react/dist/ssr/Bread";
+import { Egg as PEgg } from "@phosphor-icons/react/dist/ssr/Egg";
+import { Cake as PCake } from "@phosphor-icons/react/dist/ssr/Cake";
+import { CookingPot as PCookingPot } from "@phosphor-icons/react/dist/ssr/CookingPot";
+import { Hamburger as PHamburger } from "@phosphor-icons/react/dist/ssr/Hamburger";
+import { Cookie as PCookie } from "@phosphor-icons/react/dist/ssr/Cookie";
+import { Shrimp as PShrimp } from "@phosphor-icons/react/dist/ssr/Shrimp";
+import { Carrot as PCarrot } from "@phosphor-icons/react/dist/ssr/Carrot";
+import { Cheese as PCheese } from "@phosphor-icons/react/dist/ssr/Cheese";
 
 // Re-exports — keep Lucide names so existing callsites work. Phosphor's
 // default `regular` weight is close to Lucide's stroke; no wrapper needed.
@@ -137,3 +152,17 @@ export const Bank = PBank;
 export const Bell = PBell;
 export const FilePdf = PFilePdf;
 export const BellSlash = PBellSlash;
+export const SunHorizon = PSunHorizon;
+export const BowlFood = PBowlFood;
+export const BowlSteam = PBowlSteam;
+export const Cherries = PCherries;
+export const MoonStars = PMoonStars;
+export const Bread = PBread;
+export const Egg = PEgg;
+export const Cake = PCake;
+export const CookingPot = PCookingPot;
+export const Hamburger = PHamburger;
+export const Cookie = PCookie;
+export const Shrimp = PShrimp;
+export const Carrot = PCarrot;
+export const Cheese = PCheese;
