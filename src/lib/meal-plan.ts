@@ -690,6 +690,108 @@ export function planRange(person: PersonKey): { min: Macros; max: Macros } {
   return { min: pick((a, b) => a.kcal <= b.kcal), max: pick((a, b) => a.kcal >= b.kcal) };
 }
 
+/* -------------------------------------------------------------- shopping */
+
+export const AISLES = [
+  "Carne și pește",
+  "Lactate și ouă",
+  "Legume și fructe",
+  "Paste, cereale și pâine",
+  "Cămară",
+  "Dulciuri și gustări",
+] as const;
+export type Aisle = (typeof AISLES)[number];
+
+const AISLE: Record<FoodKey, Aisle> = {
+  chickenBreast: "Carne și pește",
+  porkTenderloin: "Carne și pește",
+  shrimp: "Carne și pește",
+  smokedChicken: "Carne și pește",
+  chickenHam: "Carne și pește",
+  egg: "Lactate și ouă",
+  eggWhite: "Lactate și ouă",
+  greekYogurt: "Lactate și ouă",
+  proteinCheese: "Lactate și ouă",
+  parmesan: "Lactate și ouă",
+  proteinPudding: "Lactate și ouă",
+  butter: "Lactate și ouă",
+  milk: "Lactate și ouă",
+  apple: "Legume și fructe",
+  banana: "Legume și fructe",
+  blueberries: "Legume și fructe",
+  mushrooms: "Legume și fructe",
+  onion: "Legume și fructe",
+  redPepper: "Legume și fructe",
+  tomato: "Legume și fructe",
+  greenBeans: "Legume și fructe",
+  lettuce: "Legume și fructe",
+  carrot: "Legume și fructe",
+  greenOnion: "Legume și fructe",
+  garlic: "Legume și fructe",
+  herbs: "Legume și fructe",
+  potato: "Legume și fructe",
+  oatCream: "Paste, cereale și pâine",
+  oats: "Paste, cereale și pâine",
+  pasta: "Paste, cereale și pâine",
+  rice: "Paste, cereale și pâine",
+  tortilla: "Paste, cereale și pâine",
+  riceCake: "Paste, cereale și pâine",
+  puffedQuinoa: "Paste, cereale și pâine",
+  breadcrumbs: "Paste, cereale și pâine",
+  whey: "Cămară",
+  oliveOil: "Cămară",
+  peanutButter: "Cămară",
+  seedMix: "Cămară",
+  cocoa: "Cămară",
+  erythritol: "Cămară",
+  bakingPowder: "Cămară",
+  darkChocolate: "Dulciuri și gustări",
+  kinderCard: "Dulciuri și gustări",
+  kinderPingui: "Dulciuri și gustări",
+  chocRiceCake: "Dulciuri și gustări",
+  proteinBar: "Dulciuri și gustări",
+};
+
+export type ShoppingItem = { food: FoodKey; name: string; grams: number; pieces?: { count: number; one: string; many: string } };
+
+/**
+ * Everything the chosen meals need, summed per food and grouped by aisle.
+ * Recipes count only the portions eaten: one portion of a six-portion mash is
+ * a sixth of the potatoes.
+ */
+export function shoppingList(
+  picks: Array<{ person: PersonKey; meal: MealKey; variant: string }>,
+): Array<{ aisle: Aisle; items: ShoppingItem[] }> {
+  const grams = new Map<FoodKey, number>();
+  const addIng = (i: Ingredient, factor: number) =>
+    grams.set(i.food, (grams.get(i.food) ?? 0) + ingredientGrams(i) * factor);
+  for (const p of picks) {
+    const v = findVariant(p.person, p.meal, p.variant);
+    if (!v) continue;
+    for (const item of v.items) {
+      if ("recipe" in item) {
+        const r: Recipe = RECIPES[item.recipe];
+        for (const i of r.ingredients) addIng(i, item.portions / r.servings);
+      } else addIng(item, 1);
+    }
+  }
+  return AISLES.map((aisle) => ({
+    aisle,
+    items: [...grams]
+      .filter(([f]) => AISLE[f] === aisle)
+      .map(([food, gr]): ShoppingItem => {
+        const f: Food = FOODS[food];
+        return {
+          food,
+          name: f.name,
+          grams: gr,
+          pieces: f.unit ? { count: Math.ceil(gr / f.unit.grams - 0.05), one: f.unit.one, many: f.unit.many } : undefined,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, "ro")),
+  })).filter((g) => g.items.length > 0);
+}
+
 /* ----------------------------------------------------------------- dates */
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;

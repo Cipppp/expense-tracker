@@ -11,6 +11,7 @@ import {
   mondayOf,
   planRange,
   recipeMacros,
+  shoppingList,
   variantMacros,
   weekOf,
   type Ingredient,
@@ -100,5 +101,23 @@ describe("week dates", () => {
       "2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31", "2026-11-01",
     ]);
     expect(addDays("2026-03-28", 2)).toBe("2026-03-30");
+  });
+});
+
+describe("shopping list", () => {
+  const lunch = (person: "cip" | "axy", variant = "v1") => ({ person, meal: "lunch" as const, variant });
+
+  it("adds the same food across people and counts recipe portions only", () => {
+    const groups = shoppingList([lunch("cip"), lunch("axy")]);
+    const items = Object.fromEntries(groups.flatMap((gr) => gr.items.map((i) => [i.food, i])));
+
+    expect(items.chickenBreast.grams).toBe(350); // 200 g for Cip + 150 g for Axy
+    expect(items.potato.grams).toBeCloseTo(2000 / 6, 5); // two portions of a six-portion mash
+    expect(items.kinderCard.pieces).toMatchObject({ count: 2 });
+    expect(groups[0].aisle).toBe("Carne și pește");
+  });
+
+  it("ignores picks the plan doesn't have", () => {
+    expect(shoppingList([{ person: "cip", meal: "lunch", variant: "v9" }])).toEqual([]);
   });
 });
