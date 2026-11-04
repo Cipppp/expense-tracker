@@ -23,6 +23,8 @@ type Food = {
   source: string;
   /** Where to buy it and under which shelf name; prices from Lidl's daily list, 04.11.2026. */
   buy?: string;
+  /** Set when Lidl doesn't stock it (reliably): the closest Lidl product to buy instead. */
+  lidlAlt?: string;
 };
 
 const m = (kcal: number, protein: number, carbs: number, fat: number, fiber = 0): Macros => ({
@@ -60,7 +62,8 @@ export const FOODS = {
     name: "șuncă din piept de pui Sissi",
     per100: m(94, 18, 2.2, 1.5),
     source: "eticheta de pe sezamo.ro",
-    buy: "Nu e la Lidl: sezamo.ro, 15,79 lei / 170 g. La Lidl înlocuitorul e Pikok șuncă din piept de pui, 500 g, 16,29 lei",
+    buy: "Nu e la Lidl. Se găsește pe sezamo.ro, 15,79 lei / 170 g.",
+    lidlAlt: "Pikok „Șuncă din piept de pui”, 500 g, 16,29 lei, permanent. Valori foarte apropiate: ~95–105 kcal și ~19–20 g proteină la 100 g.",
   },
   proteinCheese: {
     name: "cașcaval proteic Milbona",
@@ -74,7 +77,8 @@ export const FOODS = {
     per100: m(76, 10, 5.2, 1.5),
     unit: { one: "budincă", many: "budinci", grams: 200 },
     source: "Open Food Facts, poza etichetei (ciocolată; vanilie 75 kcal)",
-    buy: "La Lidl doar în oferte. Permanent: Pilos Budincă High Protein, 200 g, 4,99 lei",
+    buy: "Milbona apare la Lidl doar în oferte.",
+    lidlAlt: "Pilos „Budincă High Protein”, 200 g, 4,99 lei, permanent. Tot 20 g proteină la cutie, cu ~15 kcal mai mult (~165 kcal).",
   },
   proteinBar: {
     name: "baton proteic Sportyfeel",
@@ -89,7 +93,8 @@ export const FOODS = {
     name: "cremă de ovăz The Rice Dealer",
     per100: m(392, 13, 68, 6.9, 8),
     source: "etichetă The Rice Dealer, vanilie (nu există variantă simplă)",
-    buy: "Site-ul The Rice Dealer e în mentenanță și n-am găsit-o în magazine. Planul acceptă aceeași cantitate de fulgi de ovăz",
+    buy: "Site-ul The Rice Dealer e în mentenanță și n-am găsit-o în magazine.",
+    lidlAlt: "Crownfield „Fulgi de ovăz bio”, 500 g, 6,99 lei. Dați la blender devin cremă; ~371 kcal și 13 g proteină la 100 g, practic la fel. Nu lua „diverse sortimente” (15,99 lei, au arome).",
   },
   oats: { name: "fulgi de ovăz", per100: m(372, 13.5, 58.7, 7, 10), source: EU },
   pasta: { name: "paste", per100: m(359, 12.5, 71, 2, 3), source: "etichetă Barilla" },
@@ -107,7 +112,8 @@ export const FOODS = {
     name: "quinoa expandată",
     per100: m(370, 11, 68, 4.5, 5.5),
     source: "estimat, media mărcilor de pe Open Food Facts",
-    buy: "Nu e la Lidl; caut-o în magazinele bio sau naturiste",
+    buy: "Nu se găsește la Lidl; în magazinele bio sau naturiste.",
+    lidlAlt: "Sondey „Rondele de orez BIO”, 135 g, 4,29 lei, sfărâmate. ~375 kcal la 100 g, aproape la fel; Lidl n-are orez sau amarant expandat simplu.",
   },
   breadcrumbs: { name: "pesmet", per100: m(395, 13.4, 72, 5.3, 4.5), source: USDA },
 
@@ -789,6 +795,7 @@ export type ShoppingItem = {
   grams: number;
   pieces?: { count: number; one: string; many: string };
   buy?: string;
+  lidlAlt?: string;
 };
 
 /**
@@ -824,6 +831,7 @@ export function shoppingList(
           grams: gr,
           pieces: f.unit ? { count: Math.ceil(gr / f.unit.grams - 0.05), one: f.unit.one, many: f.unit.many } : undefined,
           buy: f.buy,
+          lidlAlt: f.lidlAlt,
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name, "ro")),
