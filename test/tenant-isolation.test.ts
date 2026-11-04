@@ -221,7 +221,7 @@ describe.skipIf(!url)("izolarea între utilizatori", () => {
 
   describe("check-in și cumpărături", () => {
     it("check-in-urile și lista de cumpărături rămân în contul lor", async () => {
-      const ci = { person: "cip", day: "2026-11-07", weightKg: 95, waistCm: null, note: "" };
+      const ci = { person: "cip", day: "2026-11-07", weightKg: 95, waistCm: null, hipsCm: 104, note: "" };
       await runAsUser(A, () => db.mealCheckIn.create({ data: { userId: A, ...ci } }));
       await runAsUser(B, () => db.mealCheckIn.create({ data: { userId: B, ...ci, weightKg: 70 } }));
       await runAsUser(A, () => db.mealShoppingWeek.create({ data: { userId: A, week: "2026-11-02", checked: ["egg"] } }));

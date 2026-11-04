@@ -5,6 +5,7 @@ import { bucharestDay } from "@/lib/supplements";
 import { isDay, mondayOf, weekOf } from "@/lib/meal-plan";
 import { MealsBoard, type ChoiceRow } from "@/components/meals/meals-board";
 import type { CheckIn } from "@/components/meals/check-ins";
+import { MEASUREMENTS } from "@/lib/body";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,13 @@ export default async function MealsPage(props: { searchParams: Promise<{ w?: str
     }),
     db.mealCheckIn.findMany({
       orderBy: { day: "asc" },
-      select: { person: true, day: true, weightKg: true, waistCm: true, note: true },
+      select: {
+        person: true,
+        day: true,
+        weightKg: true,
+        note: true,
+        ...Object.fromEntries(MEASUREMENTS.map((m) => [m.key, true])),
+      },
     }),
     db.mealShoppingWeek.findFirst({ where: { week: days[0] }, select: { checked: true } }),
     getSettings(),

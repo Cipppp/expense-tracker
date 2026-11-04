@@ -6,14 +6,16 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { Trash2 } from "@/lib/icons";
 import type { Person, PersonKey } from "@/lib/chores";
 import { cn } from "@/lib/utils";
+import { MEASUREMENTS, type MeasurementKey } from "@/lib/body";
 
 export type CheckIn = {
   person: PersonKey;
   day: string;
   weightKg: number | null;
-  waistCm: number | null;
   note: string;
-};
+} & Record<MeasurementKey, number | null>;
+
+const EMPTY = Object.fromEntries(MEASUREMENTS.map((m) => [m.key, ""])) as Record<MeasurementKey, string>;
 
 const utc = (day: string) => new Date(`${day}T00:00:00Z`);
 const dateLabel = (day: string) =>
@@ -45,7 +47,7 @@ export function CheckIns({
   const [all, setAll] = useState<CheckIn[]>(initial);
   const [day, setDay] = useState(today);
   const [weight, setWeight] = useState("");
-  const [waist, setWaist] = useState("");
+  const [measures, setMeasures] = useState<Record<MeasurementKey, string>>(EMPTY);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -79,13 +81,13 @@ export function CheckIns({
   async function submit(e: { preventDefault(): void }) {
     e.preventDefault();
     const weightKg = parse(weight);
-    const waistCm = parse(waist);
-    if (Number.isNaN(weightKg) || Number.isNaN(waistCm)) {
-      toast.error("Greutatea și talia se scriu ca numere, de exemplu 95,4.");
+    const cm = Object.fromEntries(MEASUREMENTS.map((m) => [m.key, parse(measures[m.key])])) as Record<MeasurementKey, number | null>;
+    if ([weightKg, ...Object.values(cm)].some((v) => Number.isNaN(v))) {
+      toast.error("Greutatea și măsurătorile se scriu ca numere, de exemplu 95,4.");
       return;
     }
-    if (weightKg === null && waistCm === null && !note.trim()) {
-      toast.error("Scrie măcar greutatea, talia sau o notă.");
+    if (weightKg === null && Object.values(cm).every((v) => v === null) && !note.trim()) {
+      toast.error("Scrie măcar greutatea, o măsurătoare sau o notă.");
       return;
     }
     setSaving(true);
@@ -93,13 +95,13 @@ export function CheckIns({
       const res = await fetch("/api/meals/checkin", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ person: person.key, day, weightKg, waistCm, note }),
+        body: JSON.stringify({ person: person.key, day, weightKg, ...cm, note }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.checkIn) throw new Error(String(res.status));
       setAll((prev) => [...prev.filter((c) => !(c.person === person.key && c.day === day)), data.checkIn as CheckIn]);
       setWeight("");
-      setWaist("");
+      setMeasures(EMPTY);
       setNote("");
       toast.success("Check-in salvat.");
     } catch {
@@ -136,14 +138,22 @@ export function CheckIns({
             Ziua
             <input type="date" value={day} max={today} onChange={(e) => setDay(e.target.value)} required className={input} />
           </label>
-          <label className="space-y-1 text-[12px] text-muted-foreground">
+          <label className="col-span-2 space-y-1 text-[12px] text-muted-foreground">
             Greutate (kg)
             <input inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="95,4" className={input} />
           </label>
-          <label className="space-y-1 text-[12px] text-muted-foreground">
-            Talie (cm)
-            <input inputMode="decimal" value={waist} onChange={(e) => setWaist(e.target.value)} placeholder="102" className={input} />
-          </label>
+          {MEASUREMENTS.map((m) => (
+            <label key={m.key} className="space-y-1 text-[12px] text-muted-foreground">
+              {m.label} (cm)
+              <input
+                inputMode="decimal"
+                value={measures[m.key]}
+                onChange={(e) => setMeasures((prev) => ({ ...prev, [m.key]: e.target.value }))}
+                placeholder={m.hint}
+                className={input}
+              />
+            </label>
+          ))}
           <label className="col-span-2 space-y-1 text-[12px] text-muted-foreground">
             Notă
             <textarea
@@ -234,11 +244,10 @@ export function CheckIns({
 
         {mine.length > 0 && (
           <section className="overflow-hidden rounded-xl border border-border bg-card">
-            <div className="grid grid-cols-[minmax(0,1fr)_5rem_5rem_2rem] gap-3 border-b sm:grid-cols-[6rem_5rem_5rem_minmax(0,1fr)_2rem] border-border px-4 py-2 text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground">
+            <div className="grid grid-cols-[5.5rem_5.5rem_minmax(0,1fr)_2rem] gap-3 border-b border-border px-4 py-2 text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground">
               <span>Ziua</span>
               <span className="text-right">Greutate</span>
-              <span className="text-right">Talie</span>
-              <span className="hidden sm:block">Notă</span>
+              <span>Măsurători</span>
               <span />
             </div>
             <ul className="divide-y divide-border">
@@ -246,7 +255,7 @@ export function CheckIns({
                 const prev = rev.slice(i + 1).find((x) => x.weightKg !== null);
                 const delta = c.weightKg !== null && prev?.weightKg != null ? c.weightKg - prev.weightKg : null;
                 return (
-                  <li key={c.day} className="grid grid-cols-[minmax(0,1fr)_5rem_5rem_2rem] items-baseline gap-x-3 gap-y-1 px-4 py-2 text-[12.5px] sm:grid-cols-[6rem_5rem_5rem_minmax(0,1fr)_2rem]">
+                  <li key={c.day} className="grid grid-cols-[5.5rem_5.5rem_minmax(0,1fr)_2rem] items-baseline gap-x-3 gap-y-1 px-4 py-2 text-[12.5px]">
                     <span>{dateLabel(c.day)}</span>
                     <span className="text-right tabular-nums">
                       {c.weightKg !== null ? `${num(c.weightKg)} kg` : "–"}
@@ -254,10 +263,21 @@ export function CheckIns({
                         <span className="block text-[11px] text-muted-foreground">{signed(delta, "kg")}</span>
                       )}
                     </span>
-                    <span className="text-right tabular-nums">{c.waistCm !== null ? `${num(c.waistCm)} cm` : "–"}</span>
-                    {/* On a phone the note drops to its own line under the numbers. */}
-                    <span className={cn("order-last col-span-full min-w-0 text-muted-foreground sm:order-none sm:col-span-1", !c.note && "hidden sm:block")}>
-                      {c.note}
+                    {/* Each measurement with its change since the last check-in that had it. */}
+                    <span className="flex min-w-0 flex-wrap gap-x-3 gap-y-0.5 tabular-nums">
+                      {MEASUREMENTS.filter((m) => c[m.key] !== null).map((m) => {
+                        const before = rev.slice(i + 1).find((x) => x[m.key] !== null)?.[m.key];
+                        const d = before != null ? c[m.key]! - before : null;
+                        return (
+                          <span key={m.key} className="whitespace-nowrap">
+                            <span className="text-muted-foreground">{m.label}</span> {num(c[m.key]!)}
+                            {d !== null && d !== 0 && (
+                              <span className="ml-1 text-[11px] text-muted-foreground">{signed(d, "")}</span>
+                            )}
+                          </span>
+                        );
+                      })}
+                      {MEASUREMENTS.every((m) => c[m.key] === null) && <span className="text-muted-foreground">–</span>}
                     </span>
                     <button
                       type="button"
@@ -267,6 +287,7 @@ export function CheckIns({
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
+                    {c.note && <span className="col-span-full text-[12px] text-muted-foreground">{c.note}</span>}
                   </li>
                 );
               })}
